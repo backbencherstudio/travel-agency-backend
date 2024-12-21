@@ -1,0 +1,293 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// this table stores user account information
+model Account {
+  id                  String  @id @default(cuid())
+  user_id             String
+  type                String
+  provider            String
+  provider_account_id String
+  refresh_token       String? @db.Text
+  access_token        String? @db.Text
+  expires_at          Int?
+  token_type          String?
+  scope               String?
+  id_token            String? @db.Text
+  session_state       String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, provider_account_id])
+}
+
+// User table
+model User {
+  // id                String  @id @default(cuid())
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // available values:
+  // online, busy, offline
+  availability String?
+
+  email    String? @unique
+  username String? @unique
+  fname    String? @db.VarChar(255)
+  lname    String? @db.VarChar(255)
+  password String? @db.VarChar(255)
+  domain   String? @unique
+  avatar   String?
+
+  // billing id. e.g. stripe customer id
+  billing_id String?
+
+  // available values: su_admin, admin, agent, user
+  type String? @default("user")
+
+  ucodes                 Ucode[]
+  role_users             RoleUser[]
+  sender_notifications   Notification[] @relation("sender")
+  receiver_notifications Notification[] @relation("receiver")
+  roles                  Role[]
+  accounts               Account[]
+
+  @@map("users")
+}
+
+// This Ucode table for storing temporary token/code for use of
+// email verification, forgot password etc
+model Ucode {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  status     Int?     @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  token      String?   @db.Text
+  email      String?
+  expired_at DateTime?
+
+  @@map("ucodes")
+}
+
+// Store list of Roles
+model Role {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  title String?
+  name  String?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  permission_roles PermissionRole[]
+  role_users       RoleUser[]
+  permissions      Permission[]
+
+  @@map("roles")
+}
+
+// Store List of permissions
+model Permission {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  title            String?
+  action           String?
+  subject          String?
+  conditions       String?          @db.Text
+  fields           String?          @db.Text
+  permission_roles PermissionRole[]
+  roles            Role[]
+
+  @@map("permissions")
+}
+
+// permission and role relationship
+model PermissionRole {
+  // id                String  @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  permission_id String
+  permission    Permission? @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  role_id String
+  role    Role?  @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([permission_id, role_id])
+  @@map("permission_roles")
+}
+
+// role and user relationship
+model RoleUser {
+  // id                String  @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  role_id String
+  role    Role?  @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  user    User?  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, user_id])
+  @@map("role_users")
+}
+
+// notification event
+model NotificationEvent {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // available values:
+  // message, task, project, comment
+  type          String?
+  text          String?        @db.Text
+  notifications Notification[]
+
+  @@map("notification_events")
+}
+
+// notification
+model Notification {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // user_who_fired_event
+  sender_id   String?
+  sender      User?   @relation("sender", fields: [sender_id], references: [id])
+  // user_to_notify 
+  receiver_id String?
+  receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
+
+  // notification id
+  notification_event_id String?
+  notification_event    NotificationEvent? @relation(fields: [notification_event_id], references: [id])
+
+  // entity id, e.g. message_id
+  entity_id Int?
+
+  // seen_by_user, Is message seen by user (receiver user)
+  read_at DateTime?
+
+  @@map("notifications")
+}
+
+// this table stores distanation information
+model Distination {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  name        String?
+  description String? @db.Text
+
+  distination_images DistinationImage[]
+
+  @@map("distinations")
+}
+
+// this table stores distanation image
+model DistinationImage {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  distination_id String?
+  distination    Distination? @relation(fields: [distination_id], references: [id])
+
+  image     String?
+  image_alt String?
+
+  @@map("distination_images")
+}
+
+// this table stores package information
+model Package {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  title          String?
+  description    String?        @db.Text
+  price          Decimal?
+  // duration in days
+  duration       Int?
+  package_images PackageImage[]
+
+  @@map("packages")
+}
+
+// this table stores package image
+model PackageImage {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  image     String?
+  image_alt String?
+
+  @@map("package_images")
+}
+
+
+
+// this table stores example
+// model Note {
+//   id                String  @id @default(cuid())
+//   created_at DateTime  @default(now())
+//   updated_at DateTime  @default(now())
+//   deleted_at DateTime?
+//   status     Int?      @default(1) @db.SmallInt
+
+//   title String?
+//   body  String? @db.Text
+
+//   tenant_id Int?
+//   tenant    Organization? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+//   @@map("notes")
+// }
