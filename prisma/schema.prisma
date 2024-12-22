@@ -66,6 +66,12 @@ model User {
   receiver_notifications Notification[] @relation("receiver")
   roles                  Role[]
   accounts               Account[]
+  bookings               Booking[]
+  reviews                Review[]
+  sender_messages        Message[]      @relation("sender")
+  receiver_messages      Message[]      @relation("receiver")
+  blog_comments          BlogComment[]
+  likes                  Like[]
 
   @@map("users")
 }
@@ -217,6 +223,7 @@ model Distination {
   description String? @db.Text
 
   distination_images DistinationImage[]
+  packages           Package[]
 
   @@map("distinations")
 }
@@ -246,14 +253,107 @@ model Package {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
-  title          String?
-  description    String?        @db.Text
-  price          Decimal?
-  // duration in days
-  duration       Int?
-  package_images PackageImage[]
+  name        String?
+  description String?  @db.Text
+  price       Decimal?
+  // e.g, 5 days, 4 nights
+  duration    String?
+
+  distination_id String?
+  distination    Distination? @relation(fields: [distination_id], references: [id])
+
+  // person capacity
+  capacity Int? @default(1)
+
+  cancellation_policy_id String?
+  cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
+
+  package_images               PackageImage[]
+  bookings                     Booking[]
+  reviews                      Review[]
+  package_trip_plans           PackageTripPlan[]
+  package_inclusion_exclusions PackageInclusionExclusion[]
 
   @@map("packages")
+}
+
+// this table stores package inclusion/exclusion information
+model PackageInclusionExclusion {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // available values:
+  // inclusion, exclusion
+  type String?
+
+  // inclusion/exclusion description
+  description String?
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  @@map("package_inclusion_exclusions")
+}
+
+// this table stores package trip plan
+model PackageTripPlan {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  // trip plan title
+  title String?
+
+  // trip plan description
+  description              String?                @db.Text
+  package_trip_plan_images PackageTripPlanImage[]
+
+  @@map("package_trip_plans")
+}
+
+// this table stores package trip plan image
+model PackageTripPlanImage {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_trip_plan_id String?
+  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id])
+
+  image     String?
+  image_alt String?
+
+  @@map("package_trip_plan_images")
+}
+
+// this table stores package cancellation policy
+model PackageCancellationPolicy {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // cancellation policy
+  // available values:
+  // free_cancellation, non_refundable
+  policy String?
+
+  // cancellation policy description
+  description String?   @db.Text
+  packages    Package[]
+
+  @@map("package_cancellation_policies")
 }
 
 // this table stores package image
@@ -273,7 +373,171 @@ model PackageImage {
   @@map("package_images")
 }
 
+// this table stores booking information
+model Booking {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
 
+  // booking status
+  // available values:
+  // pending, confirmed, canceled
+  status String? @default("pending")
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  @@map("notes")
+}
+
+// this table stores review
+model Review {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  rating  Int?
+  comment String? @db.Text
+
+  @@map("reviews")
+}
+
+// this table stores message
+model Message {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  sender_id String?
+  sender    User?   @relation("sender", fields: [sender_id], references: [id])
+
+  receiver_id String?
+  receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
+
+  message String? @db.Text
+
+  @@map("messages")
+}
+
+// this table stores blog information
+model Blog {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  title       String?
+  description String? @db.Text
+  body        String? @db.Text
+
+  blog_images   BlogImage[]
+  blog_comments BlogComment[]
+
+  @@map("blogs")
+}
+
+// this table stores blog image
+model BlogImage {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  blog_id String?
+  blog    Blog?   @relation(fields: [blog_id], references: [id])
+
+  image     String?
+  image_alt String?
+
+  @@map("blog_images")
+}
+
+// this table stores blog comment
+model BlogComment {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  blog_id String?
+  blog    Blog?   @relation(fields: [blog_id], references: [id])
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  comment String? @db.Text
+
+  @@map("blog_comments")
+}
+
+// this table stores like information
+model Like {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // likeable_type
+  // available values:
+  // blog, blog_comment, review
+  likeable_type String?
+
+  // likeable_id
+  // e.g. blog_id, blog_comment_id, review_id
+  likeable_id String?
+
+  @@map("likes")
+}
+
+// this table stores faq information
+model Faq {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  question String?
+  answer   String? @db.Text
+
+  @@map("faqs")
+}
+
+// this table stores contact information
+model Contact {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  first_name   String?
+  last_name    String?
+  email        String?
+  phone_number String?
+  message      String? @db.Text
+
+  @@map("contacts")
+}
 
 // this table stores example
 // model Note {
