@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CommentModule } from './comment/comment.module';
 import { NotificationModule } from './notification/notification.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
-  imports: [CommentModule, NotificationModule],
+  imports: [NotificationModule, ContactModule],
 })
 export class ApplicationModule {}

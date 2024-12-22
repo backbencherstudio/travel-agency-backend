@@ -17,25 +17,6 @@ export enum Permissions {
   role_management_update = 'role_management_update',
   role_management_show = 'role_management_show',
   role_management_delete = 'role_management_delete',
-  // project
-  project_read = 'project_read',
-  project_create = 'project_create',
-  project_update = 'project_update',
-  project_show = 'project_show',
-  project_delete = 'project_delete',
-  // task
-  task_read = 'task_read',
-  task_create = 'task_create',
-  task_update = 'task_update',
-  task_show = 'task_show',
-  task_delete = 'task_delete',
-  task_assign = 'task_assign',
-  // comment
-  comment_read = 'comment_read',
-  comment_create = 'comment_create',
-  comment_update = 'comment_update',
-  comment_show = 'comment_show',
-  comment_delete = 'comment_delete',
   // note
   note_read = 'note_read',
   note_create = 'note_create',

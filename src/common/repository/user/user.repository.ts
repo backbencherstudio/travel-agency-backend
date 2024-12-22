@@ -43,19 +43,6 @@ export class UserRepository {
             },
           },
         },
-        project_members: {
-          include: {
-            role: {
-              include: {
-                permission_roles: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
     return user;
