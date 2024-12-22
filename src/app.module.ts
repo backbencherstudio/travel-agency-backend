@@ -15,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ThrottlerBehindProxyGuard } from './common/guard/throttler-behind-proxy.guard';
 import { AbilityModule } from './ability/ability.module';
 import { ApplicationModule } from './modules/application/application.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ApplicationModule } from './modules/application/application.module';
     AuthModule,
     AbilityModule,
     ApplicationModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
