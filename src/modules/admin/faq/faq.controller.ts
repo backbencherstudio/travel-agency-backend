@@ -21,7 +21,7 @@ import { RolesGuard } from '../../../common/guard/role/roles.guard';
 @ApiTags('Faq')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
-@Controller('faq')
+@Controller('admin/faq')
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
