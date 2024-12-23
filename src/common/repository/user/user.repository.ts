@@ -89,19 +89,18 @@ export class UserRepository {
    * @param param0
    * @returns
    */
-  static async inviteUser({ fname, lname, username, email, role_id }) {
+  static async inviteUser({ name, username, email, role_id }) {
     try {
       const user = await prisma.user.create({
         data: {
-          fname: fname,
-          lname: lname,
+          name: name,
           username: username,
           email: email,
         },
       });
       if (user) {
         // attach role
-        const role = await this.attachRole({
+        await this.attachRole({
           user_id: user.id,
           role_id: role_id,
         });
@@ -167,12 +166,12 @@ export class UserRepository {
    * @param param0
    * @returns
    */
-  static async createUser({ username, email, password, role_id = null }) {
+  static async createUser({ name, email, password, role_id = null }) {
     try {
       password = await bcrypt.hash(password, appConfig().security.salt);
       const user = await prisma.user.create({
         data: {
-          username: username,
+          name: name,
           email: email,
           password: password,
         },
@@ -180,7 +179,7 @@ export class UserRepository {
       if (user) {
         if (role_id) {
           // attach role
-          const role = await this.attachRole({
+          await this.attachRole({
             user_id: user.id,
             role_id: role_id,
           });

@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { join } from 'path';
 // internal imports
 import { AppModule } from './app.module';
+import { CustomExceptionFilter } from './common/exception/custom-exception.filter';
 // import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
@@ -26,6 +27,7 @@ async function bootstrap() {
     prefix: '/storage',
   });
   app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalFilters(new CustomExceptionFilter());
   // prisma setup
   // const prismaService = app.get(PrismaService);
   // await prismaService.enableShutdownHooks(app);

@@ -26,8 +26,7 @@ CREATE TABLE "users" (
     "availability" TEXT,
     "email" TEXT,
     "username" TEXT,
-    "fname" VARCHAR(255),
-    "lname" VARCHAR(255),
+    "name" VARCHAR(255),
     "password" VARCHAR(255),
     "domain" TEXT,
     "avatar" TEXT,
@@ -150,6 +149,7 @@ CREATE TABLE "distination_images" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "distination_id" TEXT,
     "image" TEXT,
     "image_alt" TEXT,
@@ -182,6 +182,7 @@ CREATE TABLE "package_inclusion_exclusions" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "type" TEXT,
     "description" TEXT,
     "package_id" TEXT,
@@ -196,6 +197,7 @@ CREATE TABLE "package_trip_plans" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "package_id" TEXT,
     "title" TEXT,
     "description" TEXT,
@@ -210,6 +212,7 @@ CREATE TABLE "package_trip_plan_images" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "package_trip_plan_id" TEXT,
     "image" TEXT,
     "image_alt" TEXT,
@@ -237,6 +240,7 @@ CREATE TABLE "package_images" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "package_id" TEXT,
     "image" TEXT,
     "image_alt" TEXT,
@@ -307,6 +311,7 @@ CREATE TABLE "blog_images" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "blog_id" TEXT,
     "image" TEXT,
     "image_alt" TEXT,
@@ -348,6 +353,7 @@ CREATE TABLE "faqs" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
     "question" TEXT,
     "answer" TEXT,
 
@@ -372,7 +378,9 @@ CREATE TABLE "contacts" (
 -- CreateTable
 CREATE TABLE "_PermissionToRole" (
     "A" TEXT NOT NULL,
-    "B" TEXT NOT NULL
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_PermissionToRole_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -386,9 +394,6 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_domain_key" ON "users"("domain");
-
--- CreateIndex
-CREATE UNIQUE INDEX "_PermissionToRole_AB_unique" ON "_PermissionToRole"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_PermissionToRole_B_index" ON "_PermissionToRole"("B");

@@ -3,7 +3,7 @@ import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
+// import { BullModule } from '@nestjs/bullmq';
 
 // internal imports
 import appConfig from './config/app.config';
@@ -12,7 +12,7 @@ import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { ThrottlerBehindProxyGuard } from './common/guard/throttler-behind-proxy.guard';
+// import { ThrottlerBehindProxyGuard } from './common/guard/throttler-behind-proxy.guard';
 import { AbilityModule } from './ability/ability.module';
 import { ApplicationModule } from './modules/application/application.module';
 import { AdminModule } from './modules/admin/admin.module';

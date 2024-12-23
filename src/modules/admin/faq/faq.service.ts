@@ -11,31 +11,123 @@ export class FaqService extends PrismaClient {
   }
 
   async create(createFaqDto: CreateFaqDto) {
-    const data = {};
-    if (createFaqDto.question) {
-      data['question'] = createFaqDto.question;
+    try {
+      const data = {};
+      if (createFaqDto.question) {
+        data['question'] = createFaqDto.question;
+      }
+      if (createFaqDto.answer) {
+        data['answer'] = createFaqDto.answer;
+      }
+      await this.prisma.faq.create({
+        data: {
+          ...data,
+        },
+      });
+      return {
+        success: true,
+        message: 'Faq created successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to create faq',
+      };
     }
-    const faq = await this.prisma.faq.create({
-      data: {
-        ...data,
-      },
-    });
-    return 'This action adds a new faq';
   }
 
-  findAll() {
-    return `This action returns all faq`;
+  async findAll() {
+    try {
+      const faqs = await this.prisma.faq.findMany({
+        orderBy: {
+          sort_order: 'asc',
+        },
+        select: {
+          id: true,
+          question: true,
+          answer: true,
+          sort_order: true,
+        },
+      });
+      return {
+        success: true,
+        data: faqs,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch faq',
+      };
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} faq`;
+  async findOne(id: string) {
+    try {
+      const faq = await this.prisma.faq.findUnique({
+        where: {
+          id: id,
+        },
+        select: {
+          id: true,
+          question: true,
+          answer: true,
+          sort_order: true,
+        },
+      });
+      return {
+        success: true,
+        data: faq,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch faq',
+      };
+    }
   }
 
-  update(id: number, updateFaqDto: UpdateFaqDto) {
-    return `This action updates a #${id} faq`;
+  async update(id: string, updateFaqDto: UpdateFaqDto) {
+    try {
+      const data = {};
+      if (updateFaqDto.question) {
+        data['question'] = updateFaqDto.question;
+      }
+      const faq = await this.prisma.faq.update({
+        where: {
+          id: id,
+        },
+        data: {
+          ...data,
+        },
+      });
+      return {
+        success: true,
+        data: faq,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to update faq',
+      };
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} faq`;
+  async remove(id: string) {
+    try {
+      const faq = await this.prisma.faq.delete({
+        where: {
+          id: id,
+        },
+      });
+      return {
+        success: true,
+        data: faq,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to delete faq',
+      };
+    }
   }
 }

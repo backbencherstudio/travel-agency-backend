@@ -13,44 +13,85 @@ import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { AbilitiesGuard } from '../../../ability/abilities.guard';
-import { CheckAbilities } from '../../../ability/abilities.decorator';
-import { Action } from '../../../ability/ability.factory';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { Role } from '../../../common/guard/role/role.enum';
+import { RolesGuard } from '../../../common/guard/role/roles.guard';
 
 @ApiBearerAuth()
 @ApiTags('Faq')
-@UseGuards(JwtAuthGuard, AbilitiesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('faq')
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
   @ApiOperation({ summary: 'Create faq' })
-  // @CheckAbilities({ action: Action.Create, subject: 'Faq' })
-  @Roles(Role.ADMIN)
   @Post()
-  create(@Body() createFaqDto: CreateFaqDto) {
-    return this.faqService.create(createFaqDto);
+  async create(@Body() createFaqDto: CreateFaqDto) {
+    try {
+      const faq = await this.faqService.create(createFaqDto);
+      return faq;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Create faq' })
   @Get()
-  findAll() {
-    return this.faqService.findAll();
+  async findAll() {
+    try {
+      const faqs = await this.faqService.findAll();
+      return faqs;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Read one faq' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.faqService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const faq = await this.faqService.findOne(id);
+      return faq;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Update faq' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFaqDto: UpdateFaqDto) {
-    return this.faqService.update(+id, updateFaqDto);
+  async update(@Param('id') id: string, @Body() updateFaqDto: UpdateFaqDto) {
+    try {
+      const faq = await this.faqService.update(id, updateFaqDto);
+      return faq;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Delete faq' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.faqService.remove(+id);
+  async remove(@Param('id') id: string) {
+    try {
+      const faq = await this.faqService.remove(id);
+      return faq;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }

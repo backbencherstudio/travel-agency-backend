@@ -30,33 +30,20 @@ function doCan(can, permissionRoles) {
 }
 @Injectable()
 export class AbilityFactory {
-  defineAbility(user, project_wise = true) {
+  defineAbility(user) {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(
       createPrismaAbility,
     );
 
     if (user) {
-      if (project_wise) {
-        // project wise permissions
-        // for (const permissionRoles of user.project_members[0].role
-        //   .permission_roles) {
-        //   doCan(can, permissionRoles);
-        // }
-        for (const permissionRoles of user.project_members) {
-          for (const permissionRole of permissionRoles.role.permission_roles) {
-            doCan(can, permissionRole);
-          }
-        }
-      } else {
-        // global permissions
-        // for (const permissionRoles of user.role_users[0].role
-        //   .permission_roles) {
-        //   doCan(can, permissionRoles);
-        // }
-        for (const permissionRoles of user.role_users) {
-          for (const permissionRole of permissionRoles.role.permission_roles) {
-            doCan(can, permissionRole);
-          }
+      // global permissions
+      // for (const permissionRoles of user.role_users[0].role
+      //   .permission_roles) {
+      //   doCan(can, permissionRoles);
+      // }
+      for (const permissionRoles of user.role_users) {
+        for (const permissionRole of permissionRoles.role.permission_roles) {
+          doCan(can, permissionRole);
         }
       }
     }

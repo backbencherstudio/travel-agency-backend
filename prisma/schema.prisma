@@ -48,8 +48,7 @@ model User {
 
   email    String? @unique
   username String? @unique
-  fname    String? @db.VarChar(255)
-  lname    String? @db.VarChar(255)
+  name     String? @db.VarChar(255)
   password String? @db.VarChar(255)
   domain   String? @unique
   avatar   String?
@@ -235,6 +234,7 @@ model DistinationImage {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   distination_id String?
   distination    Distination? @relation(fields: [distination_id], references: [id])
@@ -284,6 +284,7 @@ model PackageInclusionExclusion {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   // available values:
   // inclusion, exclusion
@@ -305,6 +306,7 @@ model PackageTripPlan {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
@@ -326,6 +328,7 @@ model PackageTripPlanImage {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   package_trip_plan_id String?
   package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id])
@@ -363,6 +366,7 @@ model PackageImage {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
@@ -458,6 +462,7 @@ model BlogImage {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   blog_id String?
   blog    Blog?   @relation(fields: [blog_id], references: [id])
@@ -516,6 +521,7 @@ model Faq {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
 
   question String?
   answer   String? @db.Text

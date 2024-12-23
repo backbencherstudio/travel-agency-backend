@@ -9,4 +9,7 @@ export class CreateFaqDto {
   @IsNotEmpty()
   @ApiProperty()
   answer: string;
+
+  @ApiProperty()
+  sort_order: number;
 }
