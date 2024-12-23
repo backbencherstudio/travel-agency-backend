@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User } from '@prisma/client';
 import appConfig from '../../../config/app.config';
 import { String } from 'aws-sdk/clients/cloudhsm';
 
@@ -12,6 +12,16 @@ export class UserRepository {
    * @returns
    */
   static async getUserByEmail(email: string) {
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email,
+      },
+    });
+    return user;
+  }
+
+  // email varification
+  static async verifyEmail({ email }) {
     const user = await prisma.user.findFirst({
       where: {
         email: email,
@@ -166,7 +176,12 @@ export class UserRepository {
    * @param param0
    * @returns
    */
-  static async createUser({ name, email, password, role_id = null }) {
+  static async createUser({
+    name,
+    email,
+    password,
+    role_id = null,
+  }): Promise<User> {
     try {
       password = await bcrypt.hash(password, appConfig().security.salt);
       const user = await prisma.user.create({
@@ -187,10 +202,43 @@ export class UserRepository {
 
         return user;
       } else {
-        return false;
+        return null;
       }
     } catch (error) {
       throw error;
+    }
+  }
+
+  // change password
+  static async changePassword({ email, password }) {
+    try {
+      password = await bcrypt.hash(password, appConfig().security.salt);
+      const user = await prisma.user.update({
+        where: {
+          email: email,
+        },
+        data: {
+          password: password,
+        },
+      });
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // validate password
+  static async validatePassword({ email, password }) {
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email,
+      },
+    });
+    if (user) {
+      const isValid = await bcrypt.compare(password, user.password);
+      return isValid;
+    } else {
+      return false;
     }
   }
 }

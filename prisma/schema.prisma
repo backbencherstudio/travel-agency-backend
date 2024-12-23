@@ -59,6 +59,8 @@ model User {
   // available values: su_admin, admin, agent, user
   type String? @default("user")
 
+  email_verified_at DateTime?
+
   ucodes                 Ucode[]
   role_users             RoleUser[]
   sender_notifications   Notification[] @relation("sender")

@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { DateHelper } from '../../../common/helper/date.helper';
 import { v4 as uuid } from 'uuid';
 import { UserRepository } from '../user/user.repository';
+import { randomInt } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -10,10 +11,25 @@ export class UcodeRepository {
    * create ucode token
    * @returns
    */
-  static async createToken({ userId, expired_at = null }) {
+  static async createToken({
+    userId,
+    expired_at = null,
+    isOtp = false,
+  }): Promise<string> {
+    // OTP valid for 5 minutes
+    const otpExpiryTime = 5 * 60 * 1000;
+    expired_at = new Date(Date.now() + otpExpiryTime);
+
     const userDetails = await UserRepository.getUserDetails(userId);
     if (userDetails && userDetails.email) {
-      const token = uuid();
+      let token: string;
+      if (isOtp) {
+        // create 6 digit otp code
+        // token = String(Math.floor(100000 + Math.random() * 900000));
+        token = String(randomInt(100000, 1000000));
+      } else {
+        token = uuid();
+      }
       const data = await prisma.ucode.create({
         data: {
           user_id: userId,
@@ -24,7 +40,7 @@ export class UcodeRepository {
       });
       return data.token;
     } else {
-      return false;
+      return null;
     }
   }
 
