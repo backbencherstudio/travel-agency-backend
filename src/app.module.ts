@@ -17,6 +17,7 @@ import { AbilityModule } from './ability/ability.module';
 import { MailModule } from './mail/mail.module';
 import { ApplicationModule } from './modules/application/application.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -24,18 +25,18 @@ import { AdminModule } from './modules/admin/admin.module';
       isGlobal: true,
       load: [appConfig],
     }),
-    // BullModule.forRoot({
-    //   connection: {
-    //     host: appConfig().redis.host,
-    //     password: appConfig().redis.password,
-    //     port: +appConfig().redis.port,
-    //   },
-    //   // redis: {
-    //   //   host: appConfig().redis.host,
-    //   //   password: appConfig().redis.password,
-    //   //   port: +appConfig().redis.port,
-    //   // },
-    // }),
+    BullModule.forRoot({
+      connection: {
+        host: appConfig().redis.host,
+        password: appConfig().redis.password,
+        port: +appConfig().redis.port,
+      },
+      // redis: {
+      //   host: appConfig().redis.host,
+      //   password: appConfig().redis.password,
+      //   port: +appConfig().redis.port,
+      // },
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
