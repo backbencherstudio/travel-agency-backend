@@ -12,6 +12,16 @@ export class CategoryService extends PrismaClient {
 
   async create(createCategoryDto: CreateCategoryDto) {
     try {
+      // check if category already exists
+      const category = await this.prisma.category.findFirst({
+        where: { name: createCategoryDto.name },
+      });
+      if (category) {
+        return {
+          success: false,
+          message: 'Category already exists',
+        };
+      }
       const data = {
         name: createCategoryDto.name,
       };
@@ -80,6 +90,16 @@ export class CategoryService extends PrismaClient {
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
     try {
+      // check if category already exists
+      const category = await this.prisma.category.findFirst({
+        where: { name: updateCategoryDto.name },
+      });
+      if (category) {
+        return {
+          success: false,
+          message: 'Category already exists',
+        };
+      }
       await this.prisma.category.update({
         where: { id: id },
         data: {

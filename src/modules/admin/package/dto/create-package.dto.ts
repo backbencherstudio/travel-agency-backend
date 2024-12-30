@@ -15,7 +15,7 @@ export class CreatePackageDto {
   description: string;
 
   @IsNotEmpty()
-  // @IsNumber()
+  @IsNumber()
   @ApiProperty({ example: 100 })
   price: number;
 
@@ -25,27 +25,37 @@ export class CreatePackageDto {
   duration: string;
 
   @IsNotEmpty()
-  // @IsNumber()
+  @IsNumber()
   @ApiProperty({ example: 1 })
   capacity: number;
 
-  // @IsNotEmpty()
-  // @IsString()
+  @IsString()
   @ApiProperty()
-  cancellation_policy_id: string;
+  cancellation_policy_id?: string;
 
-  // @IsNotEmpty()
-  // @IsString()
+  @IsString()
   @ApiProperty()
-  distination_id: string;
+  distination_id?: string;
 
-  // @IsNotEmpty()
-  // @IsArray()
+  @IsNotEmpty()
+  @IsArray()
   @ApiProperty()
-  package_categories: string;
+  package_categories: {
+    id: string;
+  }[];
 
-  // @IsNotEmpty()
-  // @IsArray()
+  @IsArray()
   @ApiProperty()
-  package_tags: string;
+  package_tags: {
+    id: string;
+  }[];
+
+  @IsNotEmpty()
+  @IsArray()
+  @ApiProperty()
+  trip_plans: {
+    title: string;
+    description: string;
+    images?: Express.Multer.File[];
+  }[];
 }

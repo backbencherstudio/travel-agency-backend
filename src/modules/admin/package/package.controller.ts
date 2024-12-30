@@ -22,7 +22,7 @@ import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { Role } from '../../../common/guard/role/role.enum';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Express, Request } from 'express';
 import { diskStorage } from 'multer';
 import appConfig from 'src/config/app.config';
@@ -38,19 +38,24 @@ export class PackageController {
   @ApiOperation({ summary: 'Create package' })
   @Post()
   @UseInterceptors(
-    FilesInterceptor('package_images', 10, {
-      storage: diskStorage({
-        destination:
-          appConfig().storageUrl.rootUrl + '/' + appConfig().storageUrl.package,
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          return cb(null, `${randomName}${file.originalname}`);
-        },
-      }),
-    }),
+    FileFieldsInterceptor(
+      [{ name: 'package_images' }, { name: 'trip_plans_images' }],
+      {
+        storage: diskStorage({
+          destination:
+            appConfig().storageUrl.rootUrl +
+            '/' +
+            appConfig().storageUrl.package,
+          filename: (req, file, cb) => {
+            const randomName = Array(32)
+              .fill(null)
+              .map(() => Math.round(Math.random() * 16).toString(16))
+              .join('');
+            return cb(null, `${randomName}${file.originalname}`);
+          },
+        }),
+      },
+    ),
   )
   async create(
     @Req() req: Request,
@@ -65,7 +70,10 @@ export class PackageController {
         fileIsRequired: false,
       }),
     )
-    package_images?: Express.Multer.File[],
+    files: {
+      package_images?: Express.Multer.File[];
+      trip_plans_images?: Express.Multer.File[];
+    },
   ) {
     try {
       const user_id = req.user.userId;
@@ -80,7 +88,7 @@ export class PackageController {
       const record = await this.packageService.create(
         user_id,
         createPackageDto,
-        package_images,
+        files,
       );
       return record;
     } catch (error) {
@@ -91,23 +99,62 @@ export class PackageController {
     }
   }
 
+  @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  findAll() {
-    return this.packageService.findAll();
+  async findAll() {
+    try {
+      const packages = await this.packageService.findAll();
+      return packages;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Get package by id' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.packageService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const record = await this.packageService.findOne(id);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Update package' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePackageDto: UpdatePackageDto) {
-    return this.packageService.update(+id, updatePackageDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updatePackageDto: UpdatePackageDto,
+  ) {
+    try {
+      const record = await this.packageService.update(id, updatePackageDto);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Delete package' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.packageService.remove(+id);
+  async remove(@Param('id') id: string) {
+    try {
+      const record = await this.packageService.remove(id);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }
