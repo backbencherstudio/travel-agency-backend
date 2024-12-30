@@ -8,6 +8,8 @@ import { join } from 'path';
 // internal imports
 import { AppModule } from './app.module';
 import { CustomExceptionFilter } from './common/exception/custom-exception.filter';
+import appConfig from './config/app.config';
+import { SojebStorage } from './common/lib/Disk/SojebStorage';
 // import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
@@ -28,6 +30,12 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalFilters(new CustomExceptionFilter());
+  
+  SojebStorage.config({
+    driver: 'local',
+    rootUrl: appConfig().storageUrl.rootUrl,
+    destination: appConfig().storageUrl.destination,
+  });
   // prisma setup
   // const prismaService = app.get(PrismaService);
   // await prismaService.enableShutdownHooks(app);

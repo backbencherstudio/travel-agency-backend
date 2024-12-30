@@ -214,8 +214,8 @@ model Notification {
   @@map("notifications")
 }
 
-// this table stores distanation information
-model Distination {
+// this table stores destination information
+model Destination {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -225,14 +225,14 @@ model Distination {
   name        String? // e.g. "Paris"
   description String? @db.Text // e.g. "Paris is the capital of France"
 
-  distination_images DistinationImage[]
+  destination_images DestinationImage[]
   packages           Package[]
 
-  @@map("distinations")
+  @@map("destinations")
 }
 
 // this table stores distanation image
-model DistinationImage {
+model DestinationImage {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -240,13 +240,13 @@ model DistinationImage {
   status     Int?      @default(1) @db.SmallInt
   sort_order Int?      @default(0)
 
-  distination_id String?
-  distination    Distination? @relation(fields: [distination_id], references: [id])
+  destination_id String?
+  destination    Destination? @relation(fields: [destination_id], references: [id])
 
   image     String?
   image_alt String?
 
-  @@map("distination_images")
+  @@map("destination_images")
 }
 
 // this table stores package information
@@ -269,8 +269,8 @@ model Package {
   // person capacity
   capacity Int @default(1)
 
-  distination_id String?
-  distination    Distination? @relation(fields: [distination_id], references: [id])
+  destination_id String?
+  destination    Destination? @relation(fields: [destination_id], references: [id])
 
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])

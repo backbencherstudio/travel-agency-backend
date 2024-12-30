@@ -49,6 +49,7 @@ export default () => ({
   storageUrl: {
     rootUrl: '.',
     package: 'public/storage/package',
+    destination: 'public/storage/destination',
   },
 
   defaultUser: {

@@ -5,11 +5,11 @@ import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
 
 /**
- * Storage class for handling storage
- * @class Storage
+ * SojebStorage class for handling storage
+ * @class SojebStorage
  * @author Sojeb Sikder <sojebsikder@gmail.com>
  */
-export class Storage {
+export class SojebStorage {
   private static _config: DiskOption;
 
   /**
