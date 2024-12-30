@@ -56,7 +56,7 @@ model User {
   // billing id. e.g. stripe customer id
   billing_id String?
 
-  // available values: su_admin, admin, agent, user
+  // available values: su_admin, admin, vendor, user
   type String? @default("user")
 
   email_verified_at DateTime?
@@ -73,6 +73,8 @@ model User {
   receiver_messages      Message[]      @relation("receiver")
   blog_comments          BlogComment[]
   likes                  Like[]
+  email_logs             EmailLog[]
+  packages               Package[]
 
   @@map("users")
 }
@@ -220,8 +222,8 @@ model Distination {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
-  name        String?
-  description String? @db.Text
+  name        String? // e.g. "Paris"
+  description String? @db.Text // e.g. "Paris is the capital of France"
 
   distination_images DistinationImage[]
   packages           Package[]
@@ -255,32 +257,36 @@ model Package {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
-  name        String?
-  description String?  @db.Text
-  price       Decimal?
+  user_id String
+  user    User?  @relation(fields: [user_id], references: [id])
+
+  name        String
+  description String  @db.Text
+  price       Decimal
   // e.g, 5 days, 4 nights
-  duration    String?
+  duration    String
+
+  // person capacity
+  capacity Int @default(1)
 
   distination_id String?
   distination    Distination? @relation(fields: [distination_id], references: [id])
 
-  // person capacity
-  capacity Int? @default(1)
-
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
-  package_images               PackageImage[]
-  bookings                     Booking[]
-  reviews                      Review[]
-  package_trip_plans           PackageTripPlan[]
-  package_inclusion_exclusions PackageInclusionExclusion[]
+  package_images     PackageImage[]
+  bookings           Booking[]
+  reviews            Review[]
+  package_trip_plans PackageTripPlan[]
+  package_categories PackageCategory[]
+  package_tags       PackageTag[]
 
   @@map("packages")
 }
 
-// this table stores package inclusion/exclusion information
-model PackageInclusionExclusion {
+// this table stores category
+model Category {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -288,17 +294,59 @@ model PackageInclusionExclusion {
   status     Int?      @default(1) @db.SmallInt
   sort_order Int?      @default(0)
 
-  // available values:
-  // inclusion, exclusion
-  type String?
+  name      String?
+  parent_id String?
 
-  // inclusion/exclusion description
-  description String?
+  package_categories PackageCategory[]
 
-  package_id String?
+  @@map("categories")
+}
+
+// this table stores package and category relationship
+model PackageCategory {
+  // id         String    @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_id String
   package    Package? @relation(fields: [package_id], references: [id])
 
-  @@map("package_inclusion_exclusions")
+  category_id String
+  category    Category? @relation(fields: [category_id], references: [id])
+
+  @@id([package_id, category_id])
+  @@map("package_categories")
+}
+
+// this table stores tag information (included, excluded lists)
+model Tag {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  name         String?
+  package_tags PackageTag[]
+
+  @@map("tags")
+}
+
+// this table stores package and tag relationship
+model PackageTag {
+  // id         String    @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  tag_id String
+  tag    Tag?   @relation(fields: [tag_id], references: [id])
+
+  @@id([package_id, tag_id])
+  @@map("package_tags")
 }
 
 // this table stores package trip plan
@@ -314,10 +362,10 @@ model PackageTripPlan {
   package    Package? @relation(fields: [package_id], references: [id])
 
   // trip plan title
-  title String?
-
+  title       String?
   // trip plan description
-  description              String?                @db.Text
+  description String? @db.Text
+
   package_trip_plan_images PackageTripPlanImage[]
 
   @@map("package_trip_plans")
@@ -397,7 +445,7 @@ model Booking {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
 
-  @@map("notes")
+  @@map("bookings")
 }
 
 // this table stores review
@@ -545,6 +593,58 @@ model Contact {
   message      String? @db.Text
 
   @@map("contacts")
+}
+
+// this table stores email template information
+model EmailTemplate {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  key        String? // e.g. forgot_password, welcome_email
+  subject    String? // email subject
+  body       String?    @db.Text // email body
+  language   String? // email language
+  email_logs EmailLog[]
+
+  @@map("email_templates")
+}
+
+// this table stores email log information
+model EmailLog {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  email_template_id String?
+  email_template    EmailTemplate? @relation(fields: [email_template_id], references: [id])
+
+  subject String?
+  body    String? @db.Text
+  to      String?
+  cc      String?
+  bcc     String?
+  status  String?
+
+  @@map("email_logs")
+}
+
+// this table stores setting information
+model Setting {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  key   String? // e.g. site_title, site_description
+  value String? @db.Text // setting value
+
+  @@map("settings")
 }
 
 // this table stores example

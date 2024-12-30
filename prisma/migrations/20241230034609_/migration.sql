@@ -32,6 +32,7 @@ CREATE TABLE "users" (
     "avatar" TEXT,
     "billing_id" TEXT,
     "type" TEXT DEFAULT 'user',
+    "email_verified_at" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -164,30 +165,63 @@ CREATE TABLE "packages" (
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
-    "name" TEXT,
-    "description" TEXT,
-    "price" DECIMAL(65,30),
-    "duration" TEXT,
+    "user_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "price" DECIMAL(65,30) NOT NULL,
+    "duration" TEXT NOT NULL,
+    "capacity" INTEGER NOT NULL DEFAULT 1,
     "distination_id" TEXT,
-    "capacity" INTEGER DEFAULT 1,
     "cancellation_policy_id" TEXT,
 
     CONSTRAINT "packages_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "package_inclusion_exclusions" (
+CREATE TABLE "categories" (
     "id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
     "status" SMALLINT DEFAULT 1,
     "sort_order" INTEGER DEFAULT 0,
-    "type" TEXT,
-    "description" TEXT,
-    "package_id" TEXT,
+    "name" TEXT,
+    "parent_id" TEXT,
 
-    CONSTRAINT "package_inclusion_exclusions_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "package_categories" (
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "package_id" TEXT NOT NULL,
+    "category_id" TEXT NOT NULL,
+
+    CONSTRAINT "package_categories_pkey" PRIMARY KEY ("package_id","category_id")
+);
+
+-- CreateTable
+CREATE TABLE "tags" (
+    "id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMP(3),
+    "status" SMALLINT DEFAULT 1,
+    "sort_order" INTEGER DEFAULT 0,
+    "name" TEXT,
+
+    CONSTRAINT "tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "package_tags" (
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "package_id" TEXT NOT NULL,
+    "tag_id" TEXT NOT NULL,
+
+    CONSTRAINT "package_tags_pkey" PRIMARY KEY ("package_id","tag_id")
 );
 
 -- CreateTable
@@ -249,7 +283,7 @@ CREATE TABLE "package_images" (
 );
 
 -- CreateTable
-CREATE TABLE "notes" (
+CREATE TABLE "bookings" (
     "id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -258,7 +292,7 @@ CREATE TABLE "notes" (
     "user_id" TEXT,
     "package_id" TEXT,
 
-    CONSTRAINT "notes_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "bookings_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -376,6 +410,50 @@ CREATE TABLE "contacts" (
 );
 
 -- CreateTable
+CREATE TABLE "email_templates" (
+    "id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMP(3),
+    "key" TEXT,
+    "subject" TEXT,
+    "body" TEXT,
+    "language" TEXT,
+
+    CONSTRAINT "email_templates_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "email_logs" (
+    "id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMP(3),
+    "user_id" TEXT,
+    "email_template_id" TEXT,
+    "subject" TEXT,
+    "body" TEXT,
+    "to" TEXT,
+    "cc" TEXT,
+    "bcc" TEXT,
+    "status" TEXT,
+
+    CONSTRAINT "email_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "settings" (
+    "id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMP(3),
+    "key" TEXT,
+    "value" TEXT,
+
+    CONSTRAINT "settings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_PermissionToRole" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -432,13 +510,25 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_notification_event_id_
 ALTER TABLE "distination_images" ADD CONSTRAINT "distination_images_distination_id_fkey" FOREIGN KEY ("distination_id") REFERENCES "distinations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "packages" ADD CONSTRAINT "packages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "packages" ADD CONSTRAINT "packages_distination_id_fkey" FOREIGN KEY ("distination_id") REFERENCES "distinations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "packages" ADD CONSTRAINT "packages_cancellation_policy_id_fkey" FOREIGN KEY ("cancellation_policy_id") REFERENCES "package_cancellation_policies"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "package_inclusion_exclusions" ADD CONSTRAINT "package_inclusion_exclusions_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "package_categories" ADD CONSTRAINT "package_categories_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "package_categories" ADD CONSTRAINT "package_categories_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "package_tags" ADD CONSTRAINT "package_tags_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "package_tags" ADD CONSTRAINT "package_tags_tag_id_fkey" FOREIGN KEY ("tag_id") REFERENCES "tags"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "package_trip_plans" ADD CONSTRAINT "package_trip_plans_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -450,10 +540,10 @@ ALTER TABLE "package_trip_plan_images" ADD CONSTRAINT "package_trip_plan_images_
 ALTER TABLE "package_images" ADD CONSTRAINT "package_images_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notes" ADD CONSTRAINT "notes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notes" ADD CONSTRAINT "notes_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -478,6 +568,12 @@ ALTER TABLE "blog_comments" ADD CONSTRAINT "blog_comments_user_id_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "likes" ADD CONSTRAINT "likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email_logs" ADD CONSTRAINT "email_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "email_logs" ADD CONSTRAINT "email_logs_email_template_id_fkey" FOREIGN KEY ("email_template_id") REFERENCES "email_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_PermissionToRole" ADD CONSTRAINT "_PermissionToRole_A_fkey" FOREIGN KEY ("A") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;

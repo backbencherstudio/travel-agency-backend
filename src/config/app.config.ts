@@ -43,6 +43,14 @@ export default () => ({
 
   auth: {},
 
+  /**
+   * Storage directory
+   */
+  storageUrl: {
+    rootUrl: '.',
+    package: 'public/storage/package',
+  },
+
   defaultUser: {
     system: {
       username: process.env.SYSTEM_USERNAME,
