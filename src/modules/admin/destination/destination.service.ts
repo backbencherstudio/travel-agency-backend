@@ -4,6 +4,7 @@ import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from 'src/config/app.config';
 
 @Injectable()
 export class DestinationService extends PrismaClient {
@@ -37,8 +38,8 @@ export class DestinationService extends PrismaClient {
       // save destination images
       if (images) {
         const destination_images_data = images.map((image) => ({
-          image: image.path,
-          image_alt: image.originalname,
+          image: image.filename,
+          // image_alt: image.originalname,
           destination_id: destination.id,
         }));
         await this.prisma.destinationImage.createMany({
@@ -60,7 +61,46 @@ export class DestinationService extends PrismaClient {
 
   async findAll() {
     try {
-      const destinations = await this.prisma.destination.findMany();
+      const destinations = await this.prisma.destination.findMany({
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          country: {
+            select: {
+              id: true,
+              name: true,
+              flag: true,
+            },
+          },
+          created_at: true,
+          updated_at: true,
+          approved_at: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          destination_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      destinations.forEach((destination) => {
+        destination.destination_images.forEach((image) => {
+          image['image_url'] =
+            appConfig().app.url +
+            appConfig().storageUrl.rootUrlPublic +
+            appConfig().storageUrl.destination +
+            image.image;
+        });
+      });
       return {
         success: true,
         data: destinations,
@@ -77,7 +117,44 @@ export class DestinationService extends PrismaClient {
     try {
       const destination = await this.prisma.destination.findUnique({
         where: { id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          country: {
+            select: {
+              id: true,
+              name: true,
+              flag: true,
+            },
+          },
+          created_at: true,
+          updated_at: true,
+          approved_at: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          destination_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
       });
+
+      // add image url
+      destination.destination_images.forEach((image) => {
+        image['image_url'] =
+          appConfig().app.url +
+          appConfig().storageUrl.rootUrlPublic +
+          appConfig().storageUrl.destination +
+          image.image;
+      });
+
       return {
         success: true,
         data: destination,
@@ -92,6 +169,7 @@ export class DestinationService extends PrismaClient {
 
   async update(
     id: string,
+    user_id: string,
     updateDestinationDto: UpdateDestinationDto,
     images?: Express.Multer.File[],
   ) {
@@ -103,11 +181,11 @@ export class DestinationService extends PrismaClient {
       if (updateDestinationDto.description) {
         data.description = updateDestinationDto.description;
       }
-      if (updateDestinationDto.destination_images) {
-        data.destination_images = updateDestinationDto.destination_images;
+      if (updateDestinationDto.country_id) {
+        data.country_id = updateDestinationDto.country_id;
       }
       await this.prisma.destination.update({
-        where: { id },
+        where: { id, user_id },
         data: data,
       });
 

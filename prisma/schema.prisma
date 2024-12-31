@@ -250,7 +250,7 @@ model DestinationImage {
   sort_order Int?      @default(0)
 
   destination_id String?
-  destination    Destination? @relation(fields: [destination_id], references: [id])
+  destination    Destination? @relation(fields: [destination_id], references: [id], onDelete: Cascade)
 
   image     String?
   image_alt String?
@@ -394,7 +394,7 @@ model PackageTripPlanImage {
   sort_order Int?      @default(0)
 
   package_trip_plan_id String?
-  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id])
+  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id], onDelete: Cascade)
 
   image     String?
   image_alt String?

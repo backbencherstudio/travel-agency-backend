@@ -42,9 +42,7 @@ export class DestinationController {
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl +
-          '/' +
-          appConfig().storageUrl.destination,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.destination,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -115,14 +113,45 @@ export class DestinationController {
 
   @ApiOperation({ summary: 'Update destination by id' })
   @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: diskStorage({
+        destination:
+          appConfig().storageUrl.rootUrl +
+          '/' +
+          appConfig().storageUrl.destination,
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${file.originalname}`);
+        },
+      }),
+    }),
+  )
   async update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() updateDestinationDto: UpdateDestinationDto,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
+          new FileTypeValidator({ fileType: 'image/*' }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    images?: Express.Multer.File[],
   ) {
     try {
+      const user_id = req.user.userId;
       const destination = await this.destinationService.update(
         id,
+        user_id,
         updateDestinationDto,
+        images,
       );
       return destination;
     } catch (error) {
