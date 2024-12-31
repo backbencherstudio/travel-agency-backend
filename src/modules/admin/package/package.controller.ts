@@ -9,10 +9,10 @@ import {
   UseGuards,
   UseInterceptors,
   Req,
-  UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  UploadedFiles,
 } from '@nestjs/common';
 import { PackageService } from './package.service';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -60,7 +60,7 @@ export class PackageController {
   async create(
     @Req() req: Request,
     @Body() createPackageDto: CreatePackageDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB

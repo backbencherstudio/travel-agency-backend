@@ -11,7 +11,8 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
   ParseFilePipe,
-  UploadedFile,
+  Req,
+  UploadedFiles,
 } from '@nestjs/common';
 import { DestinationService } from './destination.service';
 import { CreateDestinationDto } from './dto/create-destination.dto';
@@ -25,6 +26,7 @@ import { Roles } from '../../../common/guard/role/roles.decorator';
 import { diskStorage } from 'multer';
 import appConfig from 'src/config/app.config';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 
 @ApiBearerAuth()
 @ApiTags('Destination')
@@ -54,19 +56,23 @@ export class DestinationController {
     }),
   )
   async create(
+    @Req() req: Request,
     @Body() createDestinationDto: CreateDestinationDto,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
           new FileTypeValidator({ fileType: 'image/*' }),
         ],
+        // fileIsRequired: false,
       }),
     )
     images?: Express.Multer.File[],
   ) {
     try {
+      const user_id = req.user.userId;
       const destination = await this.destinationService.create(
+        user_id,
         createDestinationDto,
         images,
       );

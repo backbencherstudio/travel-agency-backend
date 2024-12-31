@@ -30,11 +30,13 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalFilters(new CustomExceptionFilter());
-  
+
+  // storage setup
   SojebStorage.config({
     driver: 'local',
-    rootUrl: appConfig().storageUrl.rootUrl,
-    destination: appConfig().storageUrl.destination,
+    connection: {
+      rootUrl: appConfig().storageUrl.rootUrl,
+    },
   });
   // prisma setup
   // const prismaService = app.get(PrismaService);

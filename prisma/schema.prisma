@@ -74,6 +74,7 @@ model User {
   blog_comments          BlogComment[]
   likes                  Like[]
   email_logs             EmailLog[]
+  destinations           Destination[]
   packages               Package[]
 
   @@map("users")
@@ -222,8 +223,16 @@ model Destination {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
+  approved_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
   name        String? // e.g. "Paris"
   description String? @db.Text // e.g. "Paris is the capital of France"
+
+  country_id String?
+  country    Country? @relation(fields: [country_id], references: [id])
 
   destination_images DestinationImage[]
   packages           Package[]
@@ -257,8 +266,10 @@ model Package {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
-  user_id String
-  user    User?  @relation(fields: [user_id], references: [id])
+  approved_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
 
   name        String
   description String  @db.Text
@@ -266,8 +277,10 @@ model Package {
   // e.g, 5 days, 4 nights
   duration    String
 
-  // person capacity
-  capacity Int @default(1)
+  // minimum capacity
+  min_capacity Int? @default(1)
+  // person max capacity
+  max_capacity Int? @default(1)
 
   destination_id String?
   destination    Destination? @relation(fields: [destination_id], references: [id])
@@ -593,6 +606,26 @@ model Contact {
   message      String? @db.Text
 
   @@map("contacts")
+}
+
+// this table stores countries list
+model Country {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // country flag image
+  flag         String?
+  // country name
+  name         String? // e.g. "United States"
+  country_code String? // e.g. "US"
+  dial_code    String? // e.g. "+1"
+
+  destinations Destination[]
+
+  @@map("countries")
 }
 
 // this table stores email template information

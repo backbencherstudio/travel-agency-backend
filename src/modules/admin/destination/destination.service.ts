@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 
@@ -12,6 +12,7 @@ export class DestinationService extends PrismaClient {
   }
 
   async create(
+    user_id: string,
     createDestinationDto: CreateDestinationDto,
     images?: Express.Multer.File[],
   ) {
@@ -23,8 +24,14 @@ export class DestinationService extends PrismaClient {
       if (createDestinationDto.description) {
         data.description = createDestinationDto.description;
       }
+      if (createDestinationDto.country_id) {
+        data.country_id = createDestinationDto.country_id;
+      }
       const destination = await this.prisma.destination.create({
-        data: data,
+        data: {
+          ...data,
+          user_id: user_id,
+        },
       });
 
       // save destination images
@@ -106,6 +113,19 @@ export class DestinationService extends PrismaClient {
 
       // save destination images
       if (images) {
+        // delete old destination images
+        const old_destination_images =
+          await this.prisma.destinationImage.findMany({
+            where: { destination_id: id },
+          });
+        old_destination_images.forEach(async (image) => {
+          await SojebStorage.delete(image.image);
+        });
+        await this.prisma.destinationImage.deleteMany({
+          where: { destination_id: id },
+        });
+
+        // save destination images
         const destination_images_data = images.map((image) => ({
           image: image.path,
           image_alt: image.originalname,
@@ -114,18 +134,6 @@ export class DestinationService extends PrismaClient {
 
         await this.prisma.destinationImage.createMany({
           data: destination_images_data,
-        });
-
-        // delete old destination images
-        const old_destination_images =
-          await this.prisma.destinationImage.findMany({
-            where: { destination_id: id },
-          });
-        old_destination_images.forEach((image) => {
-          SojebStorage.disk('destination').delete(image.image);
-        });
-        await this.prisma.destinationImage.deleteMany({
-          where: { destination_id: id },
         });
       }
 
@@ -147,9 +155,16 @@ export class DestinationService extends PrismaClient {
       const destination = await this.prisma.destination.findUnique({
         where: { id },
       });
-      if (destination.destination_images) {
-        destination.destination_images.forEach((image) => {
-          fs.unlinkSync(image);
+      if (destination) {
+        // delete destination images
+        const destination_images = await this.prisma.destinationImage.findMany({
+          where: { destination_id: id },
+        });
+        destination_images.forEach(async (image) => {
+          await SojebStorage.delete(image.image);
+        });
+        await this.prisma.destinationImage.deleteMany({
+          where: { destination_id: id },
         });
       }
       await this.prisma.destination.delete({

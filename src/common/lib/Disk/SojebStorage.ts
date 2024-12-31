@@ -1,6 +1,6 @@
 import { StorageClass } from './StorageClass';
 import { LocalAdapter } from './drivers/LocalAdapter';
-import { DiskOption } from './Option';
+import { DiskOption, DiskType } from './Option';
 import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
 
@@ -33,7 +33,7 @@ export class SojebStorage {
    * @param disk
    * @returns
    */
-  public static disk(disk: string): Storage {
+  public static disk(disk: DiskType): SojebStorage {
     this._config.driver = disk;
     return this;
   }
@@ -43,9 +43,9 @@ export class SojebStorage {
    * @param value
    * @returns
    */
-  public static async put(key: string, value: any) {
+  public static async put(key: string, value: any): Promise<any> {
     const disk = this.storageDisk();
-    return disk.put(key, value);
+    return await disk.put(key, value);
   }
 
   /**
@@ -53,7 +53,7 @@ export class SojebStorage {
    * @param key
    * @returns
    */
-  public static async url(key: string) {
+  public static async url(key: string): Promise<any> {
     const disk = this.storageDisk();
     return await disk.url(key);
   }
@@ -63,7 +63,7 @@ export class SojebStorage {
    * @param key
    * @returns
    */
-  public static async get(key: string) {
+  public static async get(key: string): Promise<any> {
     const disk = this.storageDisk();
     return await disk.get(key);
   }
@@ -73,7 +73,7 @@ export class SojebStorage {
    * @param key
    * @returns
    */
-  public static async delete(key: string) {
+  public static async delete(key: string): Promise<any> {
     const disk = this.storageDisk();
     return await disk.delete(key);
   }

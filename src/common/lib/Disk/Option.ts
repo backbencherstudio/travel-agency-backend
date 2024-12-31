@@ -1,9 +1,12 @@
+// disk type
+export type DiskType = 'local' | 's3';
+
 // Disk option
 export type DiskOption = {
   /**
    * Set disk driver
    */
-  driver?: string;
+  driver?: DiskType;
   /**
    * Disk connection config
    */

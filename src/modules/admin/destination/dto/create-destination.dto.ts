@@ -21,4 +21,12 @@ export class CreateDestinationDto {
     example: ['image1.jpg', 'image2.jpg'],
   })
   destination_images: string[];
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty({
+    description: 'Country id',
+    example: '1',
+  })
+  country_id: string;
 }
