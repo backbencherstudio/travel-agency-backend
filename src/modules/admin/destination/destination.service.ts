@@ -94,11 +94,9 @@ export class DestinationService extends PrismaClient {
       // add image url
       destinations.forEach((destination) => {
         destination.destination_images.forEach((image) => {
-          image['image_url'] =
-            appConfig().app.url +
-            appConfig().storageUrl.rootUrlPublic +
-            appConfig().storageUrl.destination +
-            image.image;
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.destination + image.image,
+          );
         });
       });
       return {
@@ -148,11 +146,9 @@ export class DestinationService extends PrismaClient {
 
       // add image url
       destination.destination_images.forEach((image) => {
-        image['image_url'] =
-          appConfig().app.url +
-          appConfig().storageUrl.rootUrlPublic +
-          appConfig().storageUrl.destination +
-          image.image;
+        image['image_url'] = SojebStorage.url(
+          appConfig().storageUrl.destination + image.image,
+        );
       });
 
       return {
@@ -191,17 +187,17 @@ export class DestinationService extends PrismaClient {
 
       // save destination images
       if (images) {
-        // delete old destination images
-        const old_destination_images =
-          await this.prisma.destinationImage.findMany({
-            where: { destination_id: id },
-          });
-        old_destination_images.forEach(async (image) => {
-          await SojebStorage.delete(image.image);
-        });
-        await this.prisma.destinationImage.deleteMany({
-          where: { destination_id: id },
-        });
+        // // delete old destination images
+        // const old_destination_images =
+        //   await this.prisma.destinationImage.findMany({
+        //     where: { destination_id: id },
+        //   });
+        // old_destination_images.forEach(async (image) => {
+        //   await SojebStorage.delete(image.image);
+        // });
+        // await this.prisma.destinationImage.deleteMany({
+        //   where: { destination_id: id },
+        // });
 
         // save destination images
         const destination_images_data = images.map((image) => ({
@@ -227,35 +223,114 @@ export class DestinationService extends PrismaClient {
     }
   }
 
-  async remove(id: string) {
+  async approve(id: string) {
     try {
-      // delete destination images
       const destination = await this.prisma.destination.findUnique({
         where: { id },
       });
-      if (destination) {
-        // delete destination images
-        const destination_images = await this.prisma.destinationImage.findMany({
-          where: { destination_id: id },
-        });
-        destination_images.forEach(async (image) => {
-          await SojebStorage.delete(image.image);
-        });
-        await this.prisma.destinationImage.deleteMany({
-          where: { destination_id: id },
-        });
+      if (!destination) {
+        return {
+          success: false,
+          message: 'Destination not found',
+        };
       }
-      await this.prisma.destination.delete({
+      await this.prisma.destination.update({
         where: { id },
+        data: { approved_at: new Date() },
       });
       return {
         success: true,
-        message: 'Destination deleted successfully',
+        message: 'Destination approved successfully',
       };
     } catch (error) {
       return {
         success: false,
         message: error.message,
+      };
+    }
+  }
+
+  async reject(id: string) {
+    try {
+      await this.prisma.destination.update({
+        where: { id },
+        data: { approved_at: null },
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async removeImage(id: string) {
+    try {
+      const destination_image = await this.prisma.destinationImage.findUnique({
+        where: { id },
+      });
+      if (!destination_image) {
+        return {
+          success: false,
+          message: 'Destination image not found',
+        };
+      }
+      await SojebStorage.delete(destination_image.image);
+      await this.prisma.destinationImage.delete({
+        where: { id },
+      });
+      return {
+        success: true,
+        message: 'Destination image deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Fetch destination and associated images
+        const destination = await prisma.destination.findUnique({
+          where: { id },
+        });
+        if (!destination) {
+          throw new Error('Destination not found');
+        }
+
+        const destinationImages = await prisma.destinationImage.findMany({
+          where: { destination_id: id },
+        });
+
+        // Delete images from storage
+        for (const image of destinationImages) {
+          await SojebStorage.delete(
+            appConfig().storageUrl.destination + image.image,
+          );
+        }
+
+        // Delete destination images and destination
+        await prisma.destinationImage.deleteMany({
+          where: { destination_id: id },
+        });
+        await prisma.destination.delete({ where: { id } });
+
+        return {
+          success: true,
+          message: 'Destination deleted successfully',
+        };
+      });
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error.message || 'An error occurred while deleting the destination',
       };
     }
   }

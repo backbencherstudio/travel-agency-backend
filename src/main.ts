@@ -36,6 +36,7 @@ async function bootstrap() {
     driver: 'local',
     connection: {
       rootUrl: appConfig().storageUrl.rootUrl,
+      publicUrl: appConfig().storageUrl.rootUrlPublic,
     },
   });
   // prisma setup

@@ -17,6 +17,11 @@ export type DiskOption = {
      */
     rootUrl?: string;
     /**
+     * set public url for local storage
+     * @example public/upload
+     */
+    publicUrl?: string;
+    /**
      * For aws S3
      */
     awsAccessKeyId?: string;

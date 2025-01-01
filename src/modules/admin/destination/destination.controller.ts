@@ -117,9 +117,7 @@ export class DestinationController {
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl +
-          '/' +
-          appConfig().storageUrl.destination,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.destination,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -153,6 +151,48 @@ export class DestinationController {
         updateDestinationDto,
         images,
       );
+      return destination;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Delete destination image by id' })
+  @Delete('image/:id')
+  async removeImage(@Param('id') id: string) {
+    try {
+      const destination = await this.destinationService.removeImage(id);
+      return destination;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Approve destination by id' })
+  @Patch('approve/:id')
+  async approve(@Param('id') id: string) {
+    try {
+      const destination = await this.destinationService.approve(id);
+      return destination;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Reject destination by id' })
+  @Patch('reject/:id')
+  async reject(@Param('id') id: string) {
+    try {
+      const destination = await this.destinationService.reject(id);
       return destination;
     } catch (error) {
       return {

@@ -53,9 +53,9 @@ export class SojebStorage {
    * @param key
    * @returns
    */
-  public static async url(key: string): Promise<any> {
+  public static url(key: string): string {
     const disk = this.storageDisk();
-    return await disk.url(key);
+    return disk.url(key);
   }
 
   /**
