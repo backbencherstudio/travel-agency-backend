@@ -56,7 +56,10 @@ export class CreatePackageDto {
   package_category: string;
 
   @ApiProperty()
-  package_tags: string;
+  included_packages: string;
+
+  @ApiProperty()
+  excluded_packages: string;
 
   // @IsNotEmpty()
   @ApiProperty()

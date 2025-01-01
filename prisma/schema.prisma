@@ -358,6 +358,8 @@ model PackageTag {
   tag_id String
   tag    Tag?   @relation(fields: [tag_id], references: [id])
 
+  type String? // included, excluded
+
   @@id([package_id, tag_id])
   @@map("package_tags")
 }
