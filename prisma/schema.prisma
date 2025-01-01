@@ -372,7 +372,7 @@ model PackageTripPlan {
   sort_order Int?      @default(0)
 
   package_id String?
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   // trip plan title
   title       String?
@@ -432,7 +432,7 @@ model PackageImage {
   sort_order Int?      @default(0)
 
   package_id String?
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   image     String?
   image_alt String?
@@ -473,7 +473,7 @@ model Review {
   user    User?   @relation(fields: [user_id], references: [id])
 
   package_id String?
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   rating  Int?
   comment String? @db.Text

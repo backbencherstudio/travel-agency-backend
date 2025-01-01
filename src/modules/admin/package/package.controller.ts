@@ -10,8 +10,6 @@ import {
   UseInterceptors,
   Req,
   ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
   UploadedFiles,
 } from '@nestjs/common';
 import { PackageService } from './package.service';
@@ -26,15 +24,14 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Express, Request } from 'express';
 import { diskStorage } from 'multer';
 import appConfig from 'src/config/app.config';
-
 @ApiBearerAuth()
 @ApiTags('Package')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/package')
 export class PackageController {
   constructor(private readonly packageService: PackageService) {}
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Create package' })
   @Post()
   @UseInterceptors(
@@ -63,9 +60,9 @@ export class PackageController {
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB
+          // new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB
           // support all image types
-          new FileTypeValidator({ fileType: 'image/*' }),
+          // new FileTypeValidator({ fileType: 'image/*' }),
         ],
         fileIsRequired: false,
       }),
@@ -77,14 +74,6 @@ export class PackageController {
   ) {
     try {
       const user_id = req.user.userId;
-
-      // return package_images.map(file => ({
-      //   originalName: file.originalname,
-      //   filename: file.filename,
-      //   path: `/public/storage/${file.filename}`,
-      //   size: file.size,
-      // }));
-
       const record = await this.packageService.create(
         user_id,
         createPackageDto,
@@ -99,6 +88,7 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
   async findAll() {
@@ -113,6 +103,7 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get package by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -127,6 +118,7 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Update package' })
   @Patch(':id')
   async update(
@@ -144,6 +136,7 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Delete package' })
   @Delete(':id')
   async remove(@Param('id') id: string) {

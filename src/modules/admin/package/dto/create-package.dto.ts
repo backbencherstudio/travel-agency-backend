@@ -1,7 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString } from 'class-validator';
-import { IsNotEmpty } from 'class-validator';
-import { IsArray } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
+
+export interface TripPlan {
+  title: string;
+  description: string;
+  images?: Express.Multer.File[];
+}
+
+export enum PackageStatus {
+  Active = 0,
+  Deactive = 1,
+}
 
 export class CreatePackageDto {
   @IsNotEmpty()
@@ -15,7 +24,7 @@ export class CreatePackageDto {
   description: string;
 
   @IsNotEmpty()
-  @IsNumber()
+  // @IsNumber()
   @ApiProperty({ example: 100 })
   price: number;
 
@@ -25,9 +34,14 @@ export class CreatePackageDto {
   duration: string;
 
   @IsNotEmpty()
-  @IsNumber()
+  // @IsNumber()
   @ApiProperty({ example: 1 })
-  capacity: number;
+  min_capacity?: number;
+
+  @IsNotEmpty()
+  // @IsNumber()
+  @ApiProperty({ example: 10 })
+  max_capacity: number;
 
   @IsString()
   @ApiProperty()
@@ -38,24 +52,21 @@ export class CreatePackageDto {
   distination_id?: string;
 
   @IsNotEmpty()
-  @IsArray()
   @ApiProperty()
-  package_categories: {
-    id: string;
-  }[];
+  package_category: string;
 
-  @IsArray()
   @ApiProperty()
-  package_tags: {
-    id: string;
-  }[];
+  package_tags: string;
 
-  @IsNotEmpty()
-  @IsArray()
+  // @IsNotEmpty()
   @ApiProperty()
-  trip_plans: {
-    title: string;
-    description: string;
-    images?: Express.Multer.File[];
-  }[];
+  // trip_plans: {
+  //   title: string;
+  //   description: string;
+  //   images?: Express.Multer.File[];
+  // }[];
+  trip_plans: string;
+
+  @ApiProperty()
+  status?: PackageStatus;
 }
