@@ -254,10 +254,23 @@ export class DestinationService extends PrismaClient {
 
   async reject(id: string) {
     try {
+      const destination = await this.prisma.destination.findUnique({
+        where: { id },
+      });
+      if (!destination) {
+        return {
+          success: false,
+          message: 'Destination not found',
+        };
+      }
       await this.prisma.destination.update({
         where: { id },
         data: { approved_at: null },
       });
+      return {
+        success: true,
+        message: 'Destination rejected successfully',
+      };
     } catch (error) {
       return {
         success: false,

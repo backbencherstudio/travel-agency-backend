@@ -245,6 +245,60 @@ export class PackageService extends PrismaClient {
     }
   }
 
+  async approve(id: string) {
+    try {
+      const record = await this.prisma.package.findUnique({
+        where: { id },
+      });
+      if (!record) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+      await this.prisma.package.update({
+        where: { id },
+        data: { approved_at: new Date() },
+      });
+      return {
+        success: true,
+        message: 'Package approved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async reject(id: string) {
+    try {
+      const record = await this.prisma.package.findUnique({
+        where: { id },
+      });
+      if (!record) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+      await this.prisma.package.update({
+        where: { id },
+        data: { approved_at: null },
+      });
+      return {
+        success: true,
+        message: 'Package rejected successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async remove(id: string) {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {

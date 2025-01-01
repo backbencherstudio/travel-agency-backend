@@ -136,6 +136,36 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Approve package by id' })
+  @Patch('approve/:id')
+  async approve(@Param('id') id: string) {
+    try {
+      const record = await this.packageService.approve(id);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Reject package by id' })
+  @Patch('reject/:id')
+  async reject(@Param('id') id: string) {
+    try {
+      const record = await this.packageService.reject(id);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Delete package' })
   @Delete(':id')
