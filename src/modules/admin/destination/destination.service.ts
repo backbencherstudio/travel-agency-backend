@@ -85,6 +85,7 @@ export class DestinationService extends PrismaClient {
           },
           destination_images: {
             select: {
+              id: true,
               image: true,
             },
           },
@@ -138,6 +139,7 @@ export class DestinationService extends PrismaClient {
           },
           destination_images: {
             select: {
+              id: true,
               image: true,
             },
           },
@@ -266,23 +268,28 @@ export class DestinationService extends PrismaClient {
 
   async removeImage(id: string) {
     try {
-      const destination_image = await this.prisma.destinationImage.findUnique({
-        where: { id },
-      });
-      if (!destination_image) {
+      const result = await this.prisma.$transaction(async (prisma) => {
+        const destination_image = await prisma.destinationImage.findUnique({
+          where: { id },
+        });
+        if (!destination_image) {
+          return {
+            success: false,
+            message: 'Destination image not found',
+          };
+        }
+        await SojebStorage.delete(
+          appConfig().storageUrl.destination + destination_image.image,
+        );
+        await prisma.destinationImage.delete({
+          where: { id },
+        });
         return {
-          success: false,
-          message: 'Destination image not found',
+          success: true,
+          message: 'Destination image deleted successfully',
         };
-      }
-      await SojebStorage.delete(destination_image.image);
-      await this.prisma.destinationImage.delete({
-        where: { id },
       });
-      return {
-        success: true,
-        message: 'Destination image deleted successfully',
-      };
+      return result;
     } catch (error) {
       return {
         success: false,
