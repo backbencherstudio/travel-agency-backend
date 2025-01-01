@@ -27,7 +27,7 @@ export class AuthService extends PrismaClient {
     });
 
     if (user) {
-      const _isValidPassword = UserRepository.validatePassword({
+      const _isValidPassword = await UserRepository.validatePassword({
         email: email,
         password: _password,
       });
@@ -37,8 +37,9 @@ export class AuthService extends PrismaClient {
       } else {
         throw new UnauthorizedException('Password not matched');
       }
+    } else {
+      throw new UnauthorizedException('Email not found');
     }
-    return null;
   }
 
   async login({ email, userId }) {
