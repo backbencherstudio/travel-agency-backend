@@ -34,22 +34,21 @@ export class PackageService extends PrismaClient {
       data.duration = createPackageDto.duration;
     }
     if (createPackageDto.min_capacity) {
-      data.min_capacity = createPackageDto.min_capacity;
+      data.min_capacity = Number(createPackageDto.min_capacity);
     }
     if (createPackageDto.max_capacity) {
-      data.max_capacity = createPackageDto.max_capacity;
+      data.max_capacity = Number(createPackageDto.max_capacity);
     }
     if (createPackageDto.cancellation_policy_id) {
       data.cancellation_policy_id = createPackageDto.cancellation_policy_id;
     }
-    if (createPackageDto.distination_id) {
-      data.distination_id = createPackageDto.distination_id;
+    if (createPackageDto.destination_id) {
+      data.destination_id = createPackageDto.destination_id;
     }
     const record = await this.prisma.package.create({
       data: {
         ...data,
         user_id: user_id,
-        // cancellation_policy_id: createPackageDto.cancellation_policy_id,
       },
     });
 
@@ -187,16 +186,16 @@ export class PackageService extends PrismaClient {
         data.duration = updatePackageDto.duration;
       }
       if (updatePackageDto.min_capacity) {
-        data.min_capacity = updatePackageDto.min_capacity;
+        data.min_capacity = Number(updatePackageDto.min_capacity);
       }
       if (updatePackageDto.max_capacity) {
-        data.max_capacity = updatePackageDto.max_capacity;
+        data.max_capacity = Number(updatePackageDto.max_capacity);
       }
       if (updatePackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
       }
-      if (updatePackageDto.distination_id) {
-        data.distination_id = updatePackageDto.distination_id;
+      if (updatePackageDto.destination_id) {
+        data.destination_id = updatePackageDto.destination_id;
       }
       if (updatePackageDto.status) {
         data.status = updatePackageDto.status;
@@ -213,10 +212,12 @@ export class PackageService extends PrismaClient {
         };
       }
 
-      if (Object.keys(data).length === 0) {
+      if (Object.keys(data).length == 0) {
         await this.prisma.package.update({
           where: { id: id },
-          data: data,
+          data: {
+            ...data,
+          },
         });
       }
 

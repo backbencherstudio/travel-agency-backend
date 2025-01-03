@@ -49,7 +49,7 @@ export class CreatePackageDto {
 
   @IsString()
   @ApiProperty()
-  distination_id?: string;
+  destination_id?: string;
 
   @IsNotEmpty()
   @ApiProperty()
