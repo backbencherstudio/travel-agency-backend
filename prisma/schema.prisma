@@ -522,6 +522,9 @@ model Blog {
   description String? @db.Text
   body        String? @db.Text
 
+  // update according to like record count
+  like_count Int? @default(0)
+
   blog_images   BlogImage[]
   blog_comments BlogComment[]
 

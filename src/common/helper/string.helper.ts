@@ -36,4 +36,11 @@ export class StringHelper {
     const rgxtrim = !chr ? new RegExp('^\\s+') : new RegExp('^' + chr + '+');
     return str.replace(rgxtrim, '');
   }
+
+  // get read time in minutes
+  public static getReadTime(text: string, wordsPerMinute: number = 200) {
+    const words = text.split(/\s+/g).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
+  }
 }

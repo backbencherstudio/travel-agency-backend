@@ -36,7 +36,7 @@ export class BlogService extends PrismaClient {
         },
       });
 
-      if (images) {
+      if (images.length > 0) {
         await this.prisma.blogImage.createMany({
           data: images.map((image) => ({
             blog_id: blog.id,
@@ -167,7 +167,7 @@ export class BlogService extends PrismaClient {
         data: data,
       });
 
-      if (images) {
+      if (images.length > 0) {
         const blogImages = await this.prisma.blogImage.findMany({
           where: { blog_id: blog.id },
         });
