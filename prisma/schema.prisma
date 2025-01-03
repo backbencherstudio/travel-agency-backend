@@ -511,6 +511,8 @@ model Blog {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
+  approved_at DateTime?
+
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id])
 

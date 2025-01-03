@@ -64,6 +64,7 @@ export class BlogService extends PrismaClient {
           title: true,
           description: true,
           body: true,
+          approved_at: true,
           created_at: true,
           updated_at: true,
           blog_images: {
@@ -109,6 +110,7 @@ export class BlogService extends PrismaClient {
           title: true,
           description: true,
           body: true,
+          approved_at: true,
           created_at: true,
           updated_at: true,
           blog_images: {
@@ -187,6 +189,60 @@ export class BlogService extends PrismaClient {
       return {
         success: true,
         message: 'Blog updated successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async approve(id: string) {
+    try {
+      const record = await this.prisma.blog.findUnique({
+        where: { id },
+      });
+      if (!record) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+      await this.prisma.blog.update({
+        where: { id },
+        data: { approved_at: new Date() },
+      });
+      return {
+        success: true,
+        message: 'Blog approved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async reject(id: string) {
+    try {
+      const record = await this.prisma.blog.findUnique({
+        where: { id },
+      });
+      if (!record) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+      await this.prisma.blog.update({
+        where: { id },
+        data: { approved_at: null },
+      });
+      return {
+        success: true,
+        message: 'Blog rejected successfully',
       };
     } catch (error) {
       return {

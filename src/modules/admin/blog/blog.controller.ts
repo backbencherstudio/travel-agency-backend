@@ -28,11 +28,11 @@ import appConfig from '../../../config/app.config';
 @ApiBearerAuth()
 @ApiTags('Blog')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/blog')
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Create blog' })
   @Post()
   @UseInterceptors(
@@ -80,6 +80,7 @@ export class BlogController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all blog' })
   @Get()
   async findAll() {
@@ -94,6 +95,7 @@ export class BlogController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get blog by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -108,6 +110,7 @@ export class BlogController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Update blog' })
   @Patch(':id')
   @UseInterceptors(
@@ -142,6 +145,36 @@ export class BlogController {
     try {
       const blog = await this.blogService.update(id, updateBlogDto, images);
       return blog;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Approve blog by id' })
+  @Patch('approve/:id')
+  async approve(@Param('id') id: string) {
+    try {
+      const record = await this.blogService.approve(id);
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Reject blog by id' })
+  @Patch('reject/:id')
+  async reject(@Param('id') id: string) {
+    try {
+      const record = await this.blogService.reject(id);
+      return record;
     } catch (error) {
       return {
         success: false,
