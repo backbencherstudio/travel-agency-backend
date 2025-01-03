@@ -31,7 +31,7 @@ export class FaqService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to create faq',
+        message: error.message,
       };
     }
   }
@@ -56,7 +56,7 @@ export class FaqService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch faq',
+        message: error.message,
       };
     }
   }
@@ -81,7 +81,7 @@ export class FaqService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch faq',
+        message: error.message,
       };
     }
   }
@@ -92,7 +92,7 @@ export class FaqService extends PrismaClient {
       if (updateFaqDto.question) {
         data['question'] = updateFaqDto.question;
       }
-      const faq = await this.prisma.faq.update({
+      await this.prisma.faq.update({
         where: {
           id: id,
         },
@@ -102,31 +102,31 @@ export class FaqService extends PrismaClient {
       });
       return {
         success: true,
-        data: faq,
+        message: 'Faq updated successfully',
       };
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to update faq',
+        message: error.message,
       };
     }
   }
 
   async remove(id: string) {
     try {
-      const faq = await this.prisma.faq.delete({
+      await this.prisma.faq.delete({
         where: {
           id: id,
         },
       });
       return {
         success: true,
-        data: faq,
+        message: 'Faq deleted successfully',
       };
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to delete faq',
+        message: error.message,
       };
     }
   }

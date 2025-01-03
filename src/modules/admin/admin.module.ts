@@ -7,8 +7,9 @@ import { PackageCancellationPolicyModule } from './package-cancellation-policy/p
 import { DestinationModule } from './destination/destination.module';
 import { CountryModule } from './country/country.module';
 import { BlogModule } from './blog/blog.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
-  imports: [FaqModule, PackageModule, CategoryModule, TagModule, PackageCancellationPolicyModule, DestinationModule, CountryModule, BlogModule],
+  imports: [FaqModule, PackageModule, CategoryModule, TagModule, PackageCancellationPolicyModule, DestinationModule, CountryModule, BlogModule, ContactModule],
 })
 export class AdminModule {}

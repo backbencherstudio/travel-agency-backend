@@ -3,13 +3,22 @@ import { IsNotEmpty } from 'class-validator';
 
 export class CreateFaqDto {
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'FAQ question',
+    example: 'What is the price of the hotel?',
+  })
   question: string;
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'FAQ answer',
+    example: 'The price of the hotel is 10000 BDT per night.',
+  })
   answer: string;
 
-  @ApiProperty()
-  sort_order: number;
+  @ApiProperty({
+    description: 'Sort order',
+    example: 1,
+  })
+  sort_order?: number;
 }
