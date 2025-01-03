@@ -7,6 +7,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UserRepository } from '../../common/repository/user/user.repository';
 import { MailService } from '../../mail/mail.service';
 import { UcodeRepository } from '../../common/repository/ucode/ucode.repository';
+import { UpdateUserDto } from './dto/update-user.dto';
+import appConfig from 'src/config/app.config';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
 
 @Injectable()
 export class AuthService extends PrismaClient {
@@ -16,6 +19,100 @@ export class AuthService extends PrismaClient {
     private mailService: MailService,
   ) {
     super();
+  }
+
+  async me(userId: string) {
+    try {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: userId,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+          address: true,
+          phone_number: true,
+        },
+      });
+
+      if (user.avatar) {
+        user.avatar = SojebStorage.url(
+          appConfig().storageUrl.avatar + user.avatar,
+        );
+      }
+
+      if (user) {
+        return {
+          success: true,
+          data: user,
+        };
+      } else {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch user details',
+      };
+    }
+  }
+
+  async updateUser(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+    image?: Express.Multer.File,
+  ) {
+    try {
+      const data: any = {};
+      if (updateUserDto.phone_number) {
+        data.phone_number = updateUserDto.phone_number;
+      }
+      if (updateUserDto.address) {
+        data.address = updateUserDto.address;
+      }
+      if (image) {
+        // delete old image from storage
+        const oldImage = await this.prisma.user.findFirst({
+          where: { id: userId },
+          select: { avatar: true },
+        });
+        if (oldImage.avatar) {
+          await SojebStorage.delete(
+            appConfig().storageUrl.avatar + oldImage.avatar,
+          );
+        }
+        data.avatar = image.filename;
+      }
+      const user = await UserRepository.getUserDetails(userId);
+      if (user) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            ...data,
+          },
+        });
+
+        return {
+          success: true,
+          message: 'User updated successfully',
+        };
+      } else {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to update user',
+      };
+    }
   }
 
   async validateUser(email: string, pass: string): Promise<any> {

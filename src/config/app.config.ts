@@ -53,6 +53,7 @@ export default () => ({
     package: '/package/',
     destination: '/destination/',
     blog: '/blog/',
+    avatar: '/avatar/',
   },
 
   defaultUser: {

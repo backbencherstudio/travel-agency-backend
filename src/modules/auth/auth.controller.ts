@@ -1,22 +1,51 @@
 import {
   Body,
   Controller,
+  Get,
   HttpException,
   HttpStatus,
+  Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { Request } from 'express';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { diskStorage } from 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
+import appConfig from 'src/config/app.config';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  @ApiOperation({ summary: 'Get user details' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async me(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+
+      const response = await this.authService.me(user_id);
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch user details',
+      };
+    }
+  }
 
   @ApiOperation({ summary: 'Register a user' })
   @Post('register')
@@ -45,12 +74,50 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user' })
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Req() req) {
-    const user = req.user;
+  async login(@Req() req: Request) {
+    const user_id = req.user.userId;
+    const user_email = req.user.email;
+
     return await this.authService.login({
-      userId: user.id,
-      email: user.email,
+      userId: user_id,
+      email: user_email,
     });
+  }
+
+  @ApiOperation({ summary: 'Update user' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('update')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination:
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.avatar,
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${file.originalname}`);
+        },
+      }),
+    }),
+  )
+  async updateUser(
+    @Req() req: Request,
+    @Body() data: UpdateUserDto,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const response = await this.authService.updateUser(user_id, data, image);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to update user',
+      };
+    }
   }
 
   @ApiOperation({ summary: 'Forgot password' })

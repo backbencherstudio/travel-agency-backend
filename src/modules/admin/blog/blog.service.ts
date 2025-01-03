@@ -172,8 +172,8 @@ export class BlogService extends PrismaClient {
           where: { blog_id: blog.id },
         });
         // delete images from storage
-        blogImages.forEach((image) => {
-          SojebStorage.delete(appConfig().storageUrl.blog + image.image);
+        blogImages.forEach(async (image) => {
+          await SojebStorage.delete(appConfig().storageUrl.blog + image.image);
         });
         await this.prisma.blogImage.deleteMany({
           where: { blog_id: blog.id },
@@ -260,8 +260,8 @@ export class BlogService extends PrismaClient {
         const blogImages = await tx.blogImage.findMany({
           where: { blog_id: id },
         });
-        blogImages.forEach((image) => {
-          SojebStorage.delete(appConfig().storageUrl.blog + image.image);
+        blogImages.forEach(async (image) => {
+          await SojebStorage.delete(appConfig().storageUrl.blog + image.image);
         });
         await tx.blogImage.deleteMany({
           where: { blog_id: id },

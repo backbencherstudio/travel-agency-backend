@@ -35,7 +35,6 @@ model Account {
 
 // User table
 model User {
-  // id                String  @id @default(cuid())
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -52,6 +51,9 @@ model User {
   password String? @db.VarChar(255)
   domain   String? @unique
   avatar   String?
+
+  phone_number String? @db.VarChar(255)
+  address      String? @db.Text
 
   // billing id. e.g. stripe customer id
   billing_id String?
