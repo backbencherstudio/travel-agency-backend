@@ -59,8 +59,8 @@ export class DestinationController {
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
-          new FileTypeValidator({ fileType: 'image/*' }),
+          // new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
+          // new FileTypeValidator({ fileType: 'image/*' }),
         ],
         // fileIsRequired: false,
       }),

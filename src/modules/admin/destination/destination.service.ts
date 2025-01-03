@@ -189,17 +189,16 @@ export class DestinationService extends PrismaClient {
 
       // save destination images
       if (images) {
-        // // delete old destination images
-        // const old_destination_images =
-        //   await this.prisma.destinationImage.findMany({
-        //     where: { destination_id: id },
-        //   });
-        // old_destination_images.forEach(async (image) => {
-        //   await SojebStorage.delete(image.image);
-        // });
-        // await this.prisma.destinationImage.deleteMany({
-        //   where: { destination_id: id },
-        // });
+        // delete images from storage
+        const destinationImages = await this.prisma.destinationImage.findMany({
+          where: { destination_id: id },
+        });
+        destinationImages.forEach((image) => {
+          SojebStorage.delete(appConfig().storageUrl.destination + image.image);
+        });
+        await this.prisma.destinationImage.deleteMany({
+          where: { destination_id: id },
+        });
 
         // save destination images
         const destination_images_data = images.map((image) => ({
@@ -207,7 +206,7 @@ export class DestinationService extends PrismaClient {
           image_alt: image.originalname,
           destination_id: id,
         }));
-
+        // create new images
         await this.prisma.destinationImage.createMany({
           data: destination_images_data,
         });

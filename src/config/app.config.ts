@@ -52,6 +52,7 @@ export default () => ({
     // storage directory
     package: '/package/',
     destination: '/destination/',
+    blog: '/blog/',
   },
 
   defaultUser: {

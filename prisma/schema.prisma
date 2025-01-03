@@ -76,6 +76,7 @@ model User {
   email_logs             EmailLog[]
   destinations           Destination[]
   packages               Package[]
+  blogs                  Blog[]
 
   @@map("users")
 }
@@ -509,6 +510,9 @@ model Blog {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
 
   title       String?
   description String? @db.Text
