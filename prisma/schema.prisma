@@ -35,7 +35,6 @@ model Account {
 
 // User table
 model User {
-  // id                String  @id @default(cuid())
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -52,6 +51,9 @@ model User {
   password String? @db.VarChar(255)
   domain   String? @unique
   avatar   String?
+
+  phone_number String? @db.VarChar(255)
+  address      String? @db.Text
 
   // billing id. e.g. stripe customer id
   billing_id String?
@@ -76,6 +78,7 @@ model User {
   email_logs             EmailLog[]
   destinations           Destination[]
   packages               Package[]
+  blogs                  Blog[]
 
   @@map("users")
 }
@@ -358,6 +361,8 @@ model PackageTag {
   tag_id String
   tag    Tag?   @relation(fields: [tag_id], references: [id])
 
+  type String? // included, excluded
+
   @@id([package_id, tag_id])
   @@map("package_tags")
 }
@@ -508,9 +513,17 @@ model Blog {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
+  approved_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
   title       String?
   description String? @db.Text
   body        String? @db.Text
+
+  // update according to like record count
+  like_count Int? @default(0)
 
   blog_images   BlogImage[]
   blog_comments BlogComment[]

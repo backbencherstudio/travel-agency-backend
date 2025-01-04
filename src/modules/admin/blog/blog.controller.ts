@@ -8,41 +8,38 @@ import {
   Delete,
   UseGuards,
   UseInterceptors,
-  FileTypeValidator,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Req,
+  ParseFilePipe,
   UploadedFiles,
 } from '@nestjs/common';
-import { DestinationService } from './destination.service';
-import { CreateDestinationDto } from './dto/create-destination.dto';
-import { ApiBearerAuth } from '@nestjs/swagger';
-import { UpdateDestinationDto } from './dto/update-destination.dto';
-import { RolesGuard } from '../../../common/guard/role/roles.guard';
-import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Role } from '../../../common/guard/role/role.enum';
-import { Roles } from '../../../common/guard/role/roles.decorator';
-import { diskStorage } from 'multer';
-import appConfig from 'src/config/app.config';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
+import { diskStorage } from 'multer';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { BlogService } from './blog.service';
+import { CreateBlogDto } from './dto/create-blog.dto';
+import { UpdateBlogDto } from './dto/update-blog.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guard/role/roles.guard';
+import { Roles } from '../../../common/guard/role/roles.decorator';
+import { Role } from '../../../common/guard/role/role.enum';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import appConfig from '../../../config/app.config';
 
 @ApiBearerAuth()
-@ApiTags('Destination')
+@ApiTags('Blog')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
-@Controller('admin/destination')
-export class DestinationController {
-  constructor(private readonly destinationService: DestinationService) {}
+@Controller('admin/blog')
+export class BlogController {
+  constructor(private readonly blogService: BlogService) {}
 
-  @ApiOperation({ summary: 'Create destination' })
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Create blog' })
   @Post()
   @UseInterceptors(
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl + appConfig().storageUrl.destination,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.blog,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -55,26 +52,26 @@ export class DestinationController {
   )
   async create(
     @Req() req: Request,
-    @Body() createDestinationDto: CreateDestinationDto,
+    @Body() createBlogDto: CreateBlogDto,
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
           // new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
           // new FileTypeValidator({ fileType: 'image/*' }),
         ],
-        // fileIsRequired: false,
+        fileIsRequired: false,
       }),
     )
     images?: Express.Multer.File[],
   ) {
     try {
       const user_id = req.user.userId;
-      const destination = await this.destinationService.create(
+      const result = await this.blogService.create(
+        createBlogDto,
         user_id,
-        createDestinationDto,
         images,
       );
-      return destination;
+      return result;
     } catch (error) {
       return {
         success: false,
@@ -83,12 +80,13 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Get all destinations' })
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Get all blog' })
   @Get()
   async findAll() {
     try {
-      const destinations = await this.destinationService.findAll();
-      return destinations;
+      const blogs = await this.blogService.findAll();
+      return blogs;
     } catch (error) {
       return {
         success: false,
@@ -97,12 +95,13 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Get destination by id' })
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Get blog by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
-      const destination = await this.destinationService.findOne(id);
-      return destination;
+      const blog = await this.blogService.findOne(id);
+      return blog;
     } catch (error) {
       return {
         success: false,
@@ -111,13 +110,14 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Update destination by id' })
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Update blog' })
   @Patch(':id')
   @UseInterceptors(
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl + appConfig().storageUrl.destination,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.blog,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -129,14 +129,13 @@ export class DestinationController {
     }),
   )
   async update(
-    @Req() req: Request,
     @Param('id') id: string,
-    @Body() updateDestinationDto: UpdateDestinationDto,
+    @Body() updateBlogDto: UpdateBlogDto,
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
-          new FileTypeValidator({ fileType: 'image/*' }),
+          // new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
+          // new FileTypeValidator({ fileType: 'image/*' }),
         ],
         fileIsRequired: false,
       }),
@@ -144,14 +143,8 @@ export class DestinationController {
     images?: Express.Multer.File[],
   ) {
     try {
-      const user_id = req.user.userId;
-      const destination = await this.destinationService.update(
-        id,
-        user_id,
-        updateDestinationDto,
-        images,
-      );
-      return destination;
+      const blog = await this.blogService.update(id, updateBlogDto, images);
+      return blog;
     } catch (error) {
       return {
         success: false,
@@ -160,26 +153,13 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Delete destination image by id' })
-  @Delete('image/:id')
-  async removeImage(@Param('id') id: string) {
-    try {
-      const destination = await this.destinationService.removeImage(id);
-      return destination;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  @ApiOperation({ summary: 'Approve destination by id' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Approve blog by id' })
   @Patch('approve/:id')
   async approve(@Param('id') id: string) {
     try {
-      const destination = await this.destinationService.approve(id);
-      return destination;
+      const record = await this.blogService.approve(id);
+      return record;
     } catch (error) {
       return {
         success: false,
@@ -188,12 +168,13 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Reject destination by id' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Reject blog by id' })
   @Patch('reject/:id')
   async reject(@Param('id') id: string) {
     try {
-      const destination = await this.destinationService.reject(id);
-      return destination;
+      const record = await this.blogService.reject(id);
+      return record;
     } catch (error) {
       return {
         success: false,
@@ -202,12 +183,12 @@ export class DestinationController {
     }
   }
 
-  @ApiOperation({ summary: 'Delete destination by id' })
+  @ApiOperation({ summary: 'Delete blog' })
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {
-      const destination = await this.destinationService.remove(id);
-      return destination;
+      const blog = await this.blogService.remove(id);
+      return blog;
     } catch (error) {
       return {
         success: false,

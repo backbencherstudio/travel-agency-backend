@@ -49,14 +49,17 @@ export class CreatePackageDto {
 
   @IsString()
   @ApiProperty()
-  distination_id?: string;
+  destination_id?: string;
 
   @IsNotEmpty()
   @ApiProperty()
   package_category: string;
 
   @ApiProperty()
-  package_tags: string;
+  included_packages: string;
+
+  @ApiProperty()
+  excluded_packages: string;
 
   // @IsNotEmpty()
   @ApiProperty()

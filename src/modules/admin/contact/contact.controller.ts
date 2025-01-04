@@ -8,9 +8,9 @@ import {
   Delete,
   UseGuards,
 } from '@nestjs/common';
-import { FaqService } from './faq.service';
-import { CreateFaqDto } from './dto/create-faq.dto';
-import { UpdateFaqDto } from './dto/update-faq.dto';
+import { ContactService } from './contact.service';
+import { CreateContactDto } from './dto/create-contact.dto';
+import { UpdateContactDto } from './dto/update-contact.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../../common/guard/role/roles.decorator';
@@ -18,19 +18,19 @@ import { Role } from '../../../common/guard/role/role.enum';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 
 @ApiBearerAuth()
-@ApiTags('Faq')
+@ApiTags('Contact')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
-@Controller('admin/faq')
-export class FaqController {
-  constructor(private readonly faqService: FaqService) {}
+@Controller('admin/contact')
+export class ContactController {
+  constructor(private readonly contactService: ContactService) {}
 
-  @ApiOperation({ summary: 'Create faq' })
+  @ApiOperation({ summary: 'Create contact' })
   @Post()
-  async create(@Body() createFaqDto: CreateFaqDto) {
+  async create(@Body() createContactDto: CreateContactDto) {
     try {
-      const faq = await this.faqService.create(createFaqDto);
-      return faq;
+      const contact = await this.contactService.create(createContactDto);
+      return contact;
     } catch (error) {
       return {
         success: false,
@@ -39,12 +39,12 @@ export class FaqController {
     }
   }
 
-  @ApiOperation({ summary: 'Read all faqs' })
+  @ApiOperation({ summary: 'Read all contacts' })
   @Get()
   async findAll() {
     try {
-      const faqs = await this.faqService.findAll();
-      return faqs;
+      const contacts = await this.contactService.findAll();
+      return contacts;
     } catch (error) {
       return {
         success: false,
@@ -53,12 +53,12 @@ export class FaqController {
     }
   }
 
-  @ApiOperation({ summary: 'Read one faq' })
+  @ApiOperation({ summary: 'Read one contact' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
-      const faq = await this.faqService.findOne(id);
-      return faq;
+      const contact = await this.contactService.findOne(id);
+      return contact;
     } catch (error) {
       return {
         success: false,
@@ -67,12 +67,15 @@ export class FaqController {
     }
   }
 
-  @ApiOperation({ summary: 'Update faq' })
+  @ApiOperation({ summary: 'Update contact' })
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateFaqDto: UpdateFaqDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateContactDto: UpdateContactDto,
+  ) {
     try {
-      const faq = await this.faqService.update(id, updateFaqDto);
-      return faq;
+      const contact = await this.contactService.update(id, updateContactDto);
+      return contact;
     } catch (error) {
       return {
         success: false,
@@ -81,12 +84,12 @@ export class FaqController {
     }
   }
 
-  @ApiOperation({ summary: 'Delete faq' })
+  @ApiOperation({ summary: 'Delete contact' })
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {
-      const faq = await this.faqService.remove(id);
-      return faq;
+      const contact = await this.contactService.remove(id);
+      return contact;
     } catch (error) {
       return {
         success: false,
