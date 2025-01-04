@@ -4,7 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import appConfig from '../../../config/app.config';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import { StringHelper } from '../../../common/helper/string.helper';
-import { LikeRepository } from 'src/common/repository/like/like.repository';
+import { LikeRepository } from '../../../common/repository/like/like.repository';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
@@ -124,9 +124,88 @@ export class BlogService extends PrismaClient {
         );
       });
 
+      // add recent post
+      const recentBlogs = await this.prisma.blog.findMany({
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          title: true,
+          created_at: true,
+          blog_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
+        take: 3,
+      });
+
+      // add image url
+      recentBlogs.forEach((post) => {
+        post.blog_images.forEach((image) => {
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.blog + image.image,
+          );
+        });
+      });
+
+      blog['recent_blogs'] = recentBlogs;
+
       return {
         success: true,
         data: blog,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async search(keyword: string) {
+    try {
+      // measure time
+      const start = performance.now();
+      const blogs = await this.prisma.blog.findMany({
+        where: {
+          title: {
+            contains: keyword,
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          created_at: true,
+          blog_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      blogs.forEach((blog) => {
+        if (blog.blog_images.length > 0) {
+          blog.blog_images.forEach((image) => {
+            image['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.blog + image.image,
+            );
+          });
+        }
+      });
+
+      const end = performance.now();
+      const time = (end - start) / 1000; // in seconds
+
+      return {
+        success: true,
+        time: time,
+        data: blogs,
       };
     } catch (error) {
       return {
