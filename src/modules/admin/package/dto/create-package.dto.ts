@@ -33,6 +33,14 @@ export class CreatePackageDto {
   @ApiProperty({ example: '5 days, 4 nights' })
   duration: string;
 
+  @IsString()
+  @ApiProperty({
+    description: 'Package type. e.g. tour, cruise',
+    example: 'tour',
+    enum: ['tour', 'cruise'],
+  })
+  type?: string;
+
   @IsNotEmpty()
   // @IsNumber()
   @ApiProperty({ example: 1 })

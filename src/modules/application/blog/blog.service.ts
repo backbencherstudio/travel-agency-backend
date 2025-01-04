@@ -153,6 +153,33 @@ export class BlogService extends PrismaClient {
 
       blog['recent_blogs'] = recentBlogs;
 
+      // add featured blog
+      const featuredBlog = await this.prisma.blog.findFirst({
+        orderBy: {
+          like_count: 'desc',
+        },
+        take: 1,
+        select: {
+          id: true,
+          title: true,
+          created_at: true,
+          blog_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      featuredBlog.blog_images.forEach((image) => {
+        image['image_url'] = SojebStorage.url(
+          appConfig().storageUrl.blog + image.image,
+        );
+      });
+
+      blog['featured_blog'] = featuredBlog;
+
       return {
         success: true,
         data: blog,

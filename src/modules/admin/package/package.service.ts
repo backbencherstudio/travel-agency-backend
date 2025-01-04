@@ -33,6 +33,9 @@ export class PackageService extends PrismaClient {
     if (createPackageDto.duration) {
       data.duration = createPackageDto.duration;
     }
+    if (createPackageDto.type) {
+      data.type = createPackageDto.type;
+    }
     if (createPackageDto.min_capacity) {
       data.min_capacity = Number(createPackageDto.min_capacity);
     }
@@ -184,6 +187,9 @@ export class PackageService extends PrismaClient {
       }
       if (updatePackageDto.duration) {
         data.duration = updatePackageDto.duration;
+      }
+      if (updatePackageDto.type) {
+        data.type = updatePackageDto.type;
       }
       if (updatePackageDto.min_capacity) {
         data.min_capacity = Number(updatePackageDto.min_capacity);
