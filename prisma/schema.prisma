@@ -285,6 +285,8 @@ model Package {
   // person max capacity
   max_capacity Int? @default(1)
 
+  type String? @default("tour") // e.g. "tour", "cruise"
+
   destination_id String?
   destination    Destination? @relation(fields: [destination_id], references: [id])
 

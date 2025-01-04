@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +29,20 @@ export class BlogController {
   async findAll() {
     try {
       const blogs = await this.blogService.findAll();
+      return blogs;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Search blogs' })
+  @Get('search')
+  async search(@Query('q') q: string) {
+    try {
+      const blogs = await this.blogService.search(q);
       return blogs;
     } catch (error) {
       return {
