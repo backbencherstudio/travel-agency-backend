@@ -5,6 +5,7 @@ import appConfig from '../../../config/app.config';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import { StringHelper } from '../../../common/helper/string.helper';
 import { LikeRepository } from 'src/common/repository/like/like.repository';
+import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -71,6 +72,7 @@ export class BlogService extends PrismaClient {
           id: true,
           title: true,
           body: true,
+          like_count: true,
           description: true,
           created_at: true,
           user: {
@@ -86,8 +88,34 @@ export class BlogService extends PrismaClient {
               image: true,
             },
           },
+          blog_comments: {
+            select: {
+              id: true,
+              comment: true,
+              created_at: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
         },
       });
+
+      // add image url
+      blog.blog_images.forEach((image) => {
+        image['image_url'] = SojebStorage.url(
+          appConfig().storageUrl.blog + image.image,
+        );
+      });
+
+      // add avatar url
+      blog.user.avatar = SojebStorage.url(
+        appConfig().storageUrl.avatar + blog.user.avatar,
+      );
 
       return {
         success: true,
@@ -133,6 +161,80 @@ export class BlogService extends PrismaClient {
       await LikeRepository.updateLikeCount(blog_id, 'blog');
 
       return true;
+    }
+  }
+
+  async comment(
+    user_id: string,
+    blog_id: string,
+    commentDto: CreateCommentDto,
+  ) {
+    try {
+      const blog = await this.prisma.blog.findUnique({
+        where: { id: blog_id },
+      });
+
+      if (!blog) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+
+      const comment = commentDto.comment;
+
+      await this.prisma.blogComment.create({
+        data: {
+          blog_id: blog_id,
+          user_id: user_id,
+          comment: comment,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Comment added successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async deleteComment(user_id: string, comment_id: string) {
+    try {
+      const comment = await this.prisma.blogComment.findUnique({
+        where: { id: comment_id },
+      });
+
+      if (!comment) {
+        return {
+          success: false,
+          message: 'Comment not found',
+        };
+      }
+      // check if the comment is owned by the user
+      if (comment.user_id != user_id) {
+        return {
+          success: false,
+          message: 'You are not allowed to delete this comment',
+        };
+      }
+      await this.prisma.blogComment.delete({
+        where: { id: comment_id },
+      });
+
+      return {
+        success: true,
+        message: 'Comment deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 }
