@@ -682,6 +682,40 @@ model EmailLog {
   @@map("email_logs")
 }
 
+// this table stores social media information
+model SocialMedia {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  name String? // e.g. facebook, twitter, instagram
+  url  String?
+  icon String?
+
+  @@map("social_medias")
+}
+
+// this table stores company information
+model WebsiteInfo {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  name         String?
+  phone_number String?
+  email        String?
+  address      String?
+  logo         String?
+  favicon      String?
+  copyright    String?
+
+  @@map("website_infos")
+}
+
 // this table stores setting information
 model Setting {
   id         String    @id @default(cuid())

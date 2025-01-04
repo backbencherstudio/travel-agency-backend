@@ -193,8 +193,10 @@ export class DestinationService extends PrismaClient {
         const destinationImages = await this.prisma.destinationImage.findMany({
           where: { destination_id: id },
         });
-        destinationImages.forEach((image) => {
-          SojebStorage.delete(appConfig().storageUrl.destination + image.image);
+        destinationImages.forEach(async (image) => {
+          await SojebStorage.delete(
+            appConfig().storageUrl.destination + image.image,
+          );
         });
         await this.prisma.destinationImage.deleteMany({
           where: { destination_id: id },

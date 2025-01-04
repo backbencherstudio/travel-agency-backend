@@ -54,6 +54,7 @@ export default () => ({
     destination: '/destination/',
     blog: '/blog/',
     avatar: '/avatar/',
+    websiteInfo: '/website-info/',
   },
 
   defaultUser: {

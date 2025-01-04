@@ -8,8 +8,10 @@ import { DestinationModule } from './destination/destination.module';
 import { CountryModule } from './country/country.module';
 import { BlogModule } from './blog/blog.module';
 import { ContactModule } from './contact/contact.module';
+import { SocialMediaModule } from './social-media/social-media.module';
+import { WebsiteInfoModule } from './website-info/website-info.module';
 
 @Module({
-  imports: [FaqModule, PackageModule, CategoryModule, TagModule, PackageCancellationPolicyModule, DestinationModule, CountryModule, BlogModule, ContactModule],
+  imports: [FaqModule, PackageModule, CategoryModule, TagModule, PackageCancellationPolicyModule, DestinationModule, CountryModule, BlogModule, ContactModule, SocialMediaModule, WebsiteInfoModule],
 })
 export class AdminModule {}
