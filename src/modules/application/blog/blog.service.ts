@@ -117,6 +117,13 @@ export class BlogService extends PrismaClient {
         appConfig().storageUrl.avatar + blog.user.avatar,
       );
 
+      // add comment avatar url
+      blog.blog_comments.forEach((comment) => {
+        comment.user.avatar = SojebStorage.url(
+          appConfig().storageUrl.avatar + comment.user.avatar,
+        );
+      });
+
       return {
         success: true,
         data: blog,
