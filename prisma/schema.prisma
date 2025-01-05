@@ -63,22 +63,24 @@ model User {
 
   email_verified_at DateTime?
 
-  ucodes                 Ucode[]
-  role_users             RoleUser[]
-  sender_notifications   Notification[] @relation("sender")
-  receiver_notifications Notification[] @relation("receiver")
-  roles                  Role[]
-  accounts               Account[]
-  bookings               Booking[]
-  reviews                Review[]
-  sender_messages        Message[]      @relation("sender")
-  receiver_messages      Message[]      @relation("receiver")
-  blog_comments          BlogComment[]
-  likes                  Like[]
-  email_logs             EmailLog[]
-  destinations           Destination[]
-  packages               Package[]
-  blogs                  Blog[]
+  ucodes                    Ucode[]
+  role_users                RoleUser[]
+  sender_notifications      Notification[] @relation("sender")
+  receiver_notifications    Notification[] @relation("receiver")
+  roles                     Role[]
+  accounts                  Account[]
+  bookings                  Booking[]
+  reviews                   Review[]
+  sender_messages           Message[]      @relation("sender")
+  receiver_messages         Message[]      @relation("receiver")
+  blog_comments             BlogComment[]
+  likes                     Like[]
+  email_logs                EmailLog[]
+  destinations              Destination[]
+  packages                  Package[]
+  blogs                     Blog[]
+  creator_conversations     Conversation[] @relation("creator")
+  participant_conversations Conversation[] @relation("participant")
 
   @@map("users")
 }
@@ -502,9 +504,50 @@ model Message {
   receiver_id String?
   receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
 
+  conversation_id String?
+  conversation    Conversation? @relation(fields: [conversation_id], references: [id])
+
+  attachment_id String?
+  attachment    Attachment? @relation(fields: [attachment_id], references: [id])
+
   message String? @db.Text
 
   @@map("messages")
+}
+
+// this table stores attachment
+model Attachment {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  name     String? // e.g. image.jpg, video.mp4, audio.mp3, file.pdf
+  type     String? // e.g. image, video, audio, file
+  size     Int? // in bytes
+  file     String? // file path
+  file_alt String? // file alt text
+
+  messages Message[]
+
+  @@map("attachments")
+}
+
+// this table stores conversation
+model Conversation {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  creator_id String?
+  creator    User?   @relation("creator", fields: [creator_id], references: [id])
+
+  participant_id String?
+  participant    User?     @relation("participant", fields: [participant_id], references: [id])
+  Message        Message[]
+
+  @@map("conversations")
 }
 
 // this table stores blog information

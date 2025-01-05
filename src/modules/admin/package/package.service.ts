@@ -124,15 +124,35 @@ export class PackageService extends PrismaClient {
     }
     // add category to package
     if (createPackageDto.package_category) {
-      const package_category = JSON.parse(createPackageDto.package_category);
-      for (const category of package_category) {
-        await this.prisma.packageCategory.create({
-          data: {
-            category_id: category.id,
-            package_id: record.id,
-          },
-        });
+      // const package_category = JSON.parse(createPackageDto.package_category);
+      // for (const category of package_category) {
+      //   await this.prisma.packageCategory.create({
+      //     data: {
+      //       category_id: category.id,
+      //       package_id: record.id,
+      //     },
+      //   });
+      // }
+      // check if category exists
+      const category = await this.prisma.category.findUnique({
+        where: {
+          id: createPackageDto.package_category,
+        },
+      });
+
+      if (!category) {
+        return {
+          success: false,
+          message: 'Category not found',
+        };
       }
+
+      await this.prisma.packageCategory.create({
+        data: {
+          category_id: category.id,
+          package_id: record.id,
+        },
+      });
     }
 
     return {
