@@ -81,13 +81,13 @@ export class BlogService extends PrismaClient {
         },
       });
       // add image url
-      blogs.forEach((blog) => {
-        blog.blog_images.forEach((image) => {
+      for (const blog of blogs) {
+        for (const image of blog.blog_images) {
           image['image_url'] = SojebStorage.url(
             appConfig().storageUrl.blog + image.image,
           );
-        });
-      });
+        }
+      }
 
       return {
         success: true,
@@ -128,11 +128,13 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      blog.blog_images.forEach((image) => {
-        image['image_url'] = SojebStorage.url(
-          appConfig().storageUrl.blog + image.image,
-        );
-      });
+      if (blog.blog_images.length > 0) {
+        for (const image of blog.blog_images) {
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.blog + image.image,
+          );
+        }
+      }
 
       return {
         success: true,
@@ -172,9 +174,9 @@ export class BlogService extends PrismaClient {
           where: { blog_id: blog.id },
         });
         // delete images from storage
-        blogImages.forEach(async (image) => {
+        for (const image of blogImages) {
           await SojebStorage.delete(appConfig().storageUrl.blog + image.image);
-        });
+        }
         await this.prisma.blogImage.deleteMany({
           where: { blog_id: blog.id },
         });
@@ -260,9 +262,9 @@ export class BlogService extends PrismaClient {
         const blogImages = await tx.blogImage.findMany({
           where: { blog_id: id },
         });
-        blogImages.forEach(async (image) => {
+        for (const image of blogImages) {
           await SojebStorage.delete(appConfig().storageUrl.blog + image.image);
-        });
+        }
         await tx.blogImage.deleteMany({
           where: { blog_id: id },
         });

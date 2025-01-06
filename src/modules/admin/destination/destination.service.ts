@@ -93,13 +93,17 @@ export class DestinationService extends PrismaClient {
       });
 
       // add image url
-      destinations.forEach((destination) => {
-        destination.destination_images.forEach((image) => {
-          image['image_url'] = SojebStorage.url(
-            appConfig().storageUrl.destination + image.image,
-          );
-        });
-      });
+      if (destinations.length > 0) {
+        for (const destination of destinations) {
+          if (destination.destination_images.length > 0) {
+            for (const image of destination.destination_images) {
+              image['image_url'] = SojebStorage.url(
+                appConfig().storageUrl.destination + image.image,
+              );
+            }
+          }
+        }
+      }
       return {
         success: true,
         data: destinations,
@@ -147,11 +151,13 @@ export class DestinationService extends PrismaClient {
       });
 
       // add image url
-      destination.destination_images.forEach((image) => {
-        image['image_url'] = SojebStorage.url(
-          appConfig().storageUrl.destination + image.image,
-        );
-      });
+      if (destination.destination_images.length > 0) {
+        for (const image of destination.destination_images) {
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.destination + image.image,
+          );
+        }
+      }
 
       return {
         success: true,
@@ -193,11 +199,13 @@ export class DestinationService extends PrismaClient {
         const destinationImages = await this.prisma.destinationImage.findMany({
           where: { destination_id: id },
         });
-        destinationImages.forEach(async (image) => {
-          await SojebStorage.delete(
-            appConfig().storageUrl.destination + image.image,
-          );
-        });
+        if (destinationImages.length > 0) {
+          for (const image of destinationImages) {
+            await SojebStorage.delete(
+              appConfig().storageUrl.destination + image.image,
+            );
+          }
+        }
         await this.prisma.destinationImage.deleteMany({
           where: { destination_id: id },
         });

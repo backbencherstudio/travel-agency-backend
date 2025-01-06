@@ -39,18 +39,20 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      blogs.forEach((blog) => {
-        blog.blog_images.forEach((image) => {
-          image['image_url'] = SojebStorage.url(
-            appConfig().storageUrl.blog + image.image,
-          );
-        });
-      });
+      for (const blog of blogs) {
+        if (blog.blog_images.length > 0) {
+          for (const image of blog.blog_images) {
+            image['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.blog + image.image,
+            );
+          }
+        }
+      }
 
       // add read time
-      blogs.forEach((blog) => {
+      for (const blog of blogs) {
         blog['read_time'] = StringHelper.getReadTime(blog.body);
-      });
+      }
 
       return {
         success: true,
@@ -106,23 +108,31 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      blog.blog_images.forEach((image) => {
-        image['image_url'] = SojebStorage.url(
-          appConfig().storageUrl.blog + image.image,
-        );
-      });
+      if (blog.blog_images.length > 0) {
+        for (const image of blog.blog_images) {
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.blog + image.image,
+          );
+        }
+      }
 
       // add avatar url
-      blog.user.avatar = SojebStorage.url(
-        appConfig().storageUrl.avatar + blog.user.avatar,
-      );
+      if (blog.user && blog.user.avatar) {
+        blog.user.avatar = SojebStorage.url(
+          appConfig().storageUrl.avatar + blog.user.avatar,
+        );
+      }
 
       // add comment avatar url
-      blog.blog_comments.forEach((comment) => {
-        comment.user.avatar = SojebStorage.url(
-          appConfig().storageUrl.avatar + comment.user.avatar,
-        );
-      });
+      if (blog.blog_comments.length > 0) {
+        for (const comment of blog.blog_comments) {
+          if (comment.user.avatar) {
+            comment.user.avatar = SojebStorage.url(
+              appConfig().storageUrl.avatar + comment.user.avatar,
+            );
+          }
+        }
+      }
 
       // add recent post
       const recentBlogs = await this.prisma.blog.findMany({
@@ -143,13 +153,15 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      recentBlogs.forEach((post) => {
-        post.blog_images.forEach((image) => {
-          image['image_url'] = SojebStorage.url(
-            appConfig().storageUrl.blog + image.image,
-          );
-        });
-      });
+      for (const post of recentBlogs) {
+        if (post.blog_images.length > 0) {
+          for (const image of post.blog_images) {
+            image['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.blog + image.image,
+            );
+          }
+        }
+      }
 
       blog['recent_blogs'] = recentBlogs;
 
@@ -172,11 +184,13 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      featuredBlog.blog_images.forEach((image) => {
-        image['image_url'] = SojebStorage.url(
-          appConfig().storageUrl.blog + image.image,
-        );
-      });
+      if (featuredBlog.blog_images.length > 0) {
+        for (const image of featuredBlog.blog_images) {
+          image['image_url'] = SojebStorage.url(
+            appConfig().storageUrl.blog + image.image,
+          );
+        }
+      }
 
       blog['featured_blog'] = featuredBlog;
 
@@ -216,15 +230,17 @@ export class BlogService extends PrismaClient {
       });
 
       // add image url
-      blogs.forEach((blog) => {
-        if (blog.blog_images.length > 0) {
-          blog.blog_images.forEach((image) => {
-            image['image_url'] = SojebStorage.url(
-              appConfig().storageUrl.blog + image.image,
-            );
-          });
+      if (blogs.length > 0) {
+        for (const blog of blogs) {
+          if (blog.blog_images.length > 0) {
+            for (const image of blog.blog_images) {
+              image['image_url'] = SojebStorage.url(
+                appConfig().storageUrl.blog + image.image,
+              );
+            }
+          }
         }
-      });
+      }
 
       const end = performance.now();
       const time = (end - start) / 1000; // in seconds
