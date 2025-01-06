@@ -165,14 +165,17 @@ export class MessageService extends PrismaClient {
   }
 
   async updateMessageStatus(message_id: string, status: MessageStatus) {
-    await ChatRepository.updateMessageStatus(message_id, status);
+    return await ChatRepository.updateMessageStatus(message_id, status);
   }
 
   async readMessage(message_id: string) {
-    await ChatRepository.updateMessageStatus(message_id, MessageStatus.READ);
+    return await ChatRepository.updateMessageStatus(
+      message_id,
+      MessageStatus.READ,
+    );
   }
 
   async updateUserStatus(user_id: string, status: string) {
-    await ChatRepository.updateUserStatus(user_id, status);
+    return await ChatRepository.updateUserStatus(user_id, status);
   }
 }
