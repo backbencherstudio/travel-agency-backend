@@ -1,16 +1,30 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageGateway } from './message.gateway';
 import { Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-@Controller('message')
+@ApiBearerAuth()
+@ApiTags('Message')
+@UseGuards(JwtAuthGuard)
+@Controller('chat/message')
 export class MessageController {
   constructor(
     private readonly messageService: MessageService,
     private readonly messageGateway: MessageGateway,
   ) {}
 
+  @ApiOperation({ summary: 'Send message' })
   @Post()
   async create(
     @Req() req: Request,
@@ -43,6 +57,28 @@ export class MessageController {
       return {
         success: message.success,
         message: message.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Get all messages' })
+  @Get()
+  async findAll(
+    @Req() req: Request,
+    @Query() query: { conversation_id: string },
+  ) {
+    const user_id = req.user.userId;
+    const conversation_id = query.conversation_id as string;
+    try {
+      const messages = await this.messageService.findAll({
+        user_id,
+        conversation_id,
+      });
+      return messages;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
       };
     }
   }
