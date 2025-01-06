@@ -490,13 +490,20 @@ model Review {
   @@map("reviews")
 }
 
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+}
+
 // this table stores message
 model Message {
-  id         String    @id @default(cuid())
-  created_at DateTime  @default(now())
-  updated_at DateTime  @default(now())
+  id         String         @id @default(cuid())
+  created_at DateTime       @default(now())
+  updated_at DateTime       @default(now())
   deleted_at DateTime?
-  status     Int?      @default(1) @db.SmallInt
+  status     MessageStatus? @default(PENDING)
 
   sender_id String?
   sender    User?   @relation("sender", fields: [sender_id], references: [id])

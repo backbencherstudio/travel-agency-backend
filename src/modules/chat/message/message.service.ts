@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { PrismaClient } from '@prisma/client';
+import { MessageStatus, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { ChatRepository } from 'src/common/repository/chat/chat.repository';
 
 @Injectable()
 export class MessageService extends PrismaClient {
@@ -28,6 +29,7 @@ export class MessageService extends PrismaClient {
       const message = await this.prisma.message.create({
         data: {
           ...data,
+          status: MessageStatus.SENT,
           sender_id: user_id,
         },
       });
@@ -92,5 +94,13 @@ export class MessageService extends PrismaClient {
         message: error.message,
       };
     }
+  }
+
+  async updateMessageStatus(message_id: string, status: MessageStatus) {
+    await ChatRepository.updateMessageStatus(message_id, status);
+  }
+
+  async readMessage(message_id: string) {
+    await ChatRepository.updateMessageStatus(message_id, MessageStatus.READ);
   }
 }

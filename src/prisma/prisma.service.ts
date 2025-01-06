@@ -4,6 +4,7 @@ import {
   Logger,
   Injectable,
   OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 // internal imports
@@ -13,7 +14,7 @@ import { SoftdeleteMiddleware } from './middleware/softdelete.middleware';
 // export class PrismaService extends PrismaClient implements OnModuleInit {
 export class PrismaService
   extends PrismaClient<Prisma.PrismaClientOptions, 'query'>
-  implements OnModuleInit
+  implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
 
@@ -34,6 +35,10 @@ export class PrismaService
 
   async onModuleInit() {
     await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
   }
 
   // async enableShutdownHooks(app: INestApplication) {

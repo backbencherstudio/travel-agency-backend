@@ -10,6 +10,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { OnModuleInit } from '@nestjs/common';
 import { MessageService } from './message.service';
+import * as jwt from 'jsonwebtoken';
+import { MessageStatus } from '@prisma/client';
 
 @WebSocketGateway({
   cors: {
@@ -37,12 +39,26 @@ export class MessageGateway
     console.log('Websocket server started');
   }
 
+  // implement jwt token validation
   async handleConnection(client: Socket, ...args: any[]) {
-    // console.log('new connection!', client.id);
-    const userId = client.handshake.query.userId as string; // User ID passed as query parameter
-    if (userId) {
-      this.clients.set(userId, client.id);
-      console.log(`User ${userId} connected with socket ${client.id}`);
+    try {
+      const token = client.handshake.headers.authorization?.split(' ')[1];
+      if (!token) {
+        client.disconnect();
+        console.log('No token provided');
+        return;
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.userId;
+      // const userId = client.handshake.query.userId as string;
+      if (userId) {
+        this.clients.set(userId, client.id);
+        console.log(`User ${userId} connected with socket ${client.id}`);
+      }
+    } catch (error) {
+      client.disconnect();
+      console.error('Error handling connection:', error);
     }
   }
 
@@ -65,8 +81,37 @@ export class MessageGateway
 
   @SubscribeMessage('sendMessage')
   async listenForMessages(@MessageBody() body: { to: string; data: any }) {
-    // this.server.to(body.to).emit('message', { from: body.to, data: body.data });
-    const message = await this.messageService.create(body.to, body.data);
-    return message;
+    await this.messageService.create(body.to, body.data);
+    this.server.to(body.to).emit('message', { from: body.to, data: body.data });
+  }
+
+  @SubscribeMessage('updateMessageStatus')
+  async updateMessageStatus(
+    client: Socket,
+    @MessageBody() body: { message_id: string; status: MessageStatus },
+  ) {
+    await this.messageService.updateMessageStatus(body.message_id, body.status);
+    // notify the sender that the message has been sent
+    this.server.to(client.id).emit('messageStatusUpdated', {
+      message_id: body.message_id,
+      status: body.status,
+    });
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(client: Socket, @MessageBody() body: { to: string; data: any }) {
+    this.server
+      .to(body.to)
+      .emit('userTyping', { from: body.to, data: body.data });
+  }
+
+  @SubscribeMessage('stopTyping')
+  handleStopTyping(
+    client: Socket,
+    @MessageBody() body: { to: string; data: any },
+  ) {
+    this.server
+      .to(body.to)
+      .emit('userStoppedTyping', { from: body.to, data: body.data });
   }
 }
