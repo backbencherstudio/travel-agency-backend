@@ -1,0 +1,192 @@
+import { Injectable } from '@nestjs/common';
+import { CreateConversationDto } from './dto/create-conversation.dto';
+import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaClient } from '@prisma/client';
+import appConfig from 'src/config/app.config';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+
+@Injectable()
+export class ConversationService extends PrismaClient {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
+
+  async create(createConversationDto: CreateConversationDto) {
+    try {
+      const data: any = {};
+
+      if (createConversationDto.creator_id) {
+        data.creator_id = createConversationDto.creator_id;
+      }
+      if (createConversationDto.participant_id) {
+        data.participant_id = createConversationDto.participant_id;
+      }
+
+      await this.prisma.conversation.create({
+        data: {
+          ...data,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Conversation created successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async findAll() {
+    try {
+      const conversations = await this.prisma.conversation.findMany({
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          messages: {
+            orderBy: {
+              created_at: 'desc',
+            },
+            take: 1,
+            select: {
+              id: true,
+              message: true,
+              created_at: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      for (const conversation of conversations) {
+        if (conversation.creator.avatar) {
+          conversation.creator['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + conversation.creator.avatar,
+          );
+        }
+        if (conversation.participant.avatar) {
+          conversation.participant['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + conversation.participant.avatar,
+          );
+        }
+      }
+
+      return {
+        success: true,
+        data: conversations,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async findOne(id: string) {
+    try {
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      if (conversation.creator.avatar) {
+        conversation.creator['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + conversation.creator.avatar,
+        );
+      }
+
+      return {
+        success: true,
+        data: conversation,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async update(id: string, updateConversationDto: UpdateConversationDto) {
+    try {
+      await this.prisma.conversation.update({
+        where: { id },
+        data: updateConversationDto,
+      });
+
+      return {
+        success: true,
+        message: 'Conversation updated successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      await this.prisma.conversation.delete({
+        where: { id },
+      });
+
+      return {
+        success: true,
+        message: 'Conversation deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+}

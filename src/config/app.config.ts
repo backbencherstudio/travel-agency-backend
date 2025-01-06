@@ -34,6 +34,11 @@ export default () => ({
     salt: 10,
   },
 
+  jwt: {
+    secret: process.env.JWT_SECRET,
+    expiry: process.env.JWT_EXPIRY,
+  },
+
   mail: {
     host: process.env.MAIL_HOST || 'smtp.gmail.com',
     user: process.env.MAIL_USERNAME,
@@ -55,6 +60,8 @@ export default () => ({
     blog: '/blog/',
     avatar: '/avatar/',
     websiteInfo: '/website-info/',
+    // chat
+    attachment: '/attachment/',
   },
 
   defaultUser: {

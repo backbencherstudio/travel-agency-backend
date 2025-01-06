@@ -261,7 +261,10 @@ export class BlogService extends PrismaClient {
 
       await LikeRepository.updateLikeCount(blog_id, 'blog');
 
-      return true;
+      return {
+        success: true,
+        message: 'Blog unliked successfully',
+      };
     } else {
       await this.prisma.like.create({
         data: {
@@ -273,7 +276,10 @@ export class BlogService extends PrismaClient {
 
       await LikeRepository.updateLikeCount(blog_id, 'blog');
 
-      return true;
+      return {
+        success: true,
+        message: 'Blog liked successfully',
+      };
     }
   }
 
