@@ -552,7 +552,7 @@ model Conversation {
 
   participant_id String?
   participant    User?     @relation("participant", fields: [participant_id], references: [id])
-  Message        Message[]
+  messages       Message[]
 
   @@map("conversations")
 }

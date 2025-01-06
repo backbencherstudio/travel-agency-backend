@@ -3,6 +3,8 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ChatRepository } from 'src/common/repository/chat/chat.repository';
+import appConfig from 'src/config/app.config';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
 
 @Injectable()
 export class MessageService extends PrismaClient {
@@ -50,9 +52,13 @@ export class MessageService extends PrismaClient {
   async findAll({
     user_id,
     conversation_id,
+    limit = 20,
+    cursor,
   }: {
     user_id: string;
     conversation_id: string;
+    limit?: number;
+    cursor?: string;
   }) {
     try {
       const conversation = await this.prisma.conversation.findFirst({
@@ -75,14 +81,76 @@ export class MessageService extends PrismaClient {
         };
       }
 
+      const paginationData = {};
+      if (limit) {
+        paginationData['take'] = limit;
+      }
+      if (cursor) {
+        paginationData['cursor'] = cursor ? { id: cursor } : undefined;
+      }
+
       const messages = await this.prisma.message.findMany({
+        ...paginationData,
         where: {
           conversation_id: conversation_id,
         },
         orderBy: {
           created_at: 'asc',
         },
+        select: {
+          id: true,
+          message: true,
+          created_at: true,
+          status: true,
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+
+          attachment: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              size: true,
+              file: true,
+            },
+          },
+        },
       });
+
+      // add attachment url
+      for (const message of messages) {
+        if (message.attachment) {
+          message.attachment['file_url'] = SojebStorage.url(
+            appConfig().storageUrl.attachment + message.attachment.file,
+          );
+        }
+      }
+
+      // add image url
+      for (const message of messages) {
+        if (message.sender.avatar) {
+          message.sender['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + message.sender.avatar,
+          );
+        }
+        if (message.receiver.avatar) {
+          message.receiver['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + message.receiver.avatar,
+          );
+        }
+      }
 
       return {
         success: true,
@@ -102,5 +170,9 @@ export class MessageService extends PrismaClient {
 
   async readMessage(message_id: string) {
     await ChatRepository.updateMessageStatus(message_id, MessageStatus.READ);
+  }
+
+  async updateUserStatus(user_id: string, status: string) {
+    await ChatRepository.updateUserStatus(user_id, status);
   }
 }

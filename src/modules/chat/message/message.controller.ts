@@ -65,14 +65,19 @@ export class MessageController {
   @Get()
   async findAll(
     @Req() req: Request,
-    @Query() query: { conversation_id: string },
+    @Query()
+    query: { conversation_id: string; limit?: number; cursor?: string },
   ) {
     const user_id = req.user.userId;
     const conversation_id = query.conversation_id as string;
+    const limit = Number(query.limit);
+    const cursor = query.cursor as string;
     try {
       const messages = await this.messageService.findAll({
         user_id,
         conversation_id,
+        limit,
+        cursor,
       });
       return messages;
     } catch (error) {

@@ -17,4 +17,17 @@ export class ChatRepository {
       },
     });
   }
+
+  /**
+   * Update user status
+   * @returns
+   */
+  static async updateUserStatus(user_id: string, status: string) {
+    return await prisma.user.update({
+      where: { id: user_id },
+      data: {
+        availability: status,
+      },
+    });
+  }
 }

@@ -3,20 +3,21 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
 } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Role } from 'src/common/guard/role/role.enum';
+import { Roles } from 'src/common/guard/role/roles.decorator';
 
 @ApiBearerAuth()
 @ApiTags('Conversation')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('chat/conversation')
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
@@ -37,6 +38,7 @@ export class ConversationController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get all conversations' })
   @Get()
   async findAll() {
@@ -65,26 +67,7 @@ export class ConversationController {
     }
   }
 
-  @ApiOperation({ summary: 'Update a conversation' })
-  @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateConversationDto: UpdateConversationDto,
-  ) {
-    try {
-      const conversation = await this.conversationService.update(
-        id,
-        updateConversationDto,
-      );
-      return conversation;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
+  @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Delete a conversation' })
   @Delete(':id')
   async remove(@Param('id') id: string) {

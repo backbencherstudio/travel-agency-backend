@@ -3,6 +3,8 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
+import appConfig from 'src/config/app.config';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
 
 @Injectable()
 export class ConversationService extends PrismaClient {
@@ -41,7 +43,57 @@ export class ConversationService extends PrismaClient {
 
   async findAll() {
     try {
-      const conversations = await this.prisma.conversation.findMany();
+      const conversations = await this.prisma.conversation.findMany({
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          messages: {
+            orderBy: {
+              created_at: 'desc',
+            },
+            take: 1,
+            select: {
+              id: true,
+              message: true,
+              created_at: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      for (const conversation of conversations) {
+        if (conversation.creator.avatar) {
+          conversation.creator['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + conversation.creator.avatar,
+          );
+        }
+        if (conversation.participant.avatar) {
+          conversation.participant['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + conversation.participant.avatar,
+          );
+        }
+      }
 
       return {
         success: true,
@@ -59,7 +111,35 @@ export class ConversationService extends PrismaClient {
     try {
       const conversation = await this.prisma.conversation.findUnique({
         where: { id },
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+        },
       });
+
+      // add image url
+      if (conversation.creator.avatar) {
+        conversation.creator['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + conversation.creator.avatar,
+        );
+      }
 
       return {
         success: true,

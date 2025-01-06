@@ -55,6 +55,13 @@ export class MessageGateway
       if (userId) {
         this.clients.set(userId, client.id);
         console.log(`User ${userId} connected with socket ${client.id}`);
+
+        await this.messageService.updateUserStatus(userId, 'online');
+        // notify the user that the user is online
+        this.server.to(client.id).emit('userStatusChange', {
+          user_id: userId,
+          status: 'online',
+        });
       }
     } catch (error) {
       client.disconnect();
@@ -62,7 +69,7 @@ export class MessageGateway
     }
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     // console.log('client disconnected!', client.id);
     const userId = [...this.clients.entries()].find(
       ([, socketId]) => socketId === client.id,
@@ -70,6 +77,13 @@ export class MessageGateway
     if (userId) {
       this.clients.delete(userId);
       console.log(`User ${userId} disconnected`);
+
+      await this.messageService.updateUserStatus(userId, 'offline');
+      // notify the user that the user is offline
+      this.server.to(client.id).emit('userStatusChange', {
+        user_id: userId,
+        status: 'offline',
+      });
     }
   }
 
