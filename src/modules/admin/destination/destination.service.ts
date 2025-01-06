@@ -204,7 +204,7 @@ export class DestinationService extends PrismaClient {
 
         // save destination images
         const destination_images_data = images.map((image) => ({
-          image: image.path,
+          image: image.filename,
           image_alt: image.originalname,
           destination_id: id,
         }));

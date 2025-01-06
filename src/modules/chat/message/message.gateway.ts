@@ -9,9 +9,10 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { OnModuleInit } from '@nestjs/common';
-import { MessageService } from './message.service';
-import * as jwt from 'jsonwebtoken';
 import { MessageStatus } from '@prisma/client';
+import * as jwt from 'jsonwebtoken';
+import { MessageService } from './message.service';
+import appConfig from '../../../config/app.config';
 
 @WebSocketGateway({
   cors: {
@@ -49,7 +50,7 @@ export class MessageGateway
         return;
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded: any = jwt.verify(token, appConfig().jwt.secret);
       const userId = decoded.userId;
       // const userId = client.handshake.query.userId as string;
       if (userId) {

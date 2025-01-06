@@ -124,9 +124,30 @@ export class PackageController {
   async update(
     @Param('id') id: string,
     @Body() updatePackageDto: UpdatePackageDto,
+    @Req() req: Request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          // new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB
+          // support all image types
+          // new FileTypeValidator({ fileType: 'image/*' }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    files: {
+      package_images?: Express.Multer.File[];
+      trip_plans_images?: Express.Multer.File[];
+    },
   ) {
     try {
-      const record = await this.packageService.update(id, updatePackageDto);
+      const user_id = req.user.userId;
+      const record = await this.packageService.update(
+        id,
+        user_id,
+        updatePackageDto,
+        files,
+      );
       return record;
     } catch (error) {
       return {

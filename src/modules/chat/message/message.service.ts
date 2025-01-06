@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { ChatRepository } from 'src/common/repository/chat/chat.repository';
-import appConfig from 'src/config/app.config';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+import { ChatRepository } from '../../../common/repository/chat/chat.repository';
+import appConfig from '../../../config/app.config';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 
 @Injectable()
 export class MessageService extends PrismaClient {
