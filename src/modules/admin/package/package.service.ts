@@ -387,7 +387,7 @@ export class PackageService extends PrismaClient {
         });
         // delete old trip plans with images that are not in the new trip plans
         for (const old_trip_plan of old_trip_plans) {
-          if (!trip_plans.some((tp) => tp.id === old_trip_plan.id)) {
+          if (!trip_plans.some((tp) => tp.id == old_trip_plan.id)) {
             await this.prisma.packageTripPlan.delete({
               where: { id: old_trip_plan.id },
             });
