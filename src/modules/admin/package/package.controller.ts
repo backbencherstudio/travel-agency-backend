@@ -121,6 +121,26 @@ export class PackageController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Update package' })
   @Patch(':id')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [{ name: 'package_images' }, { name: 'trip_plans_images' }],
+      {
+        storage: diskStorage({
+          destination:
+            appConfig().storageUrl.rootUrl +
+            '/' +
+            appConfig().storageUrl.package,
+          filename: (req, file, cb) => {
+            const randomName = Array(32)
+              .fill(null)
+              .map(() => Math.round(Math.random() * 16).toString(16))
+              .join('');
+            return cb(null, `${randomName}${file.originalname}`);
+          },
+        }),
+      },
+    ),
+  )
   async update(
     @Param('id') id: string,
     @Body() updatePackageDto: UpdatePackageDto,

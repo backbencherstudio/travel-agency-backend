@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "reviews" ALTER COLUMN "rating_value" SET DATA TYPE DOUBLE PRECISION;

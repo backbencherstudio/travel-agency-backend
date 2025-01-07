@@ -5,8 +5,9 @@ import { BlogModule } from './blog/blog.module';
 import { FaqModule } from './faq/faq.module';
 import { FooterModule } from './footer/footer.module';
 import { PackageModule } from './package/package.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
-  imports: [NotificationModule, ContactModule, BlogModule, FaqModule, FooterModule, PackageModule],
+  imports: [NotificationModule, ContactModule, BlogModule, FaqModule, FooterModule, PackageModule, BookingModule],
 })
 export class ApplicationModule {}
