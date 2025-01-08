@@ -498,6 +498,7 @@ model Booking {
   BookingItem        BookingItem[]
   BookingCoupon      BookingCoupon[]
   PaymentTransaction PaymentTransaction[]
+  BookingTraveller   BookingTraveller[]
 
   @@map("bookings")
 }
@@ -519,6 +520,31 @@ model BookingItem {
   price    Decimal?
 
   @@map("booking_items")
+}
+
+// this table stores booking traveller information
+model BookingTraveller {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  first_name   String?
+  last_name    String?
+  email        String?
+  phone_number String?
+
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zip_code String?
+  country  String?
+
+  @@map("booking_travellers")
 }
 
 // this table stores booking coupons

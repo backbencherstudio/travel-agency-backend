@@ -397,22 +397,29 @@ export class PackageService extends PrismaClient {
         },
       });
 
+      // delete package images which is not included in updatePackageDto.package_images
+      if (updatePackageDto.package_images) {
+        const package_images = JSON.parse(updatePackageDto.package_images);
+
+        // old package images
+        const old_package_images = await this.prisma.packageImage.findMany({
+          where: { package_id: record.id },
+        });
+        // delete old package image that are not in the new package images
+        for (const old_package_image of old_package_images) {
+          if (!package_images.some((pi) => pi.id == old_package_image.id)) {
+            await SojebStorage.delete(
+              appConfig().storageUrl.package + old_package_image.image,
+            );
+            await this.prisma.packageImage.delete({
+              where: { id: old_package_image.id, package_id: record.id },
+            });
+          }
+        }
+      }
+
       // add package images to package
       if (files.package_images && files.package_images.length > 0) {
-        // delete old package images from storage
-        const package_images = await this.prisma.packageImage.findMany({
-          where: { package_id: record.id },
-        });
-        for (const image of package_images) {
-          await SojebStorage.delete(
-            appConfig().storageUrl.package + image.image,
-          );
-        }
-        // delete old package images from database
-        await this.prisma.packageImage.deleteMany({
-          where: { package_id: record.id },
-        });
-        // add new package images
         const package_images_data = files.package_images.map((image) => ({
           image: image.filename,
           image_alt: image.originalname,
