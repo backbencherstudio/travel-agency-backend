@@ -3,8 +3,8 @@ import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
-import appConfig from 'src/config/app.config';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -182,8 +182,37 @@ export class PackageService extends PrismaClient {
           type: true,
           destination_id: true,
           cancellation_policy_id: true,
+          package_categories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          package_images: {
+            select: {
+              id: true,
+              image: true,
+            },
+          },
         },
       });
+
+      // add image url package_images
+      if (packages && packages.length > 0) {
+        for (const record of packages) {
+          if (record.package_images) {
+            for (const image of record.package_images) {
+              image['image_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + image.image,
+              );
+            }
+          }
+        }
+      }
       return {
         success: true,
         data: packages,
@@ -217,7 +246,7 @@ export class PackageService extends PrismaClient {
           reviews: {
             select: {
               id: true,
-              rating: true,
+              rating_value: true,
               comment: true,
               user_id: true,
             },
@@ -226,6 +255,12 @@ export class PackageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              country: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           cancellation_policy: {
@@ -233,6 +268,16 @@ export class PackageService extends PrismaClient {
               id: true,
               policy: true,
               description: true,
+            },
+          },
+          package_categories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           package_images: {
@@ -352,22 +397,29 @@ export class PackageService extends PrismaClient {
         },
       });
 
+      // delete package images which is not included in updatePackageDto.package_images
+      if (updatePackageDto.package_images) {
+        const package_images = JSON.parse(updatePackageDto.package_images);
+
+        // old package images
+        const old_package_images = await this.prisma.packageImage.findMany({
+          where: { package_id: record.id },
+        });
+        // delete old package image that are not in the new package images
+        for (const old_package_image of old_package_images) {
+          if (!package_images.some((pi) => pi.id == old_package_image.id)) {
+            await SojebStorage.delete(
+              appConfig().storageUrl.package + old_package_image.image,
+            );
+            await this.prisma.packageImage.delete({
+              where: { id: old_package_image.id, package_id: record.id },
+            });
+          }
+        }
+      }
+
       // add package images to package
       if (files.package_images && files.package_images.length > 0) {
-        // delete old package images from storage
-        const package_images = await this.prisma.packageImage.findMany({
-          where: { package_id: record.id },
-        });
-        for (const image of package_images) {
-          await SojebStorage.delete(
-            appConfig().storageUrl.package + image.image,
-          );
-        }
-        // delete old package images from database
-        await this.prisma.packageImage.deleteMany({
-          where: { package_id: record.id },
-        });
-        // add new package images
         const package_images_data = files.package_images.map((image) => ({
           image: image.filename,
           image_alt: image.originalname,
@@ -378,7 +430,7 @@ export class PackageService extends PrismaClient {
         });
       }
 
-      // add trip plan to package
+      // delete trip plans which is not included in updatePackageDto.trip_plans
       if (updatePackageDto.trip_plans) {
         const trip_plans = JSON.parse(updatePackageDto.trip_plans);
         // compare trip plans with old trip plans
@@ -407,24 +459,72 @@ export class PackageService extends PrismaClient {
             });
           }
         }
+
+        // add new trip plans to package
         for (const trip_plan of trip_plans) {
           const trip_plan_data = {
             title: trip_plan.title,
             description: trip_plan.description,
             package_id: record.id,
           };
-          const trip_plan_record = await this.prisma.packageTripPlan.update({
-            where: { id: trip_plan.id },
-            data: trip_plan_data,
-          });
-          if (trip_plan_record) {
+          if (trip_plan.id == null) {
+            const trip_plan_record = await this.prisma.packageTripPlan.create({
+              data: trip_plan_data,
+            });
+            if (trip_plan_record) {
+              // add trip plan images to trip plan
+              if (
+                files.trip_plans_images &&
+                files.trip_plans_images.length > 0
+              ) {
+                const trip_plan_images_data = files.trip_plans_images.map(
+                  (image) => ({
+                    image: image.filename,
+                    image_alt: image.originalname,
+                    package_trip_plan_id: trip_plan_record.id,
+                  }),
+                );
+                await this.prisma.packageTripPlanImage.createMany({
+                  data: trip_plan_images_data,
+                });
+              }
+            }
+          } else {
+            // update trip plan
+            await this.prisma.packageTripPlan.update({
+              where: { id: trip_plan.id },
+              data: trip_plan_data,
+            });
+
+            // delete old trip plan images from storage which is not in the new trip plans
+            const old_trip_plan_images =
+              await this.prisma.packageTripPlanImage.findMany({
+                where: { package_trip_plan_id: trip_plan.id },
+              });
+            for (const image of old_trip_plan_images) {
+              const trip_plans_images = JSON.parse(
+                updatePackageDto.trip_plans_images,
+              );
+              if (!trip_plans_images.some((tp) => tp.id == image.id)) {
+                await SojebStorage.delete(
+                  appConfig().storageUrl.package + image.image,
+                );
+                await this.prisma.packageTripPlanImage.delete({
+                  where: {
+                    id: image.id,
+                    package_trip_plan_id: trip_plan.id,
+                  },
+                });
+              }
+            }
+
             // add trip plan images to trip plan
             if (files.trip_plans_images && files.trip_plans_images.length > 0) {
               const trip_plan_images_data = files.trip_plans_images.map(
                 (image) => ({
                   image: image.filename,
                   image_alt: image.originalname,
-                  package_trip_plan_id: trip_plan_record.id,
+                  package_trip_plan_id: trip_plan.id,
                 }),
               );
               await this.prisma.packageTripPlanImage.createMany({
@@ -435,35 +535,53 @@ export class PackageService extends PrismaClient {
         }
       }
 
-      // add tag to included_packages
+      // add tag to included_packages. check if tag already exists in package_tags table
       if (updatePackageDto.included_packages) {
         const included_packages = JSON.parse(
           updatePackageDto.included_packages,
         );
         for (const tag of included_packages) {
-          await this.prisma.packageTag.create({
-            data: {
+          const existing_tag = await this.prisma.packageTag.findFirst({
+            where: {
               tag_id: tag.id,
               package_id: record.id,
               type: 'included',
             },
           });
+          if (!existing_tag) {
+            await this.prisma.packageTag.create({
+              data: {
+                tag_id: tag.id,
+                package_id: record.id,
+                type: 'included',
+              },
+            });
+          }
         }
       }
 
-      // add tag to excluded_packages
+      // add tag to excluded_packages. check if tag already exists in package_tags table
       if (updatePackageDto.excluded_packages) {
         const excluded_packages = JSON.parse(
           updatePackageDto.excluded_packages,
         );
         for (const tag of excluded_packages) {
-          await this.prisma.packageTag.create({
-            data: {
+          const existing_tag = await this.prisma.packageTag.findFirst({
+            where: {
               tag_id: tag.id,
               package_id: record.id,
               type: 'excluded',
             },
           });
+          if (!existing_tag) {
+            await this.prisma.packageTag.create({
+              data: {
+                tag_id: tag.id,
+                package_id: record.id,
+                type: 'excluded',
+              },
+            });
+          }
         }
       }
       // add category to package
@@ -491,12 +609,20 @@ export class PackageService extends PrismaClient {
           };
         }
 
-        await this.prisma.packageCategory.create({
-          data: {
+        const existing_category = await this.prisma.packageCategory.findFirst({
+          where: {
             category_id: category.id,
             package_id: record.id,
           },
         });
+        if (!existing_category) {
+          await this.prisma.packageCategory.create({
+            data: {
+              category_id: category.id,
+              package_id: record.id,
+            },
+          });
+        }
       }
 
       return {

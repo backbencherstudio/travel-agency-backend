@@ -80,4 +80,14 @@ export class CreatePackageDto {
 
   @ApiProperty()
   status?: PackageStatus;
+
+  @ApiProperty({
+    description: 'Trip plans images object',
+  })
+  trip_plans_images?: any;
+
+  @ApiProperty({
+    description: 'Package images object',
+  })
+  package_images?: any;
 }

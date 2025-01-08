@@ -65,22 +65,24 @@ model User {
 
   ucodes                    Ucode[]
   role_users                RoleUser[]
-  sender_notifications      Notification[] @relation("sender")
-  receiver_notifications    Notification[] @relation("receiver")
+  sender_notifications      Notification[]       @relation("sender")
+  receiver_notifications    Notification[]       @relation("receiver")
   roles                     Role[]
   accounts                  Account[]
   bookings                  Booking[]
   reviews                   Review[]
-  sender_messages           Message[]      @relation("sender")
-  receiver_messages         Message[]      @relation("receiver")
+  sender_messages           Message[]            @relation("sender")
+  receiver_messages         Message[]            @relation("receiver")
   blog_comments             BlogComment[]
   likes                     Like[]
   email_logs                EmailLog[]
   destinations              Destination[]
   packages                  Package[]
   blogs                     Blog[]
-  creator_conversations     Conversation[] @relation("creator")
-  participant_conversations Conversation[] @relation("participant")
+  creator_conversations     Conversation[]       @relation("creator")
+  participant_conversations Conversation[]       @relation("participant")
+  BookingCoupon             BookingCoupon[]
+  PaymentTransaction        PaymentTransaction[]
 
   @@map("users")
 }
@@ -296,11 +298,11 @@ model Package {
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
   package_images     PackageImage[]
-  bookings           Booking[]
   reviews            Review[]
   package_trip_plans PackageTripPlan[]
   package_categories PackageCategory[]
   package_tags       PackageTag[]
+  booking_items      BookingItem[]
 
   @@map("packages")
 }
@@ -464,10 +466,175 @@ model Booking {
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id])
 
+  booking_date_time DateTime?
+
+  total_amount Decimal?
+
+  // Payment information
+  // e.g. pending, paid, failed
+  payment_status           String?
+  // raw information from payment provider
+  // raw status from payment provider
+  payment_raw_status       String?
+  // paid amount from payment provider
+  paid_amount              Decimal?
+  // paid currency from payment provider
+  paid_currency            String?
+  // e.g. stripe, paypal, razorpay
+  payment_provider         String?
+  // e.g. stripe payment reference id
+  payment_reference_number String?
+
+  payment_provider_charge_type String?  @default("percentage") // e.g. fixed, percentage
+  payment_provider_charge      Decimal? // e.g. stripe payment provider charge
+
+  // hardcoded contact information
+  first_name   String?
+  last_name    String?
+  email        String?
+  phone_number String?
+  address      String?
+
+  BookingItem        BookingItem[]
+  BookingCoupon      BookingCoupon[]
+  PaymentTransaction PaymentTransaction[]
+  BookingTraveller   BookingTraveller[]
+
+  @@map("bookings")
+}
+
+// this table stores booking item information
+model BookingItem {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
 
-  @@map("bookings")
+  quantity Int?     @default(1)
+  price    Decimal?
+
+  @@map("booking_items")
+}
+
+// this table stores booking traveller information
+model BookingTraveller {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  first_name   String?
+  last_name    String?
+  email        String?
+  phone_number String?
+
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zip_code String?
+  country  String?
+
+  @@map("booking_travellers")
+}
+
+// this table stores booking coupons
+model BookingCoupon {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  coupon_id String?
+  coupon    Coupon? @relation(fields: [coupon_id], references: [id])
+
+  method      String?  @default("code") // code
+  code        String?
+  amount_type String?  @default("percentage") // percentage, fixed
+  amount      Decimal?
+
+  @@map("booking_coupons")
+}
+
+// this table stores coupon information
+model Coupon {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  method String? @default("code") // code
+  code   String?
+
+  // the human readable coupon name
+  name        String?
+  // The description of the coupon - Not necessary 
+  description String?  @db.Text
+  // Whether or not the coupon is a percentage or a fixed price. 
+  // values: percentage,fixed
+  amount_type String?  @default("percentage")
+  amount      Decimal?
+
+  // The number of uses currently
+  uses              Int? @default(0)
+  // The max uses this coupon has (Total)
+  max_uses          Int? @default(1)
+  // How many times a user can use this coupon. (Total for single user)
+  max_uses_per_user Int? @default(1)
+
+  // When the coupon begins
+  starts_at    DateTime?
+  // When the coupon expires
+  expires_at   DateTime?
+  // Minimum purchase requirements
+  // values: none, amount, quantity
+  min_type     String?
+  min_amount   Decimal?
+  min_quantity Int?
+
+  booking_coupons BookingCoupon[]
+
+  @@map("coupons")
+}
+
+// this table stores payment transaction information
+model PaymentTransaction {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  provider         String? // e.g. stripe, paypal, razorpay
+  reference_number String? // e.g. stripe payment reference id
+  // values: pending succeeded, processing, requires_payment_method
+  status           String?  @default("pending")
+  raw_status       String? // e.g. succeeded, processing, requires_payment_method
+  paid_amount      Decimal?
+  paid_currency    String?
+
+  @@map("payment_transactions")
 }
 
 // this table stores review
@@ -484,8 +651,8 @@ model Review {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
-  rating  Int?
-  comment String? @db.Text
+  rating_value Float?
+  comment      String? @db.Text
 
   @@map("reviews")
 }
