@@ -430,7 +430,7 @@ export class PackageService extends PrismaClient {
         });
       }
 
-      // add trip plan to package
+      // delete trip plans which is not included in updatePackageDto.trip_plans
       if (updatePackageDto.trip_plans) {
         const trip_plans = JSON.parse(updatePackageDto.trip_plans);
         // compare trip plans with old trip plans
@@ -459,6 +459,8 @@ export class PackageService extends PrismaClient {
             });
           }
         }
+
+        // add new trip plans to package
         for (const trip_plan of trip_plans) {
           const trip_plan_data = {
             title: trip_plan.title,
@@ -488,10 +490,47 @@ export class PackageService extends PrismaClient {
               }
             }
           } else {
+            // update trip plan
             await this.prisma.packageTripPlan.update({
               where: { id: trip_plan.id },
               data: trip_plan_data,
             });
+
+            // delete old trip plan images from storage which is not in the new trip plans
+            const old_trip_plan_images =
+              await this.prisma.packageTripPlanImage.findMany({
+                where: { package_trip_plan_id: trip_plan.id },
+              });
+            for (const image of old_trip_plan_images) {
+              const trip_plans_images = JSON.parse(
+                updatePackageDto.trip_plans_images,
+              );
+              if (!trip_plans_images.some((tp) => tp.id == image.id)) {
+                await SojebStorage.delete(
+                  appConfig().storageUrl.package + image.image,
+                );
+                await this.prisma.packageTripPlanImage.delete({
+                  where: {
+                    id: image.id,
+                    package_trip_plan_id: trip_plan.id,
+                  },
+                });
+              }
+            }
+
+            // add trip plan images to trip plan
+            if (files.trip_plans_images && files.trip_plans_images.length > 0) {
+              const trip_plan_images_data = files.trip_plans_images.map(
+                (image) => ({
+                  image: image.filename,
+                  image_alt: image.originalname,
+                  package_trip_plan_id: trip_plan.id,
+                }),
+              );
+              await this.prisma.packageTripPlanImage.createMany({
+                data: trip_plan_images_data,
+              });
+            }
           }
         }
       }
