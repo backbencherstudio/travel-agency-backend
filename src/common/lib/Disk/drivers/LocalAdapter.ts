@@ -1,5 +1,6 @@
 import { IStorage } from './iStorage';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { DiskOption } from '../Option';
 
 /**
@@ -19,6 +20,24 @@ export class LocalAdapter implements IStorage {
    */
   url(key: string): string {
     return `${process.env.APP_URL}${this._config.connection.publicUrl}${key}`;
+  }
+
+  /**
+   * check if file exists
+   * @param key
+   * @returns
+   */
+  async isExists(key: string): Promise<boolean> {
+    try {
+      if (fsSync.existsSync(`${this._config.connection.rootUrl}/${key}`)) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
   }
 
   /**

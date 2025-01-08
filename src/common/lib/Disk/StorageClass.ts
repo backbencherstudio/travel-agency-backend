@@ -7,6 +7,15 @@ export class StorageClass {
   }
 
   /**
+   * check if file exists
+   * @param key
+   * @returns
+   */
+  public async isExists(key: string): Promise<boolean> {
+    return await this.adapter.isExists(key);
+  }
+
+  /**
    * get data url
    * @param key
    * @returns

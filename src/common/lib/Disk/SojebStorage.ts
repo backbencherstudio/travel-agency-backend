@@ -58,6 +58,11 @@ export class SojebStorage {
     return disk.url(key);
   }
 
+  public static async isExists(key: string): Promise<boolean> {
+    const disk = this.storageDisk();
+    return await disk.isExists(key);
+  }
+
   /**
    * read data
    * @param key
@@ -75,7 +80,10 @@ export class SojebStorage {
    */
   public static async delete(key: string): Promise<any> {
     const disk = this.storageDisk();
-    return await disk.delete(key);
+    if (await disk.isExists(key)) {
+      return await disk.delete(key);
+    }
+    return false;
   }
 
   /**

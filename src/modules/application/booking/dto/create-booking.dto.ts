@@ -6,7 +6,6 @@ export class CreateBookingDto {
   @IsString()
   @ApiProperty({
     description: 'The ID of the package',
-    example: '123',
   })
   package_id: string;
 }
