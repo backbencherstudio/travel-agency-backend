@@ -69,16 +69,13 @@ export class PackageTripPlanController {
   ) {
     try {
       // const user_id = req.user.userId;
-      await this.packageTripPlanService.create(
+      const trip_plan = await this.packageTripPlanService.create(
         package_id,
         createPackageTripPlanDto,
         images,
       );
 
-      return {
-        success: true,
-        message: 'Trip plan created successfully',
-      };
+      return trip_plan;
     } catch (error) {
       return {
         success: false,

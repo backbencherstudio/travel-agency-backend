@@ -18,6 +18,13 @@ export class PackageTripPlanService extends PrismaClient {
     images?: Express.Multer.File[],
   ) {
     try {
+      const data: any = {};
+      if (createPackageTripPlanDto.title) {
+        data.title = createPackageTripPlanDto.title;
+      }
+      if (createPackageTripPlanDto.description) {
+        data.description = createPackageTripPlanDto.description;
+      }
       // check if package exists
       const record = await this.prisma.package.findUnique({
         where: { id: package_id },
@@ -32,7 +39,7 @@ export class PackageTripPlanService extends PrismaClient {
       // create trip plan
       const trip_plan = await this.prisma.packageTripPlan.create({
         data: {
-          ...createPackageTripPlanDto,
+          ...data,
           package_id,
         },
       });

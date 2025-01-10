@@ -10,6 +10,7 @@ import { BlogModule } from './blog/blog.module';
 import { ContactModule } from './contact/contact.module';
 import { SocialMediaModule } from './social-media/social-media.module';
 import { WebsiteInfoModule } from './website-info/website-info.module';
+import { ExtraServiceModule } from './extra-service/extra-service.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WebsiteInfoModule } from './website-info/website-info.module';
     ContactModule,
     SocialMediaModule,
     WebsiteInfoModule,
+    ExtraServiceModule,
   ],
 })
 export class AdminModule {}

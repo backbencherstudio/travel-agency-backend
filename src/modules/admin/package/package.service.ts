@@ -659,20 +659,29 @@ export class PackageService extends PrismaClient {
           };
         }
 
-        const existing_category = await this.prisma.packageCategory.findFirst({
-          where: {
-            category_id: category.id,
-            package_id: record.id,
-          },
-        });
-        if (!existing_category) {
-          await this.prisma.packageCategory.create({
-            data: {
-              category_id: category.id,
+        // check if package category already exists
+        const existing_package_category =
+          await this.prisma.packageCategory.findMany({
+            where: {
+              package_id: record.id,
+            },
+          });
+
+        if (existing_package_category && existing_package_category.length > 0) {
+          // delete existing package category
+          await this.prisma.packageCategory.deleteMany({
+            where: {
               package_id: record.id,
             },
           });
         }
+
+        await this.prisma.packageCategory.create({
+          data: {
+            category_id: category.id,
+            package_id: record.id,
+          },
+        });
       }
 
       return {
