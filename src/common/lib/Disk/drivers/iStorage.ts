@@ -3,6 +3,12 @@
  */
 export interface IStorage {
   /**
+   * check if file exists
+   * @param key
+   */
+  isExists(key: string): Promise<boolean>;
+
+  /**
    * read data
    * @param key
    */

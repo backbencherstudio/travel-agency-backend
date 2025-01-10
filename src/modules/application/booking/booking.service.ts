@@ -10,8 +10,21 @@ export class BookingService extends PrismaClient {
     super();
   }
 
-  create(createBookingDto: CreateBookingDto) {
-    return 'This action adds a new booking';
+  async create(createBookingDto: CreateBookingDto) {
+    try {
+      const data: any = {};
+      if (createBookingDto.package_id) {
+        data.package_id = createBookingDto.package_id;
+      }
+      const booking = await this.prisma.booking.create({
+        data: {
+          ...data,
+        },
+      });
+      return booking;
+    } catch (error) {
+      throw error;
+    }
   }
 
   findAll() {

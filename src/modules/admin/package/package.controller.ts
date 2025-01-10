@@ -23,7 +23,7 @@ import { Role } from '../../../common/guard/role/role.enum';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Express, Request } from 'express';
 import { diskStorage } from 'multer';
-import appConfig from 'src/config/app.config';
+import appConfig from '../../../config/app.config';
 @ApiBearerAuth()
 @ApiTags('Package')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -212,8 +212,11 @@ export class PackageController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {
-      const record = await this.packageService.remove(id);
-      return record;
+      await this.packageService.remove(id);
+      return {
+        success: true,
+        message: 'Package deleted successfully',
+      };
     } catch (error) {
       return {
         success: false,

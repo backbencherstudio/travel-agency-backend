@@ -1,8 +1,7 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateWebsiteInfoDto {
-  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The name of the website',
@@ -10,7 +9,6 @@ export class CreateWebsiteInfoDto {
   })
   name?: string;
 
-  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The phone number of the website',
@@ -18,7 +16,6 @@ export class CreateWebsiteInfoDto {
   })
   phone_number?: string;
 
-  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The email of the website',
@@ -26,7 +23,6 @@ export class CreateWebsiteInfoDto {
   })
   email?: string;
 
-  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The address of the website',
@@ -46,11 +42,17 @@ export class CreateWebsiteInfoDto {
   })
   favicon?: Express.Multer.File[];
 
-  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The copyright of the website',
     example: '© 2025 My Website. All rights reserved.',
   })
   copyright?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'The cancellation policy of the website',
+  })
+  cancellation_policy?: string;
 }

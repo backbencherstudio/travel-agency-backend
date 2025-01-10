@@ -922,13 +922,14 @@ model WebsiteInfo {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
 
-  name         String?
-  phone_number String?
-  email        String?
-  address      String?
-  logo         String?
-  favicon      String?
-  copyright    String?
+  name                String?
+  phone_number        String?
+  email               String?
+  address             String?
+  logo                String?
+  favicon             String?
+  copyright           String?
+  cancellation_policy String? @db.Text
 
   @@map("website_infos")
 }

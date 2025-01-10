@@ -29,6 +29,23 @@ export class S3Adapter implements IStorage {
   }
 
   /**
+   * check if file exists
+   * @param key
+   * @returns
+   */
+  async isExists(key: string): Promise<boolean> {
+    try {
+      await this.s3
+        .headObject({ Bucket: this._config.connection.awsBucket, Key: key })
+        .promise();
+      return true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
+
+  /**
    * get data
    * @param key
    */

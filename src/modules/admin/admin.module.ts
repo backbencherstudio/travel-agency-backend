@@ -12,6 +12,18 @@ import { SocialMediaModule } from './social-media/social-media.module';
 import { WebsiteInfoModule } from './website-info/website-info.module';
 
 @Module({
-  imports: [FaqModule, PackageModule, CategoryModule, TagModule, PackageCancellationPolicyModule, DestinationModule, CountryModule, BlogModule, ContactModule, SocialMediaModule, WebsiteInfoModule],
+  imports: [
+    FaqModule,
+    PackageModule,
+    CategoryModule,
+    TagModule,
+    PackageCancellationPolicyModule,
+    DestinationModule,
+    CountryModule,
+    BlogModule,
+    ContactModule,
+    SocialMediaModule,
+    WebsiteInfoModule,
+  ],
 })
 export class AdminModule {}
