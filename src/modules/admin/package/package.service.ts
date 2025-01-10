@@ -188,7 +188,9 @@ export class PackageService extends PrismaClient {
       // delete package images from storage
       if (files && files.package_images && files.package_images.length > 0) {
         for (const image of files.package_images) {
-          await SojebStorage.delete(image.filename);
+          await SojebStorage.delete(
+            appConfig().storageUrl.package + image.filename,
+          );
         }
       }
 
@@ -199,7 +201,9 @@ export class PackageService extends PrismaClient {
         files.trip_plans_images.length > 0
       ) {
         for (const image of files.trip_plans_images) {
-          await SojebStorage.delete(image.filename);
+          await SojebStorage.delete(
+            appConfig().storageUrl.package + image.filename,
+          );
         }
       }
       return {
@@ -679,7 +683,9 @@ export class PackageService extends PrismaClient {
       // delete package images from storage
       if (files && files.package_images && files.package_images.length > 0) {
         for (const image of files.package_images) {
-          await SojebStorage.delete(image.filename);
+          await SojebStorage.delete(
+            appConfig().storageUrl.package + image.filename,
+          );
         }
       }
 
@@ -690,7 +696,9 @@ export class PackageService extends PrismaClient {
         files.trip_plans_images.length > 0
       ) {
         for (const image of files.trip_plans_images) {
-          await SojebStorage.delete(image.filename);
+          await SojebStorage.delete(
+            appConfig().storageUrl.package + image.filename,
+          );
         }
       }
 
@@ -801,6 +809,8 @@ export class PackageService extends PrismaClient {
           message: 'Package deleted successfully',
         };
       });
+
+      return result;
     } catch (error) {
       return {
         success: false,
