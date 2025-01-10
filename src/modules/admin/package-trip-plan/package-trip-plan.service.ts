@@ -131,6 +131,7 @@ export class PackageTripPlanService extends PrismaClient {
 
       // add image url to trip plan
       if (
+        trip_plan &&
         trip_plan.package_trip_plan_images &&
         trip_plan.package_trip_plan_images.length > 0
       ) {
@@ -182,6 +183,40 @@ export class PackageTripPlanService extends PrismaClient {
 
       // save trip plan images
       if (images && images.length > 0) {
+        // old images
+        const old_images = await this.prisma.packageTripPlanImage.findMany({
+          where: { package_trip_plan_id: trip_plan.id },
+        });
+
+        if (updatePackageTripPlanDto.images) {
+          const images = JSON.parse(updatePackageTripPlanDto.images);
+
+          // delete old image that are not in the new package images
+          for (const old_image of old_images) {
+            if (!images.some((pi) => pi.id == old_image.id)) {
+              await SojebStorage.delete(
+                appConfig().storageUrl.packageTripPlan + old_image.image,
+              );
+              await this.prisma.packageTripPlanImage.delete({
+                where: { id: old_image.id, package_trip_plan_id: trip_plan.id },
+              });
+            }
+          }
+        } else {
+          // delete all images
+          await this.prisma.packageTripPlanImage.deleteMany({
+            where: { package_trip_plan_id: trip_plan.id },
+          });
+
+          // delete all images from storage
+          for (const image of old_images) {
+            await SojebStorage.delete(
+              appConfig().storageUrl.packageTripPlan + image.image,
+            );
+          }
+        }
+
+        // add new images
         const trip_plan_images_data = images.map((image) => ({
           image: image.filename,
           package_trip_plan_id: trip_plan.id,

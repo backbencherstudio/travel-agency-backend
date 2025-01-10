@@ -12,4 +12,10 @@ export class CreatePackageTripPlanDto {
     example: 'Trip plan description',
   })
   description: string;
+
+  @ApiProperty({
+    description: 'Trip plan images',
+    example: 'Trip plan images',
+  })
+  images?: any;
 }

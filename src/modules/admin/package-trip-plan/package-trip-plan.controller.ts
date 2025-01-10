@@ -118,10 +118,7 @@ export class PackageTripPlanController {
         id,
         package_id,
       );
-      return {
-        success: true,
-        data: package_trip_plan,
-      };
+      return package_trip_plan;
     } catch (error) {
       return {
         success: false,
@@ -165,15 +162,13 @@ export class PackageTripPlanController {
     images?: Express.Multer.File[],
   ) {
     try {
-      await this.packageTripPlanService.update(
+      const package_trip_plan = await this.packageTripPlanService.update(
         id,
         package_id,
         updatePackageTripPlanDto,
         images,
       );
-      return {
-        success: true,
-      };
+      return package_trip_plan;
     } catch (error) {
       return {
         success: false,
