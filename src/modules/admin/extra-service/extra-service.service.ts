@@ -12,8 +12,20 @@ export class ExtraServiceService extends PrismaClient {
 
   async create(createExtraServiceDto: CreateExtraServiceDto) {
     try {
+      const data: any = {};
+      if (createExtraServiceDto.name) {
+        data.name = createExtraServiceDto.name;
+      }
+      if (createExtraServiceDto.description) {
+        data.description = createExtraServiceDto.description;
+      }
+      if (createExtraServiceDto.price) {
+        data.price = createExtraServiceDto.price;
+      }
       await this.prisma.extraService.create({
-        data: createExtraServiceDto,
+        data: {
+          ...data,
+        },
       });
 
       return {
@@ -28,19 +40,92 @@ export class ExtraServiceService extends PrismaClient {
     }
   }
 
-  findAll() {
-    return `This action returns all extraService`;
+  async findAll() {
+    try {
+      const extra_services = await this.prisma.extraService.findMany({
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: extra_services,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} extraService`;
+  async findOne(id: string) {
+    try {
+      const extra_service = await this.prisma.extraService.findUnique({
+        where: { id },
+      });
+
+      return {
+        success: true,
+        data: extra_service,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
-  update(id: number, updateExtraServiceDto: UpdateExtraServiceDto) {
-    return `This action updates a #${id} extraService`;
+  async update(id: string, updateExtraServiceDto: UpdateExtraServiceDto) {
+    try {
+      const data: any = {};
+      if (updateExtraServiceDto.name) {
+        data.name = updateExtraServiceDto.name;
+      }
+      if (updateExtraServiceDto.description) {
+        data.description = updateExtraServiceDto.description;
+      }
+      if (updateExtraServiceDto.price) {
+        data.price = updateExtraServiceDto.price;
+      }
+      await this.prisma.extraService.update({
+        where: { id },
+        data: {
+          ...data,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Extra service updated successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} extraService`;
+  async remove(id: string) {
+    try {
+      await this.prisma.extraService.delete({
+        where: { id },
+      });
+
+      return {
+        success: true,
+        message: 'Extra service deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }

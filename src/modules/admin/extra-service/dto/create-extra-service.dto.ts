@@ -9,6 +9,11 @@ export class CreateExtraServiceDto {
 
   @ApiProperty()
   @IsNotEmpty()
+  @IsString()
+  description: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
   @IsNumber()
   price: number;
 }
