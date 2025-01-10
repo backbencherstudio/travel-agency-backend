@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateBookingDto {
   @IsNotEmpty()
@@ -8,4 +8,11 @@ export class CreateBookingDto {
     description: 'The ID of the package',
   })
   package_id: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'The booking travellers',
+  })
+  booking_travellers: any;
 }

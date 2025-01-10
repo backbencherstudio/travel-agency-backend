@@ -1,8 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { FaqService } from './faq.service';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-@ApiBearerAuth()
 @ApiTags('Faq')
 @Controller('faq')
 export class FaqController {

@@ -1,8 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { FooterService } from './footer.service';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-@ApiBearerAuth()
 @ApiTags('Footer')
 @Controller('footer')
 export class FooterController {

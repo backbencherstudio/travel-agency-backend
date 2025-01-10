@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CreateWebsiteInfoDto } from './dto/create-website-info.dto';
 import { PrismaClient } from '@prisma/client';
+import { CreateWebsiteInfoDto } from './dto/create-website-info.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
-import appConfig from 'src/config/app.config';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
 
 @Injectable()
 export class WebsiteInfoService extends PrismaClient {
@@ -34,6 +34,9 @@ export class WebsiteInfoService extends PrismaClient {
       }
       if (createWebsiteInfoDto.copyright) {
         data.copyright = createWebsiteInfoDto.copyright;
+      }
+      if (createWebsiteInfoDto.cancellation_policy) {
+        data.cancellation_policy = createWebsiteInfoDto.cancellation_policy;
       }
       if (files.logo) {
         // delete old logo from storage

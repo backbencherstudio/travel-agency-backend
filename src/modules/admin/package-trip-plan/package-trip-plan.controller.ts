@@ -179,7 +179,7 @@ export class PackageTripPlanController {
 
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Delete a package trip plan' })
-  @Delete(':id/:package_id')
+  @Delete(':id')
   async remove(
     @Param('id') id: string,
     @Param('package_id') package_id: string,
