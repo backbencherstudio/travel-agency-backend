@@ -81,8 +81,10 @@ model User {
   blogs                     Blog[]
   creator_conversations     Conversation[]       @relation("creator")
   participant_conversations Conversation[]       @relation("participant")
-  BookingCoupon             BookingCoupon[]
-  PaymentTransaction        PaymentTransaction[]
+  booking_coupons           BookingCoupon[]
+  payment_transactions      PaymentTransaction[]
+  user_bookings             Booking[]            @relation("user")
+  vendor_bookings           Booking[]            @relation("vendor")
 
   @@map("users")
 }
@@ -463,8 +465,16 @@ model Booking {
   // pending, confirmed, canceled
   status String? @default("pending")
 
+  // booking type
+  // available values:
+  // tour, cruise
+  type String? @default("tour")
+
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation("user", fields: [user_id], references: [id])
+
+  vendor_id String?
+  vendor    User?   @relation("vendor", fields: [vendor_id], references: [id])
 
   booking_date_time DateTime?
 
@@ -499,6 +509,8 @@ model Booking {
   BookingCoupon      BookingCoupon[]
   PaymentTransaction PaymentTransaction[]
   BookingTraveller   BookingTraveller[]
+  User               User?                @relation(fields: [userId], references: [id])
+  userId             String?
 
   @@map("bookings")
 }
@@ -532,6 +544,18 @@ model BookingTraveller {
   booking_id String?
   booking    Booking? @relation(fields: [booking_id], references: [id])
 
+  // traveller type
+  // available values:
+  // adult, child, infant
+  type String? @default("adult")
+
+  // traveller gender
+  // available values:
+  // male, female, other
+  gender    String?
+  full_name String?
+
+  // extra fields
   first_name   String?
   last_name    String?
   email        String?

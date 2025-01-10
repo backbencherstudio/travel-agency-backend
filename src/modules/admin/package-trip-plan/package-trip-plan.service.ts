@@ -57,7 +57,7 @@ export class PackageTripPlanService extends PrismaClient {
       if (images && images.length > 0) {
         for (const image of images) {
           await SojebStorage.delete(
-            appConfig().storageUrl.packageTripPlan + image.filename,
+            appConfig().storageUrl.package + image.filename,
           );
         }
       }
@@ -94,7 +94,7 @@ export class PackageTripPlanService extends PrismaClient {
           ) {
             for (const image of trip_plan.package_trip_plan_images) {
               image['image_url'] = SojebStorage.url(
-                appConfig().storageUrl.packageTripPlan + image.image,
+                appConfig().storageUrl.package + image.image,
               );
             }
           }
@@ -123,6 +123,7 @@ export class PackageTripPlanService extends PrismaClient {
           package_id: true,
           package_trip_plan_images: {
             select: {
+              id: true,
               image: true,
             },
           },
@@ -137,7 +138,7 @@ export class PackageTripPlanService extends PrismaClient {
       ) {
         for (const image of trip_plan.package_trip_plan_images) {
           image['image_url'] = SojebStorage.url(
-            appConfig().storageUrl.packageTripPlan + image.image,
+            appConfig().storageUrl.package + image.image,
           );
         }
       }
@@ -167,6 +168,14 @@ export class PackageTripPlanService extends PrismaClient {
     images?: Express.Multer.File[],
   ) {
     try {
+      const data: any = {};
+      if (updatePackageTripPlanDto.title) {
+        data.title = updatePackageTripPlanDto.title;
+      }
+      if (updatePackageTripPlanDto.description) {
+        data.description = updatePackageTripPlanDto.description;
+      }
+
       const trip_plan = await this.prisma.packageTripPlan.findUnique({
         where: { id, package_id },
       });
@@ -178,44 +187,35 @@ export class PackageTripPlanService extends PrismaClient {
       }
       await this.prisma.packageTripPlan.update({
         where: { id, package_id },
-        data: updatePackageTripPlanDto,
+        data: {
+          ...data,
+        },
       });
+
+      // handle images
+      // old images
+      const old_images = await this.prisma.packageTripPlanImage.findMany({
+        where: { package_trip_plan_id: trip_plan.id },
+      });
+
+      if (updatePackageTripPlanDto.images) {
+        const images = JSON.parse(updatePackageTripPlanDto.images);
+
+        // delete old image that are not in the new package images
+        for (const old_image of old_images) {
+          if (!images.some((pi) => pi.id == old_image.id)) {
+            await SojebStorage.delete(
+              appConfig().storageUrl.package + old_image.image,
+            );
+            await this.prisma.packageTripPlanImage.delete({
+              where: { id: old_image.id, package_trip_plan_id: trip_plan.id },
+            });
+          }
+        }
+      }
 
       // save trip plan images
       if (images && images.length > 0) {
-        // old images
-        const old_images = await this.prisma.packageTripPlanImage.findMany({
-          where: { package_trip_plan_id: trip_plan.id },
-        });
-
-        if (updatePackageTripPlanDto.images) {
-          const images = JSON.parse(updatePackageTripPlanDto.images);
-
-          // delete old image that are not in the new package images
-          for (const old_image of old_images) {
-            if (!images.some((pi) => pi.id == old_image.id)) {
-              await SojebStorage.delete(
-                appConfig().storageUrl.packageTripPlan + old_image.image,
-              );
-              await this.prisma.packageTripPlanImage.delete({
-                where: { id: old_image.id, package_trip_plan_id: trip_plan.id },
-              });
-            }
-          }
-        } else {
-          // delete all images
-          await this.prisma.packageTripPlanImage.deleteMany({
-            where: { package_trip_plan_id: trip_plan.id },
-          });
-
-          // delete all images from storage
-          for (const image of old_images) {
-            await SojebStorage.delete(
-              appConfig().storageUrl.packageTripPlan + image.image,
-            );
-          }
-        }
-
         // add new images
         const trip_plan_images_data = images.map((image) => ({
           image: image.filename,
@@ -235,7 +235,7 @@ export class PackageTripPlanService extends PrismaClient {
       if (images && images.length > 0) {
         for (const image of images) {
           await SojebStorage.delete(
-            appConfig().storageUrl.packageTripPlan + image.filename,
+            appConfig().storageUrl.package + image.filename,
           );
         }
       }
@@ -262,7 +262,7 @@ export class PackageTripPlanService extends PrismaClient {
         };
       }
       await this.prisma.packageTripPlan.delete({
-        where: { id, package_id },
+        where: { id: id, package_id: package_id },
       });
 
       // delete trip plan images from storage
@@ -272,9 +272,13 @@ export class PackageTripPlanService extends PrismaClient {
       ) {
         for (const image of trip_plan.package_trip_plan_images) {
           await SojebStorage.delete(
-            appConfig().storageUrl.packageTripPlan + image.image,
+            appConfig().storageUrl.package + image.image,
           );
         }
+
+        await this.prisma.packageTripPlanImage.deleteMany({
+          where: { package_trip_plan_id: trip_plan.id },
+        });
       }
 
       return {
