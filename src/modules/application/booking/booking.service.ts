@@ -3,6 +3,7 @@ import { BookingTraveller, CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { UserRepository } from 'src/common/repository/user/user.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -22,6 +23,14 @@ export class BookingService extends PrismaClient {
         };
       }
 
+      if (createBookingDto.start_date) {
+        data.start_date = createBookingDto.start_date;
+      }
+
+      if (createBookingDto.end_date) {
+        data.end_date = createBookingDto.end_date;
+      }
+
       const packageData = await this.prisma.package.findUnique({
         where: {
           id: createBookingDto.package_id,
@@ -35,11 +44,30 @@ export class BookingService extends PrismaClient {
         };
       }
 
+      // add vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(
+        packageData.user_id,
+      );
+      if (userDetails && userDetails.type == 'vendor') {
+        data.vendor_id = userDetails.id;
+      }
+
+      if (createBookingDto.extra_services) {
+        const extra_services = JSON.parse(createBookingDto.extra_services);
+        for (const extra_service of extra_services) {
+          await this.prisma.packageExtraService.create({
+            data: {
+              package_id: createBookingDto.package_id,
+              extra_service_id: extra_service.id,
+            },
+          });
+        }
+      }
+
       const booking = await this.prisma.booking.create({
         data: {
           ...data,
           user_id: user_id,
-          vendor_id: packageData.user_id,
           type: packageData.type,
         },
       });

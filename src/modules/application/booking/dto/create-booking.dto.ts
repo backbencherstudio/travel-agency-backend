@@ -26,4 +26,13 @@ export class CreateBookingDto {
     description: 'The booking travellers',
   })
   booking_travellers: any;
+
+  @ApiProperty()
+  extra_services: any;
+
+  @ApiProperty()
+  start_date: Date;
+
+  @ApiProperty()
+  end_date: Date;
 }

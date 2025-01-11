@@ -98,6 +98,19 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // add extra services to package
+      if (createPackageDto.extra_services) {
+        const extra_services = JSON.parse(createPackageDto.extra_services);
+        for (const extra_service of extra_services) {
+          await this.prisma.packageExtraService.create({
+            data: {
+              package_id: record.id,
+              extra_service_id: extra_service.id,
+            },
+          });
+        }
+      }
+
       // add tag to included_packages
       if (createPackageDto.included_packages) {
         const included_packages = JSON.parse(
@@ -357,6 +370,18 @@ export class PackageService extends PrismaClient {
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+            },
+          },
+          package_extra_services: {
+            select: {
+              id: true,
+              extra_service: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
                 },
               },
             },
@@ -682,6 +707,23 @@ export class PackageService extends PrismaClient {
             package_id: record.id,
           },
         });
+      }
+
+      // add extra services to package
+      if (updatePackageDto.extra_services) {
+        const extra_services = JSON.parse(updatePackageDto.extra_services);
+        // delete old extra services
+        await this.prisma.packageExtraService.deleteMany({
+          where: { package_id: record.id },
+        });
+        for (const extra_service of extra_services) {
+          await this.prisma.packageExtraService.create({
+            data: {
+              package_id: record.id,
+              extra_service_id: extra_service.id,
+            },
+          });
+        }
       }
 
       return {
