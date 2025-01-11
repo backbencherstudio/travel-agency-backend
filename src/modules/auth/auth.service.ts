@@ -57,7 +57,7 @@ export class AuthService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch user details',
+        message: error.message,
       };
     }
   }
@@ -110,7 +110,7 @@ export class AuthService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to update user',
+        message: error.message,
       };
     }
   }
@@ -140,16 +140,23 @@ export class AuthService extends PrismaClient {
   }
 
   async login({ email, userId }) {
-    const payload = { email: email, sub: userId };
-    const token = this.jwtService.sign(payload);
-    return {
-      success: true,
-      message: 'Logged in successfully',
-      authorization: {
-        token: token,
-        type: 'bearer',
-      },
-    };
+    try {
+      const payload = { email: email, sub: userId };
+      const token = this.jwtService.sign(payload);
+      return {
+        success: true,
+        message: 'Logged in successfully',
+        authorization: {
+          token: token,
+          type: 'bearer',
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
   async register({ name, email, password }) {
@@ -200,174 +207,215 @@ export class AuthService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to create account',
+        message: error.message,
       };
     }
   }
 
   async forgotPassword(email) {
-    const user = await UserRepository.exist({
-      field: 'email',
-      value: email,
-    });
-
-    if (user) {
-      const token = await UcodeRepository.createToken({
-        userId: user.id,
-        isOtp: true,
+    try {
+      const user = await UserRepository.exist({
+        field: 'email',
+        value: email,
       });
 
-      await this.mailService.sendOtpCodeToEmail({
-        email: email,
-        name: user.name,
-        otp: token,
-      });
+      if (user) {
+        const token = await UcodeRepository.createToken({
+          userId: user.id,
+          isOtp: true,
+        });
 
-      return {
-        success: true,
-        message: 'We have sent an OTP code to your email',
-      };
-    } else {
+        await this.mailService.sendOtpCodeToEmail({
+          email: email,
+          name: user.name,
+          otp: token,
+        });
+
+        return {
+          success: true,
+          message: 'We have sent an OTP code to your email',
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Email not found',
+        };
+      }
+    } catch (error) {
       return {
         success: false,
-        message: 'Email not found',
+        message: error.message,
       };
     }
   }
 
   async resetPassword({ email, token, password }) {
-    const user = await UserRepository.exist({
-      field: 'email',
-      value: email,
-    });
-
-    if (user) {
-      const existToken = await UcodeRepository.validateToken({
-        email: email,
-        token: token,
+    try {
+      const user = await UserRepository.exist({
+        field: 'email',
+        value: email,
       });
 
-      if (existToken) {
-        await UserRepository.changePassword({
+      if (user) {
+        const existToken = await UcodeRepository.validateToken({
           email: email,
-          password: password,
+          token: token,
         });
 
-        return {
-          success: true,
-          message: 'Password updated successfully',
-        };
+        if (existToken) {
+          await UserRepository.changePassword({
+            email: email,
+            password: password,
+          });
+
+          return {
+            success: true,
+            message: 'Password updated successfully',
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Invalid token',
+          };
+        }
       } else {
         return {
           success: false,
-          message: 'Invalid token',
+          message: 'Email not found',
         };
       }
-    } else {
+    } catch (error) {
       return {
         success: false,
-        message: 'Email not found',
+        message: error.message,
       };
     }
   }
 
   async verifyEmail({ email, token }) {
-    const user = await UserRepository.exist({
-      field: 'email',
-      value: email,
-    });
-
-    if (user) {
-      const existToken = await UcodeRepository.validateToken({
-        email: email,
-        token: token,
+    try {
+      const user = await UserRepository.exist({
+        field: 'email',
+        value: email,
       });
 
-      if (existToken) {
-        await this.prisma.user.update({
-          where: {
-            id: user.id,
-          },
-          data: {
-            email_verified_at: new Date(Date.now()),
-          },
+      if (user) {
+        const existToken = await UcodeRepository.validateToken({
+          email: email,
+          token: token,
         });
 
-        return {
-          success: true,
-          message: 'Email verified successfully',
-        };
+        if (existToken) {
+          await this.prisma.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              email_verified_at: new Date(Date.now()),
+            },
+          });
+
+          // delete otp code
+          await UcodeRepository.deleteToken({
+            email: email,
+            token: token,
+          });
+
+          return {
+            success: true,
+            message: 'Email verified successfully',
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Invalid token',
+          };
+        }
       } else {
         return {
           success: false,
-          message: 'Invalid token',
+          message: 'Email not found',
         };
       }
-    } else {
+    } catch (error) {
       return {
         success: false,
-        message: 'Email not found',
+        message: error.message,
       };
     }
   }
 
   async resendVerificationEmail(email: string) {
-    const user = await UserRepository.getUserByEmail(email);
+    try {
+      const user = await UserRepository.getUserByEmail(email);
 
-    if (user) {
-      // create otp code
-      const token = await UcodeRepository.createToken({
-        userId: user.id,
-        isOtp: true,
-      });
+      if (user) {
+        // create otp code
+        const token = await UcodeRepository.createToken({
+          userId: user.id,
+          isOtp: true,
+        });
 
-      // send otp code to email
-      await this.mailService.sendOtpCodeToEmail({
-        email: email,
-        name: user.name,
-        otp: token,
-      });
+        // send otp code to email
+        await this.mailService.sendOtpCodeToEmail({
+          email: email,
+          name: user.name,
+          otp: token,
+        });
 
-      return {
-        success: true,
-        message: 'We have sent a verification code to your email',
-      };
-    } else {
+        return {
+          success: true,
+          message: 'We have sent a verification code to your email',
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Email not found',
+        };
+      }
+    } catch (error) {
       return {
         success: false,
-        message: 'Email not found',
+        message: error.message,
       };
     }
   }
 
   async changePassword({ email, oldPassword, newPassword }) {
-    const user = await UserRepository.getUserByEmail(email);
+    try {
+      const user = await UserRepository.getUserByEmail(email);
 
-    if (user) {
-      const _isValidPassword = await UserRepository.validatePassword({
-        email: email,
-        password: oldPassword,
-      });
-      if (_isValidPassword) {
-        await UserRepository.changePassword({
+      if (user) {
+        const _isValidPassword = await UserRepository.validatePassword({
           email: email,
-          password: newPassword,
+          password: oldPassword,
         });
+        if (_isValidPassword) {
+          await UserRepository.changePassword({
+            email: email,
+            password: newPassword,
+          });
 
-        return {
-          success: true,
-          message: 'Password updated successfully',
-        };
+          return {
+            success: true,
+            message: 'Password updated successfully',
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Invalid password',
+          };
+        }
       } else {
         return {
           success: false,
-          message: 'Invalid password',
+          message: 'Email not found',
         };
       }
-    } else {
+    } catch (error) {
       return {
         success: false,
-        message: 'Email not found',
+        message: error.message,
       };
     }
   }

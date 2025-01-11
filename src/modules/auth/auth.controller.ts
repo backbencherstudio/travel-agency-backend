@@ -21,7 +21,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { diskStorage } from 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
-import appConfig from 'src/config/app.config';
+import appConfig from '../../config/app.config';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -155,55 +155,76 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify email' })
   @Post('verify-email')
   async verifyEmail(@Body() data: VerifyEmailDto) {
-    const email = data.email;
-    const token = data.token;
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+    try {
+      const email = data.email;
+      const token = data.token;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!token) {
+        throw new HttpException('Token not provided', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.authService.verifyEmail({
+        email: email,
+        token: token,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to verify email',
+      };
     }
-    if (!token) {
-      throw new HttpException('Token not provided', HttpStatus.UNAUTHORIZED);
-    }
-    return await this.authService.verifyEmail({
-      email: email,
-      token: token,
-    });
   }
 
   @ApiOperation({ summary: 'Resend verification email' })
   @Post('resend-verification-email')
   async resendVerificationEmail(@Body() data) {
-    const email = data.email;
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+    try {
+      const email = data.email;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.authService.resendVerificationEmail(email);
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to resend verification email',
+      };
     }
-    return await this.authService.resendVerificationEmail(email);
   }
 
   @ApiOperation({ summary: 'Change password' })
   @Post('change-password')
   async changePassword(@Body() data) {
-    const email = data.email;
-    const oldPassword = data.oldPassword;
-    const newPassword = data.newPassword;
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+    try {
+      const email = data.email;
+      const oldPassword = data.oldPassword;
+      const newPassword = data.newPassword;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!oldPassword) {
+        throw new HttpException(
+          'Old password not provided',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      if (!newPassword) {
+        throw new HttpException(
+          'New password not provided',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      return await this.authService.changePassword({
+        email: email,
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to change password',
+      };
     }
-    if (!oldPassword) {
-      throw new HttpException(
-        'Old password not provided',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-    if (!newPassword) {
-      throw new HttpException(
-        'New password not provided',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-    return await this.authService.changePassword({
-      email: email,
-      oldPassword: oldPassword,
-      newPassword: newPassword,
-    });
   }
 }
