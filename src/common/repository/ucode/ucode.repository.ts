@@ -107,4 +107,16 @@ export class UcodeRepository {
       return false;
     }
   }
+
+  /**
+   * delete ucode token
+   * @returns
+   */
+  static async deleteToken({ email, token }) {
+    await prisma.ucode.deleteMany({
+      where: {
+        AND: [{ email: email }, { token: token }],
+      },
+    });
+  }
 }
