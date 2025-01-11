@@ -41,8 +41,7 @@ export class PackageTripPlanController {
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl +
-          appConfig().storageUrl.packageTripPlan,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.package,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -63,23 +62,20 @@ export class PackageTripPlanController {
           // new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
           // new FileTypeValidator({ fileType: 'image/*' }),
         ],
-        // fileIsRequired: false,
+        fileIsRequired: false,
       }),
     )
     images?: Express.Multer.File[],
   ) {
     try {
       // const user_id = req.user.userId;
-      await this.packageTripPlanService.create(
+      const trip_plan = await this.packageTripPlanService.create(
         package_id,
         createPackageTripPlanDto,
         images,
       );
 
-      return {
-        success: true,
-        message: 'Trip plan created successfully',
-      };
+      return trip_plan;
     } catch (error) {
       return {
         success: false,
@@ -134,8 +130,7 @@ export class PackageTripPlanController {
     FilesInterceptor('images', 10, {
       storage: diskStorage({
         destination:
-          appConfig().storageUrl.rootUrl +
-          appConfig().storageUrl.packageTripPlan,
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.package,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
@@ -156,7 +151,7 @@ export class PackageTripPlanController {
           // new MaxFileSizeValidator({ maxSize: 10485760 }), // 10mb
           // new FileTypeValidator({ fileType: 'image/*' }),
         ],
-        // fileIsRequired: false,
+        fileIsRequired: false,
       }),
     )
     images?: Express.Multer.File[],

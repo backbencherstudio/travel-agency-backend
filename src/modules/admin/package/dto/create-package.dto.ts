@@ -90,4 +90,7 @@ export class CreatePackageDto {
     description: 'Package images object',
   })
   package_images?: any;
+
+  @ApiProperty()
+  extra_services?: any;
 }

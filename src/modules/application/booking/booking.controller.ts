@@ -6,18 +6,42 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 
+@ApiBearerAuth()
+@ApiTags('Booking')
+@UseGuards(JwtAuthGuard)
 @Controller('booking')
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
+  @ApiOperation({ summary: 'Create booking' })
   @Post()
-  create(@Body() createBookingDto: CreateBookingDto) {
-    return this.bookingService.create(createBookingDto);
+  async create(
+    @Req() req: Request,
+    @Body() createBookingDto: CreateBookingDto,
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const booking = await this.bookingService.create(
+        user_id,
+        createBookingDto,
+      );
+      return booking;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
   @Get()
