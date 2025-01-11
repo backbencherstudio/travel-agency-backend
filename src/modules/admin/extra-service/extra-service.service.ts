@@ -20,7 +20,7 @@ export class ExtraServiceService extends PrismaClient {
         data.description = createExtraServiceDto.description;
       }
       if (createExtraServiceDto.price) {
-        data.price = createExtraServiceDto.price;
+        data.price = Number(createExtraServiceDto.price);
       }
       await this.prisma.extraService.create({
         data: {
@@ -66,6 +66,12 @@ export class ExtraServiceService extends PrismaClient {
     try {
       const extra_service = await this.prisma.extraService.findUnique({
         where: { id },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          description: true,
+        },
       });
 
       return {
