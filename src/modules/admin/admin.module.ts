@@ -11,6 +11,7 @@ import { ContactModule } from './contact/contact.module';
 import { SocialMediaModule } from './social-media/social-media.module';
 import { WebsiteInfoModule } from './website-info/website-info.module';
 import { ExtraServiceModule } from './extra-service/extra-service.module';
+import { CouponModule } from './coupon/coupon.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ExtraServiceModule } from './extra-service/extra-service.module';
     SocialMediaModule,
     WebsiteInfoModule,
     ExtraServiceModule,
+    CouponModule,
   ],
 })
 export class AdminModule {}

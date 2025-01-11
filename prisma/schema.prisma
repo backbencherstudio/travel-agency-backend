@@ -676,12 +676,12 @@ model Coupon {
   max_uses_per_user Int? @default(1)
 
   // When the coupon begins
-  starts_at    DateTime?
+  starts_at    DateTime? // e.g. 2025-01-01
   // When the coupon expires
-  expires_at   DateTime?
+  expires_at   DateTime? // e.g. 2025-01-01
   // Minimum purchase requirements
   // values: none, amount, quantity
-  min_type     String?
+  min_type     String?   @default("none")
   min_amount   Decimal?
   min_quantity Int?
 
