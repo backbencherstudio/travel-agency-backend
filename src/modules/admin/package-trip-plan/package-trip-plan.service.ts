@@ -5,6 +5,7 @@ import { UpdatePackageTripPlanDto } from './dto/update-package-trip-plan.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class PackageTripPlanService extends PrismaClient {
@@ -196,6 +197,7 @@ export class PackageTripPlanService extends PrismaClient {
         where: { id, package_id },
         data: {
           ...data,
+          updated_at: DateHelper.now(),
         },
       });
 

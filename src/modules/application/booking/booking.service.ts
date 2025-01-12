@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { BookingTraveller, CreateBookingDto } from './dto/create-booking.dto';
+import {
+  IBookingTraveller,
+  ICoupon,
+  CreateBookingDto,
+} from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -26,9 +30,39 @@ export class BookingService extends PrismaClient {
       if (createBookingDto.start_date) {
         data.start_date = createBookingDto.start_date;
       }
-
       if (createBookingDto.end_date) {
         data.end_date = createBookingDto.end_date;
+      }
+      // user details
+      // if (createBookingDto.first_name) {
+      //   data.first_name = createBookingDto.first_name;
+      // }
+      // if (createBookingDto.last_name) {
+      //   data.last_name = createBookingDto.last_name;
+      // }
+      if (createBookingDto.email) {
+        data.email = createBookingDto.email;
+      }
+      if (createBookingDto.phone_number) {
+        data.phone_number = createBookingDto.phone_number;
+      }
+      if (createBookingDto.address1) {
+        data.address1 = createBookingDto.address1;
+      }
+      if (createBookingDto.address2) {
+        data.address2 = createBookingDto.address2;
+      }
+      if (createBookingDto.city) {
+        data.city = createBookingDto.city;
+      }
+      if (createBookingDto.state) {
+        data.state = createBookingDto.state;
+      }
+      if (createBookingDto.zip_code) {
+        data.zip_code = createBookingDto.zip_code;
+      }
+      if (createBookingDto.country) {
+        data.country = createBookingDto.country;
       }
 
       const packageData = await this.prisma.package.findUnique({
@@ -81,7 +115,7 @@ export class BookingService extends PrismaClient {
 
       // create booking travellers
       if (createBookingDto.booking_travellers) {
-        const booking_travellers: BookingTraveller[] = JSON.parse(
+        const booking_travellers: IBookingTraveller[] = JSON.parse(
           createBookingDto.booking_travellers,
         );
         for (const traveller of booking_travellers) {
@@ -90,6 +124,43 @@ export class BookingService extends PrismaClient {
               booking_id: booking.id,
               full_name: traveller.full_name,
               type: traveller.type,
+            },
+          });
+        }
+      }
+
+      // create coupon
+      if (createBookingDto.coupons) {
+        const coupons: ICoupon[] = JSON.parse(createBookingDto.coupons);
+        for (const coupon of coupons) {
+          const coupon_id = coupon['id'];
+          const method = coupon['method'];
+          const code = coupon['code'];
+          const amount_type = coupon['amount_type'];
+          const amount = coupon['amount'];
+
+          const couponData = await this.prisma.coupon.findUnique({
+            where: {
+              id: coupon_id,
+            },
+          });
+
+          if (!couponData) {
+            return {
+              success: false,
+              message: 'Coupon not found',
+            };
+          }
+
+          await this.prisma.bookingCoupon.create({
+            data: {
+              user_id: user_id,
+              booking_id: booking.id,
+              coupon_id: coupon_id,
+              method: method,
+              code: code,
+              amount_type: amount_type,
+              amount: amount,
             },
           });
         }

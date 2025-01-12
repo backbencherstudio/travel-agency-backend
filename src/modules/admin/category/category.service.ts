@@ -3,6 +3,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class CategoryService extends PrismaClient {
@@ -104,6 +105,7 @@ export class CategoryService extends PrismaClient {
         where: { id: id },
         data: {
           ...updateCategoryDto,
+          updated_at: DateHelper.now(),
         },
       });
       return {

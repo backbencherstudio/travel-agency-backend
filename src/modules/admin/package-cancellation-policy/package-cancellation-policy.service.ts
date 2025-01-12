@@ -3,6 +3,7 @@ import { CreatePackageCancellationPolicyDto } from './dto/create-package-cancell
 import { UpdatePackageCancellationPolicyDto } from './dto/update-package-cancellation-policy.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class PackageCancellationPolicyService extends PrismaClient {
@@ -99,7 +100,10 @@ export class PackageCancellationPolicyService extends PrismaClient {
 
       await this.prisma.packageCancellationPolicy.update({
         where: { id: id },
-        data: data,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
       return {
         success: true,

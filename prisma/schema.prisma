@@ -69,7 +69,6 @@ model User {
   receiver_notifications    Notification[]       @relation("receiver")
   roles                     Role[]
   accounts                  Account[]
-  bookings                  Booking[]
   reviews                   Review[]
   sender_messages           Message[]            @relation("sender")
   receiver_messages         Message[]            @relation("receiver")
@@ -537,15 +536,19 @@ model Booking {
   last_name    String?
   email        String?
   phone_number String?
-  address      String?
 
-  BookingItem         BookingItem[]
-  BookingCoupon       BookingCoupon[]
-  PaymentTransaction  PaymentTransaction[]
-  BookingTraveller    BookingTraveller[]
-  User                User?                 @relation(fields: [userId], references: [id])
-  userId              String?
-  BookingExtraService BookingExtraService[]
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zip_code String?
+  country  String?
+
+  booking_items          BookingItem[]
+  booking_coupons        BookingCoupon[]
+  payment_transactions   PaymentTransaction[]
+  booking_travellers     BookingTraveller[]
+  booking_extra_services BookingExtraService[]
 
   @@map("bookings")
 }

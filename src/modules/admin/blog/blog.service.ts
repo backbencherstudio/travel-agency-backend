@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -166,7 +167,10 @@ export class BlogService extends PrismaClient {
       }
       const blog = await this.prisma.blog.update({
         where: { id },
-        data: data,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       if (images.length > 0) {

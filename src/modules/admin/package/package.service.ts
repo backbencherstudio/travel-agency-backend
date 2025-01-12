@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -469,6 +470,7 @@ export class PackageService extends PrismaClient {
         where: { id: id, user_id: user_id },
         data: {
           ...data,
+          updated_at: DateHelper.now(),
         },
       });
 

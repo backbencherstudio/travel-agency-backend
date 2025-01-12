@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
-import appConfig from 'src/config/app.config';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class ConversationService extends PrismaClient {
@@ -155,9 +156,20 @@ export class ConversationService extends PrismaClient {
 
   async update(id: string, updateConversationDto: UpdateConversationDto) {
     try {
+      const data = {};
+      if (updateConversationDto.creator_id) {
+        data['creator_id'] = updateConversationDto.creator_id;
+      }
+      if (updateConversationDto.participant_id) {
+        data['participant_id'] = updateConversationDto.participant_id;
+      }
+
       await this.prisma.conversation.update({
         where: { id },
-        data: updateConversationDto,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       return {

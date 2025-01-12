@@ -38,7 +38,7 @@ export class AuthService extends PrismaClient {
       });
 
       if (user.avatar) {
-        user.avatar = SojebStorage.url(
+        user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
         );
       }
@@ -268,6 +268,12 @@ export class AuthService extends PrismaClient {
             password: password,
           });
 
+          // delete otp code
+          await UcodeRepository.deleteToken({
+            email: email,
+            token: token,
+          });
+
           return {
             success: true,
             message: 'Password updated successfully',
@@ -316,10 +322,10 @@ export class AuthService extends PrismaClient {
           });
 
           // delete otp code
-          await UcodeRepository.deleteToken({
-            email: email,
-            token: token,
-          });
+          // await UcodeRepository.deleteToken({
+          //   email: email,
+          //   token: token,
+          // });
 
           return {
             success: true,
