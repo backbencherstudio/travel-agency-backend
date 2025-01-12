@@ -5,7 +5,10 @@ const prisma = new PrismaClient();
 
 export class CouponRepository {
   /**
-   * Update like count
+   * Apply coupon
+   * @param user_id
+   * @param coupon_code
+   * @param package_id
    * @returns
    */
   static async applyCoupon(
@@ -124,6 +127,7 @@ export class CouponRepository {
       return {
         success: true,
         message: 'Coupon applied successfully',
+        coupon: coupon,
       };
     } catch (error) {
       return {

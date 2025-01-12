@@ -493,6 +493,8 @@ model Booking {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
 
+  invoice_number String? @unique
+
   // booking status
   // available values:
   // pending, confirmed, canceled
@@ -543,6 +545,8 @@ model Booking {
   state    String?
   zip_code String?
   country  String?
+
+  comments String? @db.Text
 
   booking_items          BookingItem[]
   booking_coupons        BookingCoupon[]

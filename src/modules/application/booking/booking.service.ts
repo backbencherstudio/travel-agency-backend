@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import {
   IBookingTraveller,
   ICoupon,
   CreateBookingDto,
 } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { UserRepository } from 'src/common/repository/user/user.repository';
+import { UserRepository } from '../../../common/repository/user/user.repository';
+import { CouponRepository } from '../../../common/repository/coupon/coupon.repository';
+import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -98,11 +100,16 @@ export class BookingService extends PrismaClient {
         }
       }
 
+      // create invoice number
+      const invoice_number = await BookingRepository.createInvoiceNumber();
+
+      // create booking
       const booking = await this.prisma.booking.create({
         data: {
           ...data,
           user_id: user_id,
           type: packageData.type,
+          invoice_number: invoice_number,
         },
       });
 
@@ -113,7 +120,7 @@ export class BookingService extends PrismaClient {
         };
       }
 
-      // create booking travellers
+      // create booking-travellers
       if (createBookingDto.booking_travellers) {
         const booking_travellers: IBookingTraveller[] = JSON.parse(
           createBookingDto.booking_travellers,
@@ -129,40 +136,37 @@ export class BookingService extends PrismaClient {
         }
       }
 
-      // create coupon
+      // apply coupon
       if (createBookingDto.coupons) {
         const coupons: ICoupon[] = JSON.parse(createBookingDto.coupons);
         for (const coupon of coupons) {
-          const coupon_id = coupon['id'];
-          const method = coupon['method'];
           const code = coupon['code'];
-          const amount_type = coupon['amount_type'];
-          const amount = coupon['amount'];
 
-          const couponData = await this.prisma.coupon.findUnique({
-            where: {
-              id: coupon_id,
-            },
-          });
+          // apply coupon
+          const coupon_data = await CouponRepository.applyCoupon(
+            user_id,
+            code,
+            packageData.id,
+          );
 
-          if (!couponData) {
-            return {
-              success: false,
-              message: 'Coupon not found',
-            };
+          if (coupon_data.success) {
+            const coupon_id = coupon_data.coupon.id;
+            const method = coupon_data.coupon.method;
+            const amount_type = coupon_data.coupon.amount_type;
+            const amount = coupon_data.coupon.amount;
+
+            await this.prisma.bookingCoupon.create({
+              data: {
+                user_id: user_id,
+                booking_id: booking.id,
+                coupon_id: coupon_id,
+                method: method,
+                code: code,
+                amount_type: amount_type,
+                amount: amount,
+              },
+            });
           }
-
-          await this.prisma.bookingCoupon.create({
-            data: {
-              user_id: user_id,
-              booking_id: booking.id,
-              coupon_id: coupon_id,
-              method: method,
-              code: code,
-              amount_type: amount_type,
-              amount: amount,
-            },
-          });
         }
       }
 

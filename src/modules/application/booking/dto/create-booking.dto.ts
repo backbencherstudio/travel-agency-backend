@@ -7,7 +7,7 @@ export interface IBookingTraveller {
 }
 
 export interface ICoupon {
-  id: string;
+  code: string;
 }
 
 export class CreateBookingDto {
