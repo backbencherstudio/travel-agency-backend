@@ -144,6 +144,9 @@ export class AuthService extends PrismaClient {
     try {
       const payload = { email: email, sub: userId };
       const token = this.jwtService.sign(payload);
+
+      const user = await UserRepository.getUserDetails(userId);
+
       return {
         success: true,
         message: 'Logged in successfully',
@@ -151,6 +154,7 @@ export class AuthService extends PrismaClient {
           token: token,
           type: 'bearer',
         },
+        type: user.type,
       };
     } catch (error) {
       return {
