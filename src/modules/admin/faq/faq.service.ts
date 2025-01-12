@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { CreateFaqDto } from './dto/create-faq.dto';
-import { UpdateFaqDto } from './dto/update-faq.dto';
 import { PrismaClient } from '@prisma/client';
+import { BatchCreateFaqDto, CreateFaqDto } from './dto/create-faq.dto';
+import { UpdateFaqDto } from './dto/update-faq.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DateHelper } from '../../../common/helper/date.helper';
 
@@ -35,43 +35,6 @@ export class FaqService extends PrismaClient {
         },
       });
 
-      return {
-        success: true,
-        message: 'Faq created successfully',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  async batchCreate(createFaqDto: CreateFaqDto) {
-    try {
-      const faqs = createFaqDto.faqs;
-      for (const faq of faqs) {
-        const question = faq.question;
-        const answer = faq.answer;
-        const sort_order = faq.sort_order;
-
-        const faqData: any = {};
-        if (question) {
-          faqData['question'] = question;
-        }
-        if (answer) {
-          faqData['answer'] = answer;
-        }
-        if (sort_order) {
-          faqData['sort_order'] = sort_order;
-        }
-
-        await this.prisma.faq.create({
-          data: {
-            ...faqData,
-          },
-        });
-      }
       return {
         success: true,
         message: 'Faq created successfully',
@@ -134,9 +97,22 @@ export class FaqService extends PrismaClient {
     }
   }
 
-  async batchUpdate(createFaqDto: CreateFaqDto) {
+  async batchCreate(batchCreateFaqDto: BatchCreateFaqDto) {
     try {
-      const faqs = createFaqDto.faqs;
+      const faqs = batchCreateFaqDto.faqs;
+
+      // old faq
+      const oldFaqs = await this.prisma.faq.findMany();
+      // delete old faqs that are not in the new faqs
+      for (const oldFaq of oldFaqs) {
+        if (!faqs.some((faq) => faq.id == oldFaq.id)) {
+          await this.prisma.faq.delete({
+            where: { id: oldFaq.id },
+          });
+        }
+      }
+
+      // create new faqs
       for (const faq of faqs) {
         const id = faq.id;
         const question = faq.question;
@@ -144,14 +120,6 @@ export class FaqService extends PrismaClient {
         const sort_order = faq.sort_order;
 
         const faqData: any = {};
-        if (id) {
-          faqData['id'] = id;
-        } else {
-          return {
-            success: false,
-            message: 'Id not found',
-          };
-        }
         if (question) {
           faqData['question'] = question;
         }
@@ -162,30 +130,29 @@ export class FaqService extends PrismaClient {
           faqData['sort_order'] = sort_order;
         }
 
-        const faqExist = await this.prisma.faq.findUnique({
-          where: {
-            id: id,
-          },
-        });
-        if (!faqExist) {
-          return {
-            success: false,
-            message: 'Faq not found',
-          };
+        if (id) {
+          await this.prisma.faq.update({
+            where: {
+              id: id,
+            },
+            data: {
+              ...faqData,
+              updated_at: DateHelper.now(),
+            },
+          });
+        } else {
+          // create new faq
+          await this.prisma.faq.create({
+            data: {
+              ...faqData,
+            },
+          });
         }
-
-        await this.prisma.faq.update({
-          where: {
-            id: id,
-          },
-          data: {
-            ...faqData,
-          },
-        });
       }
+
       return {
         success: true,
-        message: 'Faq created successfully',
+        message: 'Faqs updated successfully',
       };
     } catch (error) {
       return {
