@@ -5,13 +5,14 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { PackageService } from './package.service';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateReviewDto } from './dto/create-review.dto';
 import { Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PackageService } from './package.service';
+import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Package')
@@ -21,9 +22,10 @@ export class PackageController {
 
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { type: string }) {
     try {
-      const packages = await this.packageService.findAll();
+      const type = query.type;
+      const packages = await this.packageService.findAll({ type: type });
       return packages;
     } catch (error) {
       return {
