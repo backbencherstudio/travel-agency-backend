@@ -93,4 +93,10 @@ export class CreatePackageDto {
 
   @ApiProperty()
   extra_services?: any;
+
+  @ApiProperty({
+    description: 'Language of the package',
+    example: 'en',
+  })
+  language?: string;
 }

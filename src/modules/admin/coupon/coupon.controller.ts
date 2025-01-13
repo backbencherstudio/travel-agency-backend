@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CouponService } from './coupon.service';
@@ -41,9 +42,15 @@ export class CouponController {
 
   @ApiOperation({ summary: 'Get all coupons' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string; status?: number }) {
     try {
-      const coupons = await this.couponService.findAll();
+      const searchQuery = query.q;
+      const status = query.status;
+
+      const coupons = await this.couponService.findAll({
+        q: searchQuery,
+        status: status,
+      });
       return coupons;
     } catch (error) {
       return {

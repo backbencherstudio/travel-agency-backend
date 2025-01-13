@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -291,6 +292,8 @@ model Package {
   max_capacity Int? @default(1)
 
   type String? @default("tour") // e.g. "tour", "cruise"
+
+  language String? // e.g. "en"
 
   destination_id String?
   destination    Destination? @relation(fields: [destination_id], references: [id])

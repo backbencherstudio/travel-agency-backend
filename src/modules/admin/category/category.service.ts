@@ -43,9 +43,18 @@ export class CategoryService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ name: { contains: q, mode: 'insensitive' } }];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const categories = await this.prisma.category.findMany({
+        where: { ...whereClause },
         select: {
           id: true,
           name: true,

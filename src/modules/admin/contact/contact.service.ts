@@ -48,8 +48,21 @@ export class ContactService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [
+          { first_name: { contains: q, mode: 'insensitive' } },
+          { last_name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone_number: { contains: q, mode: 'insensitive' } },
+        ];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const contacts = await this.prisma.contact.findMany({
         select: {
           id: true,

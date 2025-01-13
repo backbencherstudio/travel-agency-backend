@@ -13,9 +13,18 @@ export class BlogService extends PrismaClient {
     super();
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const blogs = await this.prisma.blog.findMany({
+        where: { ...whereClause },
         select: {
           id: true,
           title: true,
@@ -106,6 +115,13 @@ export class BlogService extends PrismaClient {
           },
         },
       });
+
+      if (!blog) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
 
       // add image url
       if (blog.blog_images.length > 0) {

@@ -50,6 +50,10 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.destination_id) {
         data.destination_id = createPackageDto.destination_id;
       }
+      if (createPackageDto.language) {
+        data.language = createPackageDto.language;
+      }
+
       const record = await this.prisma.package.create({
         data: {
           ...data,
@@ -466,6 +470,10 @@ export class PackageService extends PrismaClient {
       if (updatePackageDto.destination_id) {
         data.destination_id = updatePackageDto.destination_id;
       }
+      if (updatePackageDto.language) {
+        data.language = updatePackageDto.language;
+      }
+
       const record = await this.prisma.package.update({
         where: { id: id, user_id: user_id },
         data: {

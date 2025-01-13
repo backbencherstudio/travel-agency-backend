@@ -11,6 +11,7 @@ import {
   Req,
   ParseFilePipe,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { diskStorage } from 'multer';
@@ -83,9 +84,15 @@ export class BlogController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all blog' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string; status?: number }) {
     try {
-      const blogs = await this.blogService.findAll();
+      const searchQuery = query.q;
+      const status = query.status;
+
+      const blogs = await this.blogService.findAll({
+        q: searchQuery,
+        status: status,
+      });
       return blogs;
     } catch (error) {
       return {

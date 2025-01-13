@@ -63,9 +63,18 @@ export class CouponService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ name: { contains: q, mode: 'insensitive' } }];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const coupons = await this.prisma.coupon.findMany({
+        where: { ...whereClause },
         select: {
           id: true,
           name: true,

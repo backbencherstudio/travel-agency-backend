@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -41,9 +42,15 @@ export class ContactController {
 
   @ApiOperation({ summary: 'Read all contacts' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string; status?: number }) {
     try {
-      const contacts = await this.contactService.findAll();
+      const searchQuery = query.q;
+      const status = query.status;
+
+      const contacts = await this.contactService.findAll({
+        q: searchQuery,
+        status: status,
+      });
       return contacts;
     } catch (error) {
       return {
