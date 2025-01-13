@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -69,7 +70,6 @@ model User {
   receiver_notifications    Notification[]       @relation("receiver")
   roles                     Role[]
   accounts                  Account[]
-  bookings                  Booking[]
   reviews                   Review[]
   sender_messages           Message[]            @relation("sender")
   receiver_messages         Message[]            @relation("receiver")
@@ -293,6 +293,8 @@ model Package {
 
   type String? @default("tour") // e.g. "tour", "cruise"
 
+  language String? // e.g. "en"
+
   destination_id String?
   destination    Destination? @relation(fields: [destination_id], references: [id])
 
@@ -494,6 +496,8 @@ model Booking {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
 
+  invoice_number String? @unique
+
   // booking status
   // available values:
   // pending, confirmed, canceled
@@ -537,15 +541,21 @@ model Booking {
   last_name    String?
   email        String?
   phone_number String?
-  address      String?
 
-  BookingItem         BookingItem[]
-  BookingCoupon       BookingCoupon[]
-  PaymentTransaction  PaymentTransaction[]
-  BookingTraveller    BookingTraveller[]
-  User                User?                 @relation(fields: [userId], references: [id])
-  userId              String?
-  BookingExtraService BookingExtraService[]
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zip_code String?
+  country  String?
+
+  comments String? @db.Text
+
+  booking_items          BookingItem[]
+  booking_coupons        BookingCoupon[]
+  payment_transactions   PaymentTransaction[]
+  booking_travellers     BookingTraveller[]
+  booking_extra_services BookingExtraService[]
 
   @@map("bookings")
 }
@@ -704,7 +714,7 @@ model PaymentTransaction {
   booking    Booking? @relation(fields: [booking_id], references: [id])
 
   provider         String? // e.g. stripe, paypal, razorpay
-  reference_number String? // e.g. stripe payment reference id
+  reference_number String? // e.g. stripe payment reference id like payment_intent_id
   // values: pending succeeded, processing, requires_payment_method
   status           String?  @default("pending")
   raw_status       String? // e.g. succeeded, processing, requires_payment_method

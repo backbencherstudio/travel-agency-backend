@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { CreateSocialMediaDto } from './dto/create-social-media.dto';
 import { UpdateSocialMediaDto } from './dto/update-social-media.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class SocialMediaService extends PrismaClient {
@@ -112,7 +113,10 @@ export class SocialMediaService extends PrismaClient {
 
       await this.prisma.socialMedia.update({
         where: { id },
-        data: updateSocialMediaDto,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
       return {
         success: true,

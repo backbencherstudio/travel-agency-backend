@@ -17,18 +17,22 @@ import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
-@ApiBearerAuth()
 @ApiTags('Blog')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('blog')
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
 
   @ApiOperation({ summary: 'Get all blogs' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string; status?: number }) {
     try {
-      const blogs = await this.blogService.findAll();
+      const searchQuery = query.q;
+      const status = query.status;
+
+      const blogs = await this.blogService.findAll({
+        q: searchQuery,
+        status: status,
+      });
       return blogs;
     } catch (error) {
       return {
@@ -66,6 +70,8 @@ export class BlogController {
     }
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Like a blog' })
   @Post(':id/like')
   async like(@Req() req: Request, @Param('id') id: string) {
@@ -81,6 +87,8 @@ export class BlogController {
     }
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Comment on a blog' })
   @Post(':id/comment')
   async comment(
@@ -100,6 +108,8 @@ export class BlogController {
     }
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Delete a comment' })
   @Delete(':id/comment/:comment_id')
   async deleteComment(

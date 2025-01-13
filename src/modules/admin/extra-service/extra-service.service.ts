@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { CreateExtraServiceDto } from './dto/create-extra-service.dto';
 import { UpdateExtraServiceDto } from './dto/update-extra-service.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class ExtraServiceService extends PrismaClient {
@@ -102,6 +103,7 @@ export class ExtraServiceService extends PrismaClient {
         where: { id },
         data: {
           ...data,
+          updated_at: DateHelper.now(),
         },
       });
 

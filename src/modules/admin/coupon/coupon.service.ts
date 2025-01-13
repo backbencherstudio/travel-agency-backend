@@ -3,6 +3,7 @@ import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class CouponService extends PrismaClient {
@@ -62,9 +63,18 @@ export class CouponService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ name: { contains: q, mode: 'insensitive' } }];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const coupons = await this.prisma.coupon.findMany({
+        where: { ...whereClause },
         select: {
           id: true,
           name: true,
@@ -182,7 +192,10 @@ export class CouponService extends PrismaClient {
       }
       await this.prisma.coupon.update({
         where: { id },
-        data: { ...data },
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       return {

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -41,9 +42,15 @@ export class CategoryController {
 
   @ApiOperation({ summary: 'Get all categories' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string; status?: number }) {
     try {
-      const categories = await this.categoryService.findAll();
+      const searchQuery = query.q;
+      const status = query.status;
+
+      const categories = await this.categoryService.findAll({
+        q: searchQuery,
+        status: status,
+      });
       return categories;
     } catch (error) {
       return {

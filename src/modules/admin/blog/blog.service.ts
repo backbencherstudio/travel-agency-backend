@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -56,9 +57,18 @@ export class BlogService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const blogs = await this.prisma.blog.findMany({
+        where: { ...whereClause },
         select: {
           id: true,
           title: true,
@@ -127,8 +137,15 @@ export class BlogService extends PrismaClient {
         },
       });
 
+      if (!blog) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+
       // add image url
-      if (blog.blog_images.length > 0) {
+      if (blog.blog_images && blog.blog_images.length > 0) {
         for (const image of blog.blog_images) {
           image['image_url'] = SojebStorage.url(
             appConfig().storageUrl.blog + image.image,
@@ -166,7 +183,10 @@ export class BlogService extends PrismaClient {
       }
       const blog = await this.prisma.blog.update({
         where: { id },
-        data: data,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       if (images.length > 0) {

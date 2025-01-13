@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FaqService } from './faq.service';
-import { CreateFaqDto } from './dto/create-faq.dto';
+import { BatchCreateFaqDto, CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -30,6 +30,20 @@ export class FaqController {
   async create(@Body() createFaqDto: CreateFaqDto) {
     try {
       const faq = await this.faqService.create(createFaqDto);
+      return faq;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Batch create or update faqs' })
+  @Post('batch-create')
+  async batchCreate(@Body() batchCreateFaqDto: BatchCreateFaqDto) {
+    try {
+      const faq = await this.faqService.batchCreate(batchCreateFaqDto);
       return faq;
     } catch (error) {
       return {

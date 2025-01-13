@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -49,6 +51,16 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.destination_id) {
         data.destination_id = createPackageDto.destination_id;
       }
+      if (createPackageDto.language) {
+        data.language = createPackageDto.language;
+      }
+
+      // add vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type != 'vendor') {
+        data.approved_at = DateHelper.now();
+      }
+
       const record = await this.prisma.package.create({
         data: {
           ...data,
@@ -465,10 +477,15 @@ export class PackageService extends PrismaClient {
       if (updatePackageDto.destination_id) {
         data.destination_id = updatePackageDto.destination_id;
       }
+      if (updatePackageDto.language) {
+        data.language = updatePackageDto.language;
+      }
+
       const record = await this.prisma.package.update({
         where: { id: id, user_id: user_id },
         data: {
           ...data,
+          updated_at: DateHelper.now(),
         },
       });
 

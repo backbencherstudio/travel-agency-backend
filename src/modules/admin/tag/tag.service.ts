@@ -3,6 +3,7 @@ import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class TagService extends PrismaClient {
@@ -86,6 +87,10 @@ export class TagService extends PrismaClient {
 
   async update(id: string, updateTagDto: UpdateTagDto) {
     try {
+      const data = {};
+      if (updateTagDto.name) {
+        data['name'] = updateTagDto.name;
+      }
       // check if tag already exists
       const tag = await this.prisma.tag.findFirst({
         where: { name: updateTagDto.name },
@@ -98,7 +103,10 @@ export class TagService extends PrismaClient {
       }
       await this.prisma.tag.update({
         where: { id: id },
-        data: updateTagDto,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       return {

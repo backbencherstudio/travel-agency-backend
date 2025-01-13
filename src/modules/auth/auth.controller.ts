@@ -12,15 +12,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
+import { diskStorage } from 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { diskStorage } from 'multer';
-import { FileInterceptor } from '@nestjs/platform-express';
 import appConfig from '../../config/app.config';
 
 @ApiTags('auth')
@@ -122,34 +122,19 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Forgot password' })
   @Post('forgot-password')
-  async forgotPassword(@Body() data) {
-    const email = data.email;
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+  async forgotPassword(@Body() data: { email: string }) {
+    try {
+      const email = data.email;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.authService.forgotPassword(email);
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Something went wrong',
+      };
     }
-    return await this.authService.forgotPassword(email);
-  }
-
-  @ApiOperation({ summary: 'Reset password' })
-  @Post('reset-password')
-  async resetPassword(@Body() data) {
-    const email = data.email;
-    const token = data.token;
-    const password = data.password;
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
-    }
-    if (!token) {
-      throw new HttpException('Token not provided', HttpStatus.UNAUTHORIZED);
-    }
-    if (!password) {
-      throw new HttpException('Password not provided', HttpStatus.UNAUTHORIZED);
-    }
-    return await this.authService.resetPassword({
-      email: email,
-      token: token,
-      password: password,
-    });
   }
 
   @ApiOperation({ summary: 'Verify email' })
@@ -178,7 +163,7 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Resend verification email' })
   @Post('resend-verification-email')
-  async resendVerificationEmail(@Body() data) {
+  async resendVerificationEmail(@Body() data: { email: string }) {
     try {
       const email = data.email;
       if (!email) {
@@ -193,16 +178,57 @@ export class AuthController {
     }
   }
 
-  @ApiOperation({ summary: 'Change password' })
-  @Post('change-password')
-  async changePassword(@Body() data) {
+  @ApiOperation({ summary: 'Reset password' })
+  @Post('reset-password')
+  async resetPassword(
+    @Body() data: { email: string; token: string; password: string },
+  ) {
     try {
       const email = data.email;
-      const oldPassword = data.oldPassword;
-      const newPassword = data.newPassword;
+      const token = data.token;
+      const password = data.password;
       if (!email) {
         throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
       }
+      if (!token) {
+        throw new HttpException('Token not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!password) {
+        throw new HttpException(
+          'Password not provided',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      return await this.authService.resetPassword({
+        email: email,
+        token: token,
+        password: password,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Something went wrong',
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Change password' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @Req() req: Request,
+    @Body() data: { email: string; old_password: string; new_password: string },
+  ) {
+    try {
+      // const email = data.email;
+      const user_id = req.user.userId;
+
+      const oldPassword = data.old_password;
+      const newPassword = data.new_password;
+      // if (!email) {
+      //   throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      // }
       if (!oldPassword) {
         throw new HttpException(
           'Old password not provided',
@@ -216,7 +242,8 @@ export class AuthController {
         );
       }
       return await this.authService.changePassword({
-        email: email,
+        // email: email,
+        user_id: user_id,
         oldPassword: oldPassword,
         newPassword: newPassword,
       });

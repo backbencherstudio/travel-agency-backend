@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class ContactService extends PrismaClient {
@@ -12,8 +13,28 @@ export class ContactService extends PrismaClient {
 
   async create(createContactDto: CreateContactDto) {
     try {
+      const data = {};
+      if (createContactDto.first_name) {
+        data['first_name'] = createContactDto.first_name;
+      }
+      if (createContactDto.last_name) {
+        data['last_name'] = createContactDto.last_name;
+      }
+      if (createContactDto.email) {
+        data['email'] = createContactDto.email;
+      }
+      if (createContactDto.phone_number) {
+        data['phone_number'] = createContactDto.phone_number;
+      }
+      if (createContactDto.message) {
+        data['message'] = createContactDto.message;
+      }
+
       await this.prisma.contact.create({
-        data: createContactDto,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
       return {
         success: true,
@@ -27,8 +48,21 @@ export class ContactService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [
+          { first_name: { contains: q, mode: 'insensitive' } },
+          { last_name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone_number: { contains: q, mode: 'insensitive' } },
+        ];
+      }
+      if (status) {
+        whereClause['status'] = Number(status);
+      }
+
       const contacts = await this.prisma.contact.findMany({
         select: {
           id: true,
@@ -78,9 +112,29 @@ export class ContactService extends PrismaClient {
 
   async update(id: string, updateContactDto: UpdateContactDto) {
     try {
+      const data = {};
+      if (updateContactDto.first_name) {
+        data['first_name'] = updateContactDto.first_name;
+      }
+      if (updateContactDto.last_name) {
+        data['last_name'] = updateContactDto.last_name;
+      }
+      if (updateContactDto.email) {
+        data['email'] = updateContactDto.email;
+      }
+      if (updateContactDto.phone_number) {
+        data['phone_number'] = updateContactDto.phone_number;
+      }
+      if (updateContactDto.message) {
+        data['message'] = updateContactDto.message;
+      }
+
       await this.prisma.contact.update({
         where: { id },
-        data: updateContactDto,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
       return {
         success: true,

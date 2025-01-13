@@ -11,10 +11,18 @@ export class PackageService extends PrismaClient {
     super();
   }
 
-  async findAll() {
+  async findAll({ q = null, type = 'tour' }: { q?: string; type?: string }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
+      }
+      if (type) {
+        whereClause['type'] = type;
+      }
       const packages = await this.prisma.package.findMany({
         where: {
+          ...whereClause,
           status: 1,
           approved_at: {
             not: null,
@@ -32,22 +40,56 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
-          destination_id: true,
-          cancellation_policy_id: true,
-          package_categories: {
+          reviews: {
             select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+              id: true,
+              rating_value: true,
+              comment: true,
+              user_id: true,
+            },
+          },
+          destination: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          cancellation_policy: {
+            select: {
+              id: true,
+              policy: true,
+              description: true,
             },
           },
           package_images: {
             select: {
               id: true,
               image: true,
+            },
+          },
+          package_trip_plans: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              package_trip_plan_images: {
+                select: {
+                  id: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          package_tags: {
+            select: {
+              tag_id: true,
+              type: true,
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },

@@ -19,6 +19,7 @@ import { ApplicationModule } from './modules/application/application.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ChatModule } from './modules/chat/chat.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { ChatModule } from './modules/chat/chat.module';
     ApplicationModule,
     AdminModule,
     ChatModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [

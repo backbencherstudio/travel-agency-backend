@@ -34,11 +34,12 @@ export class AuthService extends PrismaClient {
           avatar: true,
           address: true,
           phone_number: true,
+          type: true,
         },
       });
 
       if (user.avatar) {
-        user.avatar = SojebStorage.url(
+        user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
         );
       }
@@ -143,6 +144,9 @@ export class AuthService extends PrismaClient {
     try {
       const payload = { email: email, sub: userId };
       const token = this.jwtService.sign(payload);
+
+      const user = await UserRepository.getUserDetails(userId);
+
       return {
         success: true,
         message: 'Logged in successfully',
@@ -150,6 +154,7 @@ export class AuthService extends PrismaClient {
           token: token,
           type: 'bearer',
         },
+        type: user.type,
       };
     } catch (error) {
       return {
@@ -268,6 +273,12 @@ export class AuthService extends PrismaClient {
             password: password,
           });
 
+          // delete otp code
+          await UcodeRepository.deleteToken({
+            email: email,
+            token: token,
+          });
+
           return {
             success: true,
             message: 'Password updated successfully',
@@ -316,10 +327,10 @@ export class AuthService extends PrismaClient {
           });
 
           // delete otp code
-          await UcodeRepository.deleteToken({
-            email: email,
-            token: token,
-          });
+          // await UcodeRepository.deleteToken({
+          //   email: email,
+          //   token: token,
+          // });
 
           return {
             success: true,
@@ -381,18 +392,18 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async changePassword({ email, oldPassword, newPassword }) {
+  async changePassword({ user_id, oldPassword, newPassword }) {
     try {
-      const user = await UserRepository.getUserByEmail(email);
+      const user = await UserRepository.getUserDetails(user_id);
 
       if (user) {
         const _isValidPassword = await UserRepository.validatePassword({
-          email: email,
+          email: user.email,
           password: oldPassword,
         });
         if (_isValidPassword) {
           await UserRepository.changePassword({
-            email: email,
+            email: user.email,
             password: newPassword,
           });
 

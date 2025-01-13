@@ -4,7 +4,8 @@ import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
-import appConfig from 'src/config/app.config';
+import appConfig from '../../../config/app.config';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class DestinationService extends PrismaClient {
@@ -190,7 +191,10 @@ export class DestinationService extends PrismaClient {
       }
       await this.prisma.destination.update({
         where: { id, user_id },
-        data: data,
+        data: {
+          ...data,
+          updated_at: DateHelper.now(),
+        },
       });
 
       // save destination images
