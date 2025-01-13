@@ -2,6 +2,26 @@
 
 Travel agency backend system created using nestjs
 
+## Config
+
+Stripe webhook:
+
+```
+http://{domain_name}/api/payment/stripe/webhook
+```
+
+for development run stripe cli:
+
+```
+stripe listen --forward-to localhost:4000/api/payment/stripe/webhook
+```
+
+trigger a event for testing:
+
+```
+stripe trigger invoice.payment_succeeded
+```
+
 ## Installation
 
 Install all dependencies

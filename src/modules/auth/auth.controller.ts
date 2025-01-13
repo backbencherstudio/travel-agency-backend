@@ -213,17 +213,22 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Change password' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(
-    @Body() data: { email: string; oldPassword: string; newPassword: string },
+    @Req() req: Request,
+    @Body() data: { email: string; old_password: string; new_password: string },
   ) {
     try {
-      const email = data.email;
-      const oldPassword = data.oldPassword;
-      const newPassword = data.newPassword;
-      if (!email) {
-        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
-      }
+      // const email = data.email;
+      const user_id = req.user.userId;
+
+      const oldPassword = data.old_password;
+      const newPassword = data.new_password;
+      // if (!email) {
+      //   throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      // }
       if (!oldPassword) {
         throw new HttpException(
           'Old password not provided',
@@ -237,7 +242,8 @@ export class AuthController {
         );
       }
       return await this.authService.changePassword({
-        email: email,
+        // email: email,
+        user_id: user_id,
         oldPassword: oldPassword,
         newPassword: newPassword,
       });

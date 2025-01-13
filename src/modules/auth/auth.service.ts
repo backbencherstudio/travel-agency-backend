@@ -392,18 +392,18 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async changePassword({ email, oldPassword, newPassword }) {
+  async changePassword({ user_id, oldPassword, newPassword }) {
     try {
-      const user = await UserRepository.getUserByEmail(email);
+      const user = await UserRepository.getUserDetails(user_id);
 
       if (user) {
         const _isValidPassword = await UserRepository.validatePassword({
-          email: email,
+          email: user.email,
           password: oldPassword,
         });
         if (_isValidPassword) {
           await UserRepository.changePassword({
-            email: email,
+            email: user.email,
             password: newPassword,
           });
 

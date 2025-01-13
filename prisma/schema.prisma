@@ -714,7 +714,7 @@ model PaymentTransaction {
   booking    Booking? @relation(fields: [booking_id], references: [id])
 
   provider         String? // e.g. stripe, paypal, razorpay
-  reference_number String? // e.g. stripe payment reference id
+  reference_number String? // e.g. stripe payment reference id like payment_intent_id
   // values: pending succeeded, processing, requires_payment_method
   status           String?  @default("pending")
   raw_status       String? // e.g. succeeded, processing, requires_payment_method
