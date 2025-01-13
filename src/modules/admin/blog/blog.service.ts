@@ -77,6 +77,7 @@ export class BlogService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          status: true,
           blog_images: {
             select: {
               image: true,
@@ -123,6 +124,7 @@ export class BlogService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          status: true,
           blog_images: {
             select: {
               image: true,
