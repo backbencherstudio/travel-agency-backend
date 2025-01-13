@@ -86,6 +86,7 @@ export class BlogService extends PrismaClient {
           like_count: true,
           description: true,
           created_at: true,
+          status: true,
           user: {
             select: {
               id: true,
