@@ -60,12 +60,12 @@ export class StripePayment {
     return session;
   }
 
-  async createPaymentIntent(
+  static async createPaymentIntent(
     amount: number,
     currency: string,
   ): Promise<stripe.PaymentIntent> {
     return Stripe.paymentIntents.create({
-      amount,
+      amount: amount * 100, // amount in cents
       currency,
     });
   }
