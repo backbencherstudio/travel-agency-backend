@@ -39,7 +39,7 @@ export class ContactService extends PrismaClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Something went wrong',
+        message: error.message,
       };
     }
   }

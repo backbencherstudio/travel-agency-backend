@@ -401,6 +401,13 @@ export class PackageService extends PrismaClient {
         },
       });
 
+      if (!record) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
       // add image url package_images
       if (record && record.package_images.length > 0) {
         for (const image of record.package_images) {
@@ -770,6 +777,36 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async updateStatus(id: string, status: number) {
+    try {
+      const record = await this.prisma.package.findUnique({
+        where: { id },
+      });
+
+      if (!record) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
+      await this.prisma.package.update({
+        where: { id },
+        data: { status: status },
+      });
+
+      return {
+        success: true,
+        message: 'Package status updated successfully',
+      };
+    } catch (error) {
       return {
         success: false,
         message: error.message,

@@ -57,7 +57,15 @@ export class BlogService extends PrismaClient {
     }
   }
 
-  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
+  async findAll({
+    q = null,
+    status = null,
+    approve,
+  }: {
+    q?: string;
+    status?: number;
+    approve: string;
+  }) {
     try {
       const whereClause = {};
       if (q) {
@@ -65,6 +73,13 @@ export class BlogService extends PrismaClient {
       }
       if (status) {
         whereClause['status'] = Number(status);
+      }
+      if (approve) {
+        if (approve === 'approved') {
+          whereClause['approved_at'] = { not: null };
+        } else {
+          whereClause['approved_at'] = null;
+        }
       }
 
       const blogs = await this.prisma.blog.findMany({
@@ -87,6 +102,7 @@ export class BlogService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              type: true,
             },
           },
         },
@@ -134,6 +150,7 @@ export class BlogService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              type: true,
             },
           },
         },
@@ -213,6 +230,36 @@ export class BlogService extends PrismaClient {
       return {
         success: true,
         message: 'Blog updated successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async updateStatus(id: string, status: number) {
+    try {
+      const record = await this.prisma.blog.findUnique({
+        where: { id },
+      });
+
+      if (!record) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+
+      await this.prisma.blog.update({
+        where: { id },
+        data: { status: status },
+      });
+
+      return {
+        success: true,
+        message: 'Blog status updated successfully',
       };
     } catch (error) {
       return {

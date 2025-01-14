@@ -115,6 +115,7 @@ export class WebsiteInfoService extends PrismaClient {
           logo: true,
           favicon: true,
           copyright: true,
+          cancellation_policy: true,
         },
       });
       return {

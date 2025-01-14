@@ -4,6 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -11,7 +12,31 @@ export class PackageService extends PrismaClient {
     super();
   }
 
-  async findAll({ q = null, type = 'tour' }: { q?: string; type?: string }) {
+  async findAll({
+    filters: {
+      q,
+      type,
+      duration_start,
+      duration_end,
+      budget_start,
+      budget_end,
+      ratings,
+      free_cancellation,
+      destinations,
+    },
+  }: {
+    filters: {
+      q?: string;
+      type?: string;
+      duration_start?: Date;
+      duration_end?: Date;
+      budget_start?: number;
+      budget_end?: number;
+      ratings?: number[];
+      free_cancellation?: boolean;
+      destinations?: string[];
+    };
+  }) {
     try {
       const whereClause = {};
       if (q) {
@@ -20,6 +45,40 @@ export class PackageService extends PrismaClient {
       if (type) {
         whereClause['type'] = type;
       }
+      if (duration_start && duration_end) {
+        whereClause['duration'] = {
+          gte: DateHelper.format(duration_start),
+          lte: DateHelper.format(duration_end),
+        };
+      }
+      if (budget_start && budget_end) {
+        whereClause['price'] = {
+          gte: budget_start,
+          lte: budget_end,
+        };
+      }
+      if (ratings) {
+        whereClause['reviews'] = {
+          some: {
+            rating_value: {
+              in: ratings,
+            },
+          },
+        };
+      }
+      if (free_cancellation) {
+        whereClause['cancellation_policy'] = {
+          policy: 'free_cancellation',
+        };
+      }
+      if (destinations) {
+        whereClause['destination'] = {
+          id: {
+            in: destinations,
+          },
+        };
+      }
+
       const packages = await this.prisma.package.findMany({
         where: {
           ...whereClause,
@@ -52,6 +111,12 @@ export class PackageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              country: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           cancellation_policy: {
@@ -123,17 +188,13 @@ export class PackageService extends PrismaClient {
   async findOne(id: string) {
     try {
       const record = await this.prisma.package.findUnique({
-        where: {
-          id: id,
-          status: 1,
-          approved_at: {
-            not: null,
-          },
-        },
+        where: { id: id },
         select: {
           id: true,
           created_at: true,
           updated_at: true,
+          status: true,
+          approved_at: true,
           user_id: true,
           name: true,
           description: true,
@@ -154,6 +215,12 @@ export class PackageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              country: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           cancellation_policy: {
@@ -161,6 +228,16 @@ export class PackageService extends PrismaClient {
               id: true,
               policy: true,
               description: true,
+            },
+          },
+          package_categories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           package_images: {
@@ -194,8 +271,54 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          package_extra_services: {
+            select: {
+              id: true,
+              extra_service: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                },
+              },
+            },
+          },
         },
       });
+
+      if (!record) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
+      // add image url package_images
+      if (record && record.package_images.length > 0) {
+        for (const image of record.package_images) {
+          if (image.image) {
+            image['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.package + image.image,
+            );
+          }
+        }
+      }
+
+      // add image url package_trip_plans
+      if (record && record.package_trip_plans.length > 0) {
+        for (const trip_plan of record.package_trip_plans) {
+          if (trip_plan.package_trip_plan_images) {
+            for (const image of trip_plan.package_trip_plan_images) {
+              if (image.image) {
+                image['image_url'] = SojebStorage.url(
+                  appConfig().storageUrl.package + image.image,
+                );
+              }
+            }
+          }
+        }
+      }
+
       return {
         success: true,
         data: record,

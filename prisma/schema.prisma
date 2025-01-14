@@ -284,7 +284,7 @@ model Package {
   description String  @db.Text
   price       Decimal
   // e.g, 5 days, 4 nights
-  duration    String
+  duration    Int?
 
   // minimum capacity
   min_capacity Int? @default(1)

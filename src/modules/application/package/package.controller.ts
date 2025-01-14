@@ -22,10 +22,44 @@ export class PackageController {
 
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  async findAll(@Query() query: { type: string }) {
+  async findAll(
+    @Query()
+    query: {
+      q?: string;
+      type?: string;
+      duration_start?: Date;
+      duration_end?: Date;
+      budget_start?: number;
+      budget_end?: number;
+      ratings?: number[];
+      free_cancellation?: boolean;
+      destinations?: string[];
+    },
+  ) {
     try {
+      const q = query.q;
       const type = query.type;
-      const packages = await this.packageService.findAll({ type: type });
+      const duration_start = query.duration_start;
+      const duration_end = query.duration_end;
+      const budget_start = query.budget_start;
+      const budget_end = query.budget_end;
+      const ratings = query.ratings;
+      const free_cancellation = query.free_cancellation;
+      const destinations = query.destinations;
+
+      const packages = await this.packageService.findAll({
+        filters: {
+          q: q,
+          type: type,
+          duration_start: duration_start,
+          duration_end: duration_end,
+          budget_start: budget_start,
+          budget_end: budget_end,
+          ratings: ratings,
+          free_cancellation: free_cancellation,
+          destinations: destinations,
+        },
+      });
       return packages;
     } catch (error) {
       return {

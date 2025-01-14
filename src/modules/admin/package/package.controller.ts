@@ -177,6 +177,25 @@ export class PackageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Update package status' })
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: number },
+  ) {
+    try {
+      const record = await this.packageService.updateStatus(id, body.status);
+
+      return record;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Approve package by id' })
   @Patch('approve/:id')
