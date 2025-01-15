@@ -34,7 +34,7 @@ export class PackageService extends PrismaClient {
         data.price = createPackageDto.price;
       }
       if (createPackageDto.duration) {
-        data.duration = createPackageDto.duration;
+        data.duration = Number(createPackageDto.duration);
       }
       if (createPackageDto.type) {
         data.type = createPackageDto.type;
@@ -467,7 +467,7 @@ export class PackageService extends PrismaClient {
         data.price = updatePackageDto.price;
       }
       if (updatePackageDto.duration) {
-        data.duration = updatePackageDto.duration;
+        data.duration = Number(updatePackageDto.duration);
       }
       if (updatePackageDto.type) {
         data.type = updatePackageDto.type;

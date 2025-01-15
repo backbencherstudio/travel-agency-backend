@@ -8,8 +8,11 @@ services:
     ports:
       - "4000:4000"
     environment:
+      - CHOKIDAR_USEPOLLING=true # Required for hot-reloading to work on Windows
+      - CHOKIDAR_INTERVAL=1000 # 1 second polling interval
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:root@host.docker.internal/project-management-tool
+      - DATABASE_URL=postgresql://postgres:root@host.docker.internal/travel
     volumes:
-      - .:/app
-      - /app/node_modules
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: yarn start:dev-swc
