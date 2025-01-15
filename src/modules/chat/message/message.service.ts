@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus, PrismaClient } from '@prisma/client';
+import appConfig from '../../../config/app.config';
+import { CreateMessageDto } from './dto/create-message.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ChatRepository } from '../../../common/repository/chat/chat.repository';
-import appConfig from '../../../config/app.config';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 
 @Injectable()
@@ -32,7 +32,6 @@ export class MessageService extends PrismaClient {
       const conversation = await this.prisma.conversation.findFirst({
         where: {
           id: data.conversation_id,
-          OR: [{ creator_id: user_id }, { participant_id: user_id }],
         },
       });
 
