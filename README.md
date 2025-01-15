@@ -44,6 +44,11 @@ Running in development:
 yarn start:dev
 ```
 
+or just directly run using docker:
+```
+docker compose up
+```
+
 Running in production:
 
 First build the project.

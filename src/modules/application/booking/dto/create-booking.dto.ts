@@ -10,6 +10,10 @@ export interface ICoupon {
   code: string;
 }
 
+export interface IExtraService {
+  id: string;
+}
+
 export class CreateBookingDto {
   @IsNotEmpty()
   @IsString()
@@ -46,7 +50,7 @@ export class CreateBookingDto {
   @ApiProperty({
     description: 'The coupons,  data format: ICoupon[], in stringified format',
   })
-  coupons: string;
+  coupons: any;
 
   // contact details
   @IsOptional()

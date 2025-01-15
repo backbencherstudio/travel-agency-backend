@@ -4,6 +4,7 @@ import {
   IBookingTraveller,
   ICoupon,
   CreateBookingDto,
+  IExtraService,
 } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -98,7 +99,12 @@ export class BookingService extends PrismaClient {
         }
 
         if (createBookingDto.extra_services) {
-          const extra_services = JSON.parse(createBookingDto.extra_services);
+          let extra_services: IExtraService[];
+          if (createBookingDto.extra_services instanceof Array) {
+            extra_services = createBookingDto.extra_services;
+          } else {
+            extra_services = JSON.parse(createBookingDto.extra_services);
+          }
           for (const extra_service of extra_services) {
             await prisma.packageExtraService.create({
               data: {
@@ -131,9 +137,14 @@ export class BookingService extends PrismaClient {
 
         // create booking-travellers
         if (createBookingDto.booking_travellers) {
-          const booking_travellers: IBookingTraveller[] = JSON.parse(
-            createBookingDto.booking_travellers,
-          );
+          let booking_travellers: IBookingTraveller[];
+          if (createBookingDto.extra_services instanceof Array) {
+            booking_travellers = createBookingDto.booking_travellers;
+          } else {
+            booking_travellers = JSON.parse(
+              createBookingDto.booking_travellers,
+            );
+          }
           for (const traveller of booking_travellers) {
             await prisma.bookingTraveller.create({
               data: {
@@ -147,7 +158,12 @@ export class BookingService extends PrismaClient {
 
         // apply coupon
         if (createBookingDto.coupons) {
-          const coupons: ICoupon[] = JSON.parse(createBookingDto.coupons);
+          let coupons: ICoupon[];
+          if (createBookingDto.extra_services instanceof Array) {
+            coupons = createBookingDto.coupons;
+          } else {
+            coupons = JSON.parse(createBookingDto.coupons);
+          }
           for (const coupon of coupons) {
             const code = coupon['code'];
 
