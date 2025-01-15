@@ -18,6 +18,7 @@ export class BlogService extends PrismaClient {
       const whereClause = {};
       if (q) {
         whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
+        // whereClause['OR'] = [{ title: { search: q, mode: 'insensitive' } }];
       }
       if (status) {
         whereClause['status'] = Number(status);
@@ -37,6 +38,7 @@ export class BlogService extends PrismaClient {
               id: true,
               name: true,
               avatar: true,
+              type: true,
             },
           },
           blog_images: {
@@ -93,6 +95,7 @@ export class BlogService extends PrismaClient {
               id: true,
               name: true,
               avatar: true,
+              type: true,
             },
           },
           blog_images: {
@@ -124,6 +127,17 @@ export class BlogService extends PrismaClient {
           message: 'Blog not found',
         };
       }
+
+      // add is liked
+      const isLiked = await this.prisma.like.findFirst({
+        where: {
+          likeable_id: id,
+          likeable_type: 'blog',
+          user_id: blog.user.id,
+        },
+      });
+
+      blog['is_liked'] = isLiked ? true : false;
 
       // add image url
       if (blog.blog_images.length > 0) {

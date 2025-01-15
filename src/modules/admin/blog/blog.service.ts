@@ -6,6 +6,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -28,6 +29,13 @@ export class BlogService extends PrismaClient {
       }
       if (createBlogDto.body) {
         data['body'] = createBlogDto.body;
+      }
+
+      // add vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type != 'vendor') {
+        data['status'] = 1;
+        data['approved_at'] = DateHelper.now();
       }
 
       const blog = await this.prisma.blog.create({
