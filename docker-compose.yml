@@ -10,9 +10,21 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true # Required for hot-reloading to work on Windows
       - CHOKIDAR_INTERVAL=1000 # 1 second polling interval
+
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:root@host.docker.internal/travel
+
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+    depends_on:
+      - redis
     command: yarn start:dev-swc
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
