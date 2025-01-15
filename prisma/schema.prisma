@@ -284,7 +284,7 @@ model Package {
   description String  @db.Text
   price       Decimal
   // e.g, 5 days, 4 nights
-  duration    String
+  duration    Int?
 
   // minimum capacity
   min_capacity Int? @default(1)
@@ -766,7 +766,7 @@ model Message {
   receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
 
   conversation_id String?
-  conversation    Conversation? @relation(fields: [conversation_id], references: [id])
+  conversation    Conversation? @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 
   attachment_id String?
   attachment    Attachment? @relation(fields: [attachment_id], references: [id])

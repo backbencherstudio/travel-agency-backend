@@ -24,6 +24,21 @@ export class ConversationService extends PrismaClient {
         data.participant_id = createConversationDto.participant_id;
       }
 
+      // check if conversation exists
+      const conversation = await this.prisma.conversation.findFirst({
+        where: {
+          creator_id: data.creator_id,
+          participant_id: data.participant_id,
+        },
+      });
+
+      if (conversation) {
+        return {
+          success: false,
+          message: 'Conversation already exists',
+        };
+      }
+
       await this.prisma.conversation.create({
         data: {
           ...data,

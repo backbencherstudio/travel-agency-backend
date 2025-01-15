@@ -84,14 +84,18 @@ export class BlogController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all blog' })
   @Get()
-  async findAll(@Query() query: { q?: string; status?: number }) {
+  async findAll(
+    @Query() query: { q?: string; status?: number; approve?: string },
+  ) {
     try {
       const searchQuery = query.q;
       const status = query.status;
+      const approve = query.approve;
 
       const blogs = await this.blogService.findAll({
         q: searchQuery,
         status: status,
+        approve: approve,
       });
       return blogs;
     } catch (error) {
@@ -152,6 +156,25 @@ export class BlogController {
     try {
       const blog = await this.blogService.update(id, updateBlogDto, images);
       return blog;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @ApiOperation({ summary: 'Update blog status' })
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: number },
+  ) {
+    try {
+      const record = await this.blogService.updateStatus(id, body.status);
+
+      return record;
     } catch (error) {
       return {
         success: false,

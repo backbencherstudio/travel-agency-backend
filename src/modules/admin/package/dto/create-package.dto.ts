@@ -15,23 +15,35 @@ export enum PackageStatus {
 export class CreatePackageDto {
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({ example: 'Package Name' })
+  @ApiProperty({
+    description: 'Package Name',
+    example: 'Package Name',
+  })
   name: string;
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({ example: 'Package Description' })
+  @ApiProperty({
+    description: 'Package Description',
+    example: 'Package Description',
+  })
   description: string;
 
   @IsNotEmpty()
   // @IsNumber()
-  @ApiProperty({ example: 100 })
+  @ApiProperty({
+    description: 'Package price',
+    example: 100,
+  })
   price: number;
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({ example: '5 days, 4 nights' })
-  duration: string;
+  @ApiProperty({
+    description: 'Package duration in days',
+    example: 5,
+  })
+  duration: number;
 
   @IsString()
   @ApiProperty({

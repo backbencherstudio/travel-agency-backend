@@ -27,4 +27,6 @@ RUN yarn build
 EXPOSE 4000
 
 # Start the server using the production build
-CMD ["yarn", "start:prod"]
+# CMD ["yarn", "start:prod"]
+# Start the server in dev mode
+CMD ["yarn", "start:dev-swc"]

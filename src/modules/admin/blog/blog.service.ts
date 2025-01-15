@@ -6,6 +6,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -28,6 +29,13 @@ export class BlogService extends PrismaClient {
       }
       if (createBlogDto.body) {
         data['body'] = createBlogDto.body;
+      }
+
+      // add vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type != 'vendor') {
+        data['status'] = 1;
+        data['approved_at'] = DateHelper.now();
       }
 
       const blog = await this.prisma.blog.create({
@@ -57,7 +65,15 @@ export class BlogService extends PrismaClient {
     }
   }
 
-  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
+  async findAll({
+    q = null,
+    status = null,
+    approve,
+  }: {
+    q?: string;
+    status?: number;
+    approve: string;
+  }) {
     try {
       const whereClause = {};
       if (q) {
@@ -65,6 +81,13 @@ export class BlogService extends PrismaClient {
       }
       if (status) {
         whereClause['status'] = Number(status);
+      }
+      if (approve) {
+        if (approve === 'approved') {
+          whereClause['approved_at'] = { not: null };
+        } else {
+          whereClause['approved_at'] = null;
+        }
       }
 
       const blogs = await this.prisma.blog.findMany({
@@ -77,6 +100,7 @@ export class BlogService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          status: true,
           blog_images: {
             select: {
               image: true,
@@ -86,6 +110,7 @@ export class BlogService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              type: true,
             },
           },
         },
@@ -123,6 +148,7 @@ export class BlogService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          status: true,
           blog_images: {
             select: {
               image: true,
@@ -132,6 +158,7 @@ export class BlogService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              type: true,
             },
           },
         },
@@ -211,6 +238,36 @@ export class BlogService extends PrismaClient {
       return {
         success: true,
         message: 'Blog updated successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async updateStatus(id: string, status: number) {
+    try {
+      const record = await this.prisma.blog.findUnique({
+        where: { id },
+      });
+
+      if (!record) {
+        return {
+          success: false,
+          message: 'Blog not found',
+        };
+      }
+
+      await this.prisma.blog.update({
+        where: { id },
+        data: { status: status },
+      });
+
+      return {
+        success: true,
+        message: 'Blog status updated successfully',
       };
     } catch (error) {
       return {

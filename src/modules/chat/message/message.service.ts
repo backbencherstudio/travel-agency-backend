@@ -28,6 +28,35 @@ export class MessageService extends PrismaClient {
         data.message = createMessageDto.message;
       }
 
+      // check if conversation exists
+      const conversation = await this.prisma.conversation.findFirst({
+        where: {
+          id: data.conversation_id,
+          OR: [{ creator_id: user_id }, { participant_id: user_id }],
+        },
+      });
+
+      if (!conversation) {
+        return {
+          success: false,
+          message: 'Conversation not found',
+        };
+      }
+
+      // check if receiver exists
+      const receiver = await this.prisma.user.findFirst({
+        where: {
+          id: data.receiver_id,
+        },
+      });
+
+      if (!receiver) {
+        return {
+          success: false,
+          message: 'Receiver not found',
+        };
+      }
+
       const message = await this.prisma.message.create({
         data: {
           ...data,
