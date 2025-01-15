@@ -123,6 +123,15 @@ export class CouponRepository {
         }
       }
 
+      // stores to virtual redeem
+      await prisma.tempRedeem.create({
+        data: {
+          user_id: user_id,
+          coupon_id: coupon.id,
+          checkout_id: package_id,
+        },
+      });
+
       //
       return {
         success: true,

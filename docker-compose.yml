@@ -8,11 +8,16 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - CHOKIDAR_USEPOLLING=true # Required for hot-reloading to work on Windows
-      - CHOKIDAR_INTERVAL=1000 # 1 second polling interval
+      # Required for hot-reloading to work on Windows
+      - CHOKIDAR_USEPOLLING=true 
+      # 1 second polling interval
+      - CHOKIDAR_INTERVAL=1000
 
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:root@host.docker.internal/travel
+      # host.docker.internal is the host machine's IP address
+      # - DATABASE_URL=postgresql://postgres:root@host.docker.internal/travel 
+      # for use the "postgres" "service" name
+      - DATABASE_URL=postgresql://postgres:root@postgres/travel 
 
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -20,11 +25,27 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     depends_on:
+      - postgres
       - redis
     command: yarn start:dev-swc
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: travel
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:latest
     container_name: redis
     ports:
       - "6379:6379"
+
+volumes:
+  postgres_data:
