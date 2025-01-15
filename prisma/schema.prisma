@@ -766,7 +766,7 @@ model Message {
   receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
 
   conversation_id String?
-  conversation    Conversation? @relation(fields: [conversation_id], references: [id])
+  conversation    Conversation? @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 
   attachment_id String?
   attachment    Attachment? @relation(fields: [attachment_id], references: [id])
