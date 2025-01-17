@@ -11,11 +11,17 @@ export class CouponRepository {
    * @param package_id
    * @returns
    */
-  static async applyCoupon(
-    user_id: string,
-    coupon_code: string,
-    package_id?: string | null,
-  ) {
+  static async applyCoupon({
+    user_id,
+    coupon_code,
+    package_id,
+    checkout_id,
+  }: {
+    user_id: string;
+    coupon_code: string;
+    package_id?: string | null;
+    checkout_id: string;
+  }) {
     try {
       const coupon = await prisma.coupon.findFirst({
         where: {
@@ -31,25 +37,28 @@ export class CouponRepository {
         };
       }
 
-      // make sure product exists
-      if (package_id) {
-        const packageData = await prisma.package.findFirst({
-          where: {
-            id: package_id,
-          },
-        });
-        if (!packageData) {
-          return {
-            success: false,
-            message: 'Package not found',
-          };
-        }
+      if (coupon.coupon_type == 'product') {
+        // if the coupon type is product
+        // make sure product exists
+        if (package_id) {
+          const packageData = await prisma.package.findFirst({
+            where: {
+              id: package_id,
+            },
+          });
+          if (!packageData) {
+            return {
+              success: false,
+              message: 'Package not found',
+            };
+          }
 
-        if (packageData.status != 1) {
-          return {
-            success: false,
-            message: 'Package is not active',
-          };
+          if (packageData.status != 1) {
+            return {
+              success: false,
+              message: 'Package is not active',
+            };
+          }
         }
       }
 
@@ -128,11 +137,10 @@ export class CouponRepository {
         data: {
           user_id: user_id,
           coupon_id: coupon.id,
-          checkout_id: package_id,
+          checkout_id: checkout_id,
         },
       });
 
-      //
       return {
         success: true,
         message: 'Coupon applied successfully',
