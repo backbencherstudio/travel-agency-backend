@@ -15,6 +15,7 @@ export class UcodeRepository {
     userId,
     expired_at = null,
     isOtp = false,
+    email = null,
   }): Promise<string> {
     // OTP valid for 5 minutes
     const otpExpiryTime = 5 * 60 * 1000;
@@ -34,7 +35,7 @@ export class UcodeRepository {
         data: {
           user_id: userId,
           token: token,
-          email: userDetails.email,
+          email: email ?? userDetails.email,
           expired_at: expired_at,
         },
       });
@@ -48,12 +49,30 @@ export class UcodeRepository {
    * validate ucode token
    * @returns
    */
-  static async validateToken({ email, token }) {
+  static async validateToken({
+    email,
+    token,
+    forEmailChange = false,
+  }: {
+    email: string;
+    token: string;
+    forEmailChange?: boolean;
+  }) {
     const userDetails = await UserRepository.exist({
       field: 'email',
       value: email,
     });
-    if (userDetails && userDetails.email) {
+
+    let proceedNext = false;
+    if (forEmailChange == true) {
+      proceedNext = true;
+    } else {
+      if (userDetails && userDetails.email) {
+        proceedNext = true;
+      }
+    }
+
+    if (proceedNext) {
       const date = DateHelper.now().toISOString();
       const existToken = await prisma.ucode.findFirst({
         where: {
@@ -63,6 +82,7 @@ export class UcodeRepository {
           },
         },
       });
+
       if (existToken) {
         if (existToken.expired_at) {
           const data = await prisma.ucode.findFirst({

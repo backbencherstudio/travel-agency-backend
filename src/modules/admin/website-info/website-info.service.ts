@@ -26,9 +26,9 @@ export class WebsiteInfoService extends PrismaClient {
       if (createWebsiteInfoDto.phone_number) {
         data.phone_number = createWebsiteInfoDto.phone_number;
       }
-      if (createWebsiteInfoDto.email) {
-        data.email = createWebsiteInfoDto.email;
-      }
+      // if (createWebsiteInfoDto.email) {
+      //   data.email = createWebsiteInfoDto.email;
+      // }
       if (createWebsiteInfoDto.address) {
         data.address = createWebsiteInfoDto.address;
       }
@@ -96,11 +96,10 @@ export class WebsiteInfoService extends PrismaClient {
         message: 'Website info updated successfully',
       };
     } catch (error) {
-      // return {
-      //   success: false,
-      //   message: error.message,
-      // };
-      throw error;
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 
@@ -119,6 +118,19 @@ export class WebsiteInfoService extends PrismaClient {
           cancellation_policy: true,
         },
       });
+
+      if (websiteInfo.logo) {
+        websiteInfo['logo_url'] = SojebStorage.url(
+          appConfig().storageUrl.websiteInfo + websiteInfo.logo,
+        );
+      }
+
+      if (websiteInfo.favicon) {
+        websiteInfo['favicon_url'] = SojebStorage.url(
+          appConfig().storageUrl.websiteInfo + websiteInfo.favicon,
+        );
+      }
+
       return {
         success: true,
         data: websiteInfo,
