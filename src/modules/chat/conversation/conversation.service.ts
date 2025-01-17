@@ -6,10 +6,14 @@ import { PrismaClient } from '@prisma/client';
 import appConfig from '../../../config/app.config';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { MessageGateway } from '../message/message.gateway';
 
 @Injectable()
 export class ConversationService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly messageGateway: MessageGateway,
+  ) {
     super();
   }
 
@@ -25,7 +29,39 @@ export class ConversationService extends PrismaClient {
       }
 
       // check if conversation exists
-      const conversation = await this.prisma.conversation.findFirst({
+      let conversation = await this.prisma.conversation.findFirst({
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          messages: {
+            orderBy: {
+              created_at: 'desc',
+            },
+            take: 1,
+            select: {
+              id: true,
+              message: true,
+              created_at: true,
+            },
+          },
+        },
         where: {
           creator_id: data.creator_id,
           participant_id: data.participant_id,
@@ -36,18 +72,74 @@ export class ConversationService extends PrismaClient {
         return {
           success: false,
           message: 'Conversation already exists',
+          data: conversation,
         };
       }
 
-      await this.prisma.conversation.create({
+      conversation = await this.prisma.conversation.create({
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+          messages: {
+            orderBy: {
+              created_at: 'desc',
+            },
+            take: 1,
+            select: {
+              id: true,
+              message: true,
+              created_at: true,
+            },
+          },
+        },
         data: {
           ...data,
         },
       });
 
+      // add image url
+      if (conversation.creator.avatar) {
+        conversation.creator['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + conversation.creator.avatar,
+        );
+      }
+      if (conversation.participant.avatar) {
+        conversation.participant['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + conversation.participant.avatar,
+        );
+      }
+
+      // trigger socket event
+      this.messageGateway.server.to(data.creator_id).emit('conversation', {
+        from: data.creator_id,
+        data: data,
+      });
+      this.messageGateway.server.to(data.participant_id).emit('conversation', {
+        from: data.participant_id,
+        data: data,
+      });
+
       return {
         success: true,
         message: 'Conversation created successfully',
+        data: data,
       };
     } catch (error) {
       return {
@@ -61,7 +153,7 @@ export class ConversationService extends PrismaClient {
     try {
       const conversations = await this.prisma.conversation.findMany({
         orderBy: {
-          created_at: 'desc',
+          updated_at: 'desc',
         },
         select: {
           id: true,

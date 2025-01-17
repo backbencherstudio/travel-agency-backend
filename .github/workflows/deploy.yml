@@ -1,0 +1,33 @@
+name: Deploy NestJS App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Generate prisma client
+        run: npx prisma generate
+
+      - name: Migrate prisma schema
+        run: |
+          npx prisma migrate deploy
+
+      - name: Build application
+        run: |
+          npm run build
+
+      - name: Deploy to VPS
+        run: |
+          pm2 stop all || true
+          pm2 start dist/main.js --name "nestjs-app"

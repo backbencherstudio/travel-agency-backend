@@ -5,6 +5,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ChatRepository } from '../../../common/repository/chat/chat.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class MessageService extends PrismaClient {
@@ -61,6 +62,16 @@ export class MessageService extends PrismaClient {
           ...data,
           status: MessageStatus.SENT,
           sender_id: user_id,
+        },
+      });
+
+      // update conversation updated_at
+      await this.prisma.conversation.update({
+        where: {
+          id: data.conversation_id,
+        },
+        data: {
+          updated_at: DateHelper.now(),
         },
       });
 

@@ -120,6 +120,8 @@ export class AuthController {
     }
   }
 
+  // --------------change password---------
+
   @ApiOperation({ summary: 'Forgot password' })
   @Post('forgot-password')
   async forgotPassword(@Body() data: { email: string }) {
@@ -254,4 +256,64 @@ export class AuthController {
       };
     }
   }
+
+  // --------------end change password---------
+
+  // -------change email address------
+
+  @ApiOperation({ summary: 'request email change' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('request-email-change')
+  async requestEmailChange(
+    @Req() req: Request,
+    @Body() data: { email: string },
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const email = data.email;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.authService.requestEmailChange(user_id, email);
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Something went wrong',
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Change email address' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('change-email')
+  async changeEmail(
+    @Req() req: Request,
+    @Body() data: { email: string; token: string },
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const email = data.email;
+
+      const token = data.token;
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!token) {
+        throw new HttpException('Token not provided', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.authService.changeEmail({
+        user_id: user_id,
+        new_email: email,
+        token: token,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Something went wrong',
+      };
+    }
+  }
+  // -------end change email address------
 }

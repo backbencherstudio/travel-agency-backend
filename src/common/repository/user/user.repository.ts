@@ -227,6 +227,23 @@ export class UserRepository {
     }
   }
 
+  // change email
+  static async changeEmail({ user_id, new_email }) {
+    try {
+      const user = await prisma.user.update({
+        where: {
+          id: user_id,
+        },
+        data: {
+          email: new_email,
+        },
+      });
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // validate password
   static async validatePassword({ email, password }) {
     const user = await prisma.user.findFirst({

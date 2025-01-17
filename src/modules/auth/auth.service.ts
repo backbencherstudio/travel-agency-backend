@@ -8,8 +8,9 @@ import { UserRepository } from '../../common/repository/user/user.repository';
 import { MailService } from '../../mail/mail.service';
 import { UcodeRepository } from '../../common/repository/ucode/ucode.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
-import appConfig from 'src/config/app.config';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+import appConfig from '../../config/app.config';
+import { SojebStorage } from '../../common/lib/Disk/SojebStorage';
+import { DateHelper } from '../../common/helper/date.helper';
 
 @Injectable()
 export class AuthService extends PrismaClient {
@@ -70,11 +71,20 @@ export class AuthService extends PrismaClient {
   ) {
     try {
       const data: any = {};
+      if (updateUserDto.name) {
+        data.name = updateUserDto.name;
+      }
       if (updateUserDto.phone_number) {
         data.phone_number = updateUserDto.phone_number;
       }
       if (updateUserDto.address) {
         data.address = updateUserDto.address;
+      }
+      if (updateUserDto.gender) {
+        data.gender = updateUserDto.gender;
+      }
+      if (updateUserDto.date_of_birth) {
+        data.date_of_birth = DateHelper.format(updateUserDto.date_of_birth);
       }
       if (image) {
         // delete old image from storage
@@ -421,6 +431,95 @@ export class AuthService extends PrismaClient {
         return {
           success: false,
           message: 'Email not found',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async requestEmailChange(user_id: string, email: string) {
+    try {
+      const user = await UserRepository.getUserDetails(user_id);
+      if (user) {
+        const token = await UcodeRepository.createToken({
+          userId: user.id,
+          isOtp: true,
+          email: email,
+        });
+
+        await this.mailService.sendOtpCodeToEmail({
+          email: email,
+          name: email,
+          otp: token,
+        });
+
+        return {
+          success: true,
+          message: 'We have sent an OTP code to your email',
+        };
+      } else {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async changeEmail({
+    user_id,
+    new_email,
+    token,
+  }: {
+    user_id: string;
+    new_email: string;
+    token: string;
+  }) {
+    try {
+      const user = await UserRepository.getUserDetails(user_id);
+
+      if (user) {
+        const existToken = await UcodeRepository.validateToken({
+          email: new_email,
+          token: token,
+          forEmailChange: true,
+        });
+
+        if (existToken) {
+          await UserRepository.changeEmail({
+            user_id: user.id,
+            new_email: new_email,
+          });
+
+          // delete otp code
+          await UcodeRepository.deleteToken({
+            email: new_email,
+            token: token,
+          });
+
+          return {
+            success: true,
+            message: 'Email updated successfully',
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Invalid token',
+          };
+        }
+      } else {
+        return {
+          success: false,
+          message: 'User not found',
         };
       }
     } catch (error) {

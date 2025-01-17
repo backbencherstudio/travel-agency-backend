@@ -56,6 +56,9 @@ model User {
   phone_number String? @db.VarChar(255)
   address      String? @db.Text
 
+  gender        String?
+  date_of_birth DateTime? @db.Date
+
   // billing id. e.g. stripe customer id
   billing_id String?
 
@@ -474,6 +477,7 @@ model ExtraService {
 
   package_extra_services PackageExtraService[]
   booking_extra_services BookingExtraService[]
+  CheckoutExtraService   CheckoutExtraService[]
 
   @@map("extra_services")
 }
@@ -494,6 +498,7 @@ model PackageExtraService {
   @@map("package_extra_services")
 }
 
+// -----------------checkout-----------------
 // this table stores checkout information
 model Checkout {
   id         String    @id @default(cuid())
@@ -503,10 +508,10 @@ model Checkout {
   status     Int?      @default(1) @db.SmallInt
 
   user_id String?
-  user    User?   @relation("user", fields: [user_id], references: [id])
+  user    User?   @relation("user", fields: [user_id], references: [id], onDelete: Cascade)
 
   vendor_id String?
-  vendor    User?   @relation("vendor", fields: [vendor_id], references: [id])
+  vendor    User?   @relation("vendor", fields: [vendor_id], references: [id], onDelete: Cascade)
 
   // hardcoded contact information
   first_name   String?
@@ -514,14 +519,16 @@ model Checkout {
   email        String?
   phone_number String?
 
-  address1       String?
-  address2       String?
-  city           String?
-  state          String?
-  zip_code       String?
-  country        String?
-  checkout_items CheckoutItem[]
-  temp_redeems   TempRedeem[]
+  address1             String?
+  address2             String?
+  city                 String?
+  state                String?
+  zip_code             String?
+  country              String?
+  checkout_items       CheckoutItem[]
+  temp_redeems         TempRedeem[]
+  CheckoutTraveller    CheckoutTraveller[]
+  CheckoutExtraService CheckoutExtraService[]
 
   @@map("checkouts")
 }
@@ -533,10 +540,10 @@ model CheckoutItem {
   deleted_at DateTime?
 
   checkout_id String?
-  checkout    Checkout? @relation(fields: [checkout_id], references: [id])
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
 
   package_id String?
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   start_date DateTime?
   end_date   DateTime?
@@ -548,6 +555,59 @@ model CheckoutItem {
   @@map("checkout_items")
 }
 
+// this table stores checkout traveller information
+model CheckoutTraveller {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  // traveller type
+  // available values:
+  // adult, child, infant
+  type String? @default("adult")
+
+  // traveller gender
+  // available values:
+  // male, female, other
+  gender    String?
+  full_name String?
+
+  // extra fields
+  first_name   String?
+  last_name    String?
+  email        String?
+  phone_number String?
+
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zip_code String?
+  country  String?
+
+  @@map("checkout_travellers")
+}
+
+// this table stores checkout extra service
+model CheckoutExtraService {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  extra_service_id String?
+  extra_service    ExtraService? @relation(fields: [extra_service_id], references: [id], onDelete: Cascade)
+
+  @@map("checkout_extra_services")
+}
+
 // this table stores coupon temporary for checkout schema
 model TempRedeem {
   id         String    @id @default(cuid())
@@ -556,16 +616,18 @@ model TempRedeem {
   deleted_at DateTime?
 
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   coupon_id String?
-  coupon    Coupon? @relation(fields: [coupon_id], references: [id])
+  coupon    Coupon? @relation(fields: [coupon_id], references: [id], onDelete: Cascade)
 
   checkout_id String?
-  checkout    Checkout? @relation(fields: [checkout_id], references: [id])
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
 
   @@map("temp_redeems")
 }
+
+// -----------------end  m,.checkout-----------------
 
 // this table stores booking information
 model Booking {
@@ -762,6 +824,16 @@ model Coupon {
   max_uses          Int? @default(1)
   // How many times a user can use this coupon. (Total for single user)
   max_uses_per_user Int? @default(1)
+
+  // Coupon discount on specific type of product
+  // - Category wise = category -> get discount for categorize product
+  // - Product wise = product -> get discount for specific product or package
+  // - order wise = order -> get discount for order
+  coupon_type String? @default("order") // category, product, order
+  // If coupon_type filled with product or category
+  // then it will be required
+  // such as: category_id or product_id
+  coupon_ids  String? @db.Text // format: [{id: id}]
 
   // When the coupon begins
   starts_at    DateTime? // e.g. 2025-01-01

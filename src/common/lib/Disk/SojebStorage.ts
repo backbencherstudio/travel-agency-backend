@@ -5,7 +5,7 @@ import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
 
 /**
- * SojebStorage class for handling storage
+ * SojebStorage for handling storage (local storage, aws s3 storage)
  * @class SojebStorage
  * @author Sojeb Sikder <sojebsikder@gmail.com>
  */

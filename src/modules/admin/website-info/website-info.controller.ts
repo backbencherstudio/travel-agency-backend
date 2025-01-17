@@ -7,6 +7,7 @@ import {
   ParseFilePipe,
   UploadedFiles,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { WebsiteInfoService } from './website-info.service';
 import { CreateWebsiteInfoDto } from './dto/create-website-info.dto';
@@ -19,6 +20,7 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { Role } from 'src/common/guard/role/role.enum';
 import { ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 
 @ApiBearerAuth()
 @ApiTags('Website Info')
@@ -52,6 +54,7 @@ export class WebsiteInfoController {
     ),
   )
   async create(
+    @Req() req: Request,
     @Body() createWebsiteInfoDto: CreateWebsiteInfoDto,
     @UploadedFiles(
       new ParseFilePipe({
