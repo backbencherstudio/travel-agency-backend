@@ -38,7 +38,7 @@ export class WebsiteInfoService extends PrismaClient {
       if (createWebsiteInfoDto.cancellation_policy) {
         data.cancellation_policy = createWebsiteInfoDto.cancellation_policy;
       }
-      if (files.logo) {
+      if (files && files.logo) {
         // delete old logo from storage
         const logo = await this.prisma.websiteInfo.findFirst();
         if (logo) {
@@ -46,7 +46,7 @@ export class WebsiteInfoService extends PrismaClient {
         }
         data.logo = files.logo.filename;
       }
-      if (files.favicon) {
+      if (files && files.favicon) {
         // delete old favicon from storage
         const favicon = await this.prisma.websiteInfo.findFirst();
         if (favicon) {
@@ -77,14 +77,14 @@ export class WebsiteInfoService extends PrismaClient {
 
       const websiteInfo = await this.prisma.websiteInfo.findFirst();
 
-      if (files.logo) {
+      if (files && files.logo) {
         await this.prisma.websiteInfo.update({
           where: { id: websiteInfo.id },
           data: { logo: files.logo[0].filename },
         });
       }
 
-      if (files.favicon) {
+      if (files && files.favicon) {
         await this.prisma.websiteInfo.update({
           where: { id: websiteInfo.id },
           data: { favicon: files.favicon[0].filename },
@@ -96,10 +96,11 @@ export class WebsiteInfoService extends PrismaClient {
         message: 'Website info updated successfully',
       };
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      // return {
+      //   success: false,
+      //   message: error.message,
+      // };
+      throw error;
     }
   }
 

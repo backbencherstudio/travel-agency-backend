@@ -40,6 +40,13 @@ export class ConversationService extends PrismaClient {
       }
 
       await this.prisma.conversation.create({
+        select: {
+          id: true,
+          creator_id: true,
+          participant_id: true,
+          created_at: true,
+          updated_at: true,
+        },
         data: {
           ...data,
         },
@@ -48,6 +55,7 @@ export class ConversationService extends PrismaClient {
       return {
         success: true,
         message: 'Conversation created successfully',
+        data: data,
       };
     } catch (error) {
       return {

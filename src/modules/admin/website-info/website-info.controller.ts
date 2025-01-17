@@ -70,10 +70,11 @@ export class WebsiteInfoController {
       );
       return websiteInfo;
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      // return {
+      //   success: false,
+      //   message: error.message,
+      // };
+      throw error;
     }
   }
 
