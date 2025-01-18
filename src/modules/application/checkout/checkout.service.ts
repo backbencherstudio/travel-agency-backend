@@ -358,10 +358,14 @@ export class CheckoutService extends PrismaClient {
 
   async findOne(id: string) {
     try {
-      const packageData = await this.prisma.checkout.findUnique({
+      const checkoutData = await this.prisma.checkout.findUnique({
         where: { id: id },
         select: {
-          checkout_extra_services: true,
+          checkout_extra_services: {
+            select: {
+              extra_service: true,
+            },
+          },
           checkout_items: {
             select: {
               package: true,
@@ -373,7 +377,7 @@ export class CheckoutService extends PrismaClient {
         success: true,
         data: {
           currency: 'USD',
-          package: packageData,
+          checkout: checkoutData,
           fees: 50,
         },
       };

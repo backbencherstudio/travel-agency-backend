@@ -96,8 +96,6 @@ export class MessageGateway
 
   @SubscribeMessage('sendMessage')
   async listenForMessages(@MessageBody() body: { to: string; data: any }) {
-    console.log('Sending message to:', body);
-
     await this.messageService.create(body.to, body.data);
     this.server.to(body.to).emit('message', { from: body.to, data: body.data });
   }

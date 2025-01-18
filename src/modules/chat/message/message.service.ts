@@ -179,12 +179,12 @@ export class MessageService extends PrismaClient {
 
       // add image url
       for (const message of messages) {
-        if (message.sender.avatar) {
+        if (message.sender && message.sender.avatar) {
           message.sender['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + message.sender.avatar,
           );
         }
-        if (message.receiver.avatar) {
+        if (message.receiver && message.receiver.avatar) {
           message.receiver['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + message.receiver.avatar,
           );
