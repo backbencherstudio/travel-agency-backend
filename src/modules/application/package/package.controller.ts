@@ -69,7 +69,7 @@ export class PackageController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get package by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
