@@ -14,7 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
+          yarn install
 
       - name: Generate prisma client
         run: npx prisma generate
@@ -25,7 +25,7 @@ jobs:
 
       - name: Build application
         run: |
-          npm run build
+          yarn run build
 
       - name: Deploy to VPS
         run: |
