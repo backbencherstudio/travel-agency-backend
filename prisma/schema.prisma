@@ -315,7 +315,8 @@ model Package {
   package_tags           PackageTag[]
   booking_items          BookingItem[]
   package_extra_services PackageExtraService[]
-  CheckoutItem           CheckoutItem[]
+  checkout_items         CheckoutItem[]
+  checkout_extraServices CheckoutExtraService[]
 
   @@map("packages")
 }
@@ -519,16 +520,16 @@ model Checkout {
   email        String?
   phone_number String?
 
-  address1             String?
-  address2             String?
-  city                 String?
-  state                String?
-  zip_code             String?
-  country              String?
-  checkout_items       CheckoutItem[]
-  temp_redeems         TempRedeem[]
-  CheckoutTraveller    CheckoutTraveller[]
-  CheckoutExtraService CheckoutExtraService[]
+  address1                String?
+  address2                String?
+  city                    String?
+  state                   String?
+  zip_code                String?
+  country                 String?
+  checkout_items          CheckoutItem[]
+  temp_redeems            TempRedeem[]
+  checkout_travellers     CheckoutTraveller[]
+  checkout_extra_services CheckoutExtraService[]
 
   @@map("checkouts")
 }
@@ -601,6 +602,9 @@ model CheckoutExtraService {
 
   checkout_id String?
   checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   extra_service_id String?
   extra_service    ExtraService? @relation(fields: [extra_service_id], references: [id], onDelete: Cascade)
