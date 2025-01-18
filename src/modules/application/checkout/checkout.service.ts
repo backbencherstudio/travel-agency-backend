@@ -361,6 +361,15 @@ export class CheckoutService extends PrismaClient {
       const checkoutData = await this.prisma.checkout.findUnique({
         where: { id: id },
         select: {
+          id: true,
+          email: true,
+          phone_number: true,
+          checkout_travellers: {
+            select: {
+              full_name: true,
+              type: true,
+            },
+          },
           checkout_extra_services: {
             select: {
               extra_service: true,

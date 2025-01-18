@@ -2,14 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import {
   IBookingTraveller,
-  ICoupon,
   CreateBookingDto,
   IExtraService,
 } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
-import { CouponRepository } from '../../../common/repository/coupon/coupon.repository';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
 
@@ -157,43 +155,6 @@ export class BookingService extends PrismaClient {
         }
 
         // apply coupon
-        if (createBookingDto.coupons) {
-          let coupons: ICoupon[];
-          if (createBookingDto.extra_services instanceof Array) {
-            coupons = createBookingDto.coupons;
-          } else {
-            coupons = JSON.parse(createBookingDto.coupons);
-          }
-          for (const coupon of coupons) {
-            const code = coupon['code'];
-
-            // apply coupon
-            const coupon_data = await CouponRepository.applyCoupon(
-              user_id,
-              code,
-              packageData.id,
-            );
-
-            if (coupon_data.success) {
-              const coupon_id = coupon_data.coupon.id;
-              const method = coupon_data.coupon.method;
-              const amount_type = coupon_data.coupon.amount_type;
-              const amount = coupon_data.coupon.amount;
-
-              await prisma.bookingCoupon.create({
-                data: {
-                  user_id: user_id,
-                  booking_id: booking.id,
-                  coupon_id: coupon_id,
-                  method: method,
-                  code: code,
-                  amount_type: amount_type,
-                  amount: amount,
-                },
-              });
-            }
-          }
-        }
 
         // create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent(
