@@ -91,7 +91,7 @@ model User {
 
   user_checkouts   Checkout[]   @relation("user")
   vendor_checkouts Checkout[]   @relation("vendor")
-  TempRedeem       TempRedeem[]
+  temp_redeems     TempRedeem[]
 
   @@map("users")
 }
@@ -716,6 +716,9 @@ model BookingItem {
 
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
+
+  start_date DateTime?
+  end_date   DateTime?
 
   quantity Int?     @default(1)
   price    Decimal?
