@@ -42,7 +42,9 @@ export class WebsiteInfoService extends PrismaClient {
         // delete old logo from storage
         const logo = await this.prisma.websiteInfo.findFirst();
         if (logo) {
-          SojebStorage.delete(appConfig().storageUrl.websiteInfo + logo.logo);
+          await SojebStorage.delete(
+            appConfig().storageUrl.websiteInfo + logo.logo,
+          );
         }
         data.logo = files.logo.filename;
       }
@@ -50,7 +52,7 @@ export class WebsiteInfoService extends PrismaClient {
         // delete old favicon from storage
         const favicon = await this.prisma.websiteInfo.findFirst();
         if (favicon) {
-          SojebStorage.delete(
+          await SojebStorage.delete(
             appConfig().storageUrl.websiteInfo + favicon.favicon,
           );
         }

@@ -24,15 +24,17 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @ApiOperation({ summary: 'Create booking' })
-  @Post()
+  @Post(':checkout_id')
   async create(
     @Req() req: Request,
+    @Param('checkout_id') checkout_id: string,
     @Body() createBookingDto: CreateBookingDto,
   ) {
     try {
       const user_id = req.user.userId;
       const booking = await this.bookingService.create(
         user_id,
+        checkout_id,
         createBookingDto,
       );
       return booking;

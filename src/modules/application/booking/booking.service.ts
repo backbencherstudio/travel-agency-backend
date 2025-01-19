@@ -1,15 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import {
-  IBookingTraveller,
-  CreateBookingDto,
-  IExtraService,
-} from './dto/create-booking.dto';
+import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { UserRepository } from '../../../common/repository/user/user.repository';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
-import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
+import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
+import { CheckoutRepository } from '../../../common/repository/checkout/booking.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -17,144 +13,132 @@ export class BookingService extends PrismaClient {
     super();
   }
 
-  async create(user_id: string, createBookingDto: CreateBookingDto) {
+  async create(
+    user_id: string,
+    checkout_id: string,
+    createBookingDto: CreateBookingDto,
+  ) {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {
-        const data: any = {};
-        if (createBookingDto.package_id) {
-          data.package_id = createBookingDto.package_id;
-        } else {
-          return {
-            success: false,
-            message: 'Package id is required',
-          };
-        }
-
-        if (createBookingDto.start_date) {
-          data.start_date = createBookingDto.start_date;
-        }
-        if (createBookingDto.end_date) {
-          data.end_date = createBookingDto.end_date;
-        }
-        // user details
-        // if (createBookingDto.first_name) {
-        //   data.first_name = createBookingDto.first_name;
-        // }
-        // if (createBookingDto.last_name) {
-        //   data.last_name = createBookingDto.last_name;
-        // }
-        if (createBookingDto.email) {
-          data.email = createBookingDto.email;
-        }
-        if (createBookingDto.phone_number) {
-          data.phone_number = createBookingDto.phone_number;
-        }
-        if (createBookingDto.address1) {
-          data.address1 = createBookingDto.address1;
-        }
-        if (createBookingDto.address2) {
-          data.address2 = createBookingDto.address2;
-        }
-        if (createBookingDto.city) {
-          data.city = createBookingDto.city;
-        }
-        if (createBookingDto.state) {
-          data.state = createBookingDto.state;
-        }
-        if (createBookingDto.zip_code) {
-          data.zip_code = createBookingDto.zip_code;
-        }
-        if (createBookingDto.country) {
-          data.country = createBookingDto.country;
-        }
-        if (!createBookingDto.total_price) {
-          return {
-            success: false,
-            message: 'Total price is required',
-          };
-        }
-        const total_price = createBookingDto.total_price;
-
-        const packageData = await prisma.package.findUnique({
+        const checkout = await prisma.checkout.findUnique({
           where: {
-            id: createBookingDto.package_id,
+            id: checkout_id,
+          },
+          include: {
+            checkout_extra_services: true,
+            checkout_items: {
+              include: {
+                package: true,
+              },
+            },
+            checkout_travellers: true,
           },
         });
 
-        if (!packageData) {
+        if (!checkout) {
           return {
             success: false,
-            message: 'Package not found',
+            message: 'Checkout not found',
           };
         }
 
-        // add vendor id if the package is from vendor
-        const userDetails = await UserRepository.getUserDetails(
-          packageData.user_id,
-        );
-        if (userDetails && userDetails.type == 'vendor') {
-          data.vendor_id = userDetails.id;
+        const data = {};
+        // user details
+        if (checkout.email) {
+          data['email'] = checkout.email;
+        }
+        if (checkout.phone_number) {
+          data['phone_number'] = checkout.phone_number;
+        }
+        if (checkout.address1) {
+          data['address1'] = checkout.address1;
+        }
+        if (checkout.address2) {
+          data['address2'] = checkout.address2;
+        }
+        if (checkout.city) {
+          data['city'] = checkout.city;
+        }
+        if (checkout.state) {
+          data['state'] = checkout.state;
+        }
+        if (checkout.zip_code) {
+          data['zip_code'] = checkout.zip_code;
+        }
+        if (checkout.country) {
+          data['country'] = checkout.country;
         }
 
-        if (createBookingDto.extra_services) {
-          let extra_services: IExtraService[];
-          if (createBookingDto.extra_services instanceof Array) {
-            extra_services = createBookingDto.extra_services;
-          } else {
-            extra_services = JSON.parse(createBookingDto.extra_services);
-          }
-          for (const extra_service of extra_services) {
-            await prisma.packageExtraService.create({
+        // create invoice number
+        const invoice_number = await BookingRepository.createInvoiceNumber();
+        const total_price =
+          await CheckoutRepository.calculateTotalPrice(checkout_id);
+
+        // create booking
+        const booking = await prisma.booking.create({
+          data: {
+            ...data,
+            invoice_number: invoice_number,
+            user_id: user_id,
+          },
+        });
+
+        if (checkout.checkout_extra_services.length > 0) {
+          for (const extra_service of checkout.checkout_extra_services) {
+            await prisma.checkoutExtraService.create({
               data: {
-                package_id: createBookingDto.package_id,
+                package_id: extra_service.package_id,
+                checkout_id: checkout.id,
                 extra_service_id: extra_service.id,
               },
             });
           }
         }
 
-        // create invoice number
-        const invoice_number = await BookingRepository.createInvoiceNumber();
-
-        // create booking
-        const booking = await prisma.booking.create({
-          data: {
-            ...data,
-            user_id: user_id,
-            type: packageData.type,
-            invoice_number: invoice_number,
-          },
-        });
-
-        if (!booking) {
-          return {
-            success: false,
-            message: 'Booking not created',
-          };
+        // create booking-items
+        for (const item of checkout.checkout_items) {
+          await prisma.bookingItem.create({
+            data: {
+              booking_id: booking.id,
+              package_id: item.package_id,
+              start_date: item.start_date,
+              end_date: item.end_date,
+              price: item.package.price,
+            },
+          });
         }
 
         // create booking-travellers
-        if (createBookingDto.booking_travellers) {
-          let booking_travellers: IBookingTraveller[];
-          if (createBookingDto.extra_services instanceof Array) {
-            booking_travellers = createBookingDto.booking_travellers;
-          } else {
-            booking_travellers = JSON.parse(
-              createBookingDto.booking_travellers,
-            );
-          }
-          for (const traveller of booking_travellers) {
-            await prisma.bookingTraveller.create({
-              data: {
-                booking_id: booking.id,
-                full_name: traveller.full_name,
-                type: traveller.type,
-              },
-            });
-          }
+        for (const traveller of checkout.checkout_travellers) {
+          await prisma.bookingTraveller.create({
+            data: {
+              booking_id: booking.id,
+              full_name: traveller.full_name,
+              type: traveller.type,
+            },
+          });
         }
 
         // apply coupon
+        if (checkout.user_id) {
+          const temp_redeems = await prisma.tempRedeem.findMany({
+            where: {
+              user_id: checkout.user_id,
+              checkout_id: checkout.id,
+            },
+          });
+
+          if (temp_redeems.length > 0) {
+            for (const redeem of temp_redeems) {
+              await prisma.bookingCoupon.create({
+                data: {
+                  booking_id: booking.id,
+                  coupon_id: redeem.coupon_id,
+                },
+              });
+            }
+          }
+        }
 
         // create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent(

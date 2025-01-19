@@ -36,6 +36,9 @@ export class AuthService extends PrismaClient {
           address: true,
           phone_number: true,
           type: true,
+          gender: true,
+          date_of_birth: true,
+          created_at: true,
         },
       });
 

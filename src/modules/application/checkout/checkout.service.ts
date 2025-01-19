@@ -377,11 +377,64 @@ export class CheckoutService extends PrismaClient {
           },
           checkout_items: {
             select: {
-              package: true,
+              start_date: true,
+              end_date: true,
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  price: true,
+                  duration: true,
+                  destination: {
+                    select: {
+                      id: true,
+                      name: true,
+                      country: {
+                        select: {
+                          name: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
+
+      if (!checkoutData) {
+        return {
+          success: false,
+          message: 'Checkout not found',
+        };
+      }
+
+      // get reviews for the package
+      const reviews = await this.prisma.review.findMany({
+        where: {
+          package_id: checkoutData.checkout_items[0].package.id,
+        },
+        select: {
+          id: true,
+          rating_value: true,
+          comment: true,
+        },
+      });
+
+      // calculate avarage rating
+      let totalRating = 0;
+      let totalReviews = 0;
+      for (const review of reviews) {
+        totalRating += review.rating_value;
+        totalReviews++;
+      }
+
+      const averageRating = totalRating / totalReviews;
+
+      checkoutData['average_rating'] = averageRating;
+
       return {
         success: true,
         data: {
@@ -391,7 +444,10 @@ export class CheckoutService extends PrismaClient {
         },
       };
     } catch (error) {
-      throw new Error(error.message);
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 
