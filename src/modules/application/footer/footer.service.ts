@@ -20,6 +20,7 @@ export class FooterService extends PrismaClient {
           id: true,
           name: true,
           url: true,
+          icon: true,
         },
       });
 
