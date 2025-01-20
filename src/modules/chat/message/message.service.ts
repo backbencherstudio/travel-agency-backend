@@ -6,10 +6,14 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { ChatRepository } from '../../../common/repository/chat/chat.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { MessageGateway } from './message.gateway';
 
 @Injectable()
 export class MessageService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly messageGateway: MessageGateway,
+  ) {
     super();
   }
 
@@ -74,6 +78,10 @@ export class MessageService extends PrismaClient {
           updated_at: DateHelper.now(),
         },
       });
+
+      this.messageGateway.server
+        .to(this.messageGateway.clients.get(data.receiver_id))
+        .emit('message', { from: data.receiver_id, data: message });
 
       return {
         success: true,

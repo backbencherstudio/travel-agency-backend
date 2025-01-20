@@ -38,7 +38,7 @@ export class ConversationController {
     }
   }
 
-  @Roles(Role.ADMIN, Role.MANAGER)
+  // @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get all conversations' })
   @Get()
   async findAll() {

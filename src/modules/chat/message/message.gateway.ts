@@ -11,7 +11,6 @@ import { Server, Socket } from 'socket.io';
 import { OnModuleInit } from '@nestjs/common';
 import { MessageStatus } from '@prisma/client';
 import * as jwt from 'jsonwebtoken';
-import { MessageService } from './message.service';
 import appConfig from '../../../config/app.config';
 import { ChatRepository } from 'src/common/repository/chat/chat.repository';
 
@@ -30,13 +29,10 @@ export class MessageGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(
-    private readonly messageService: MessageService,
-    // private jwtService: JwtService,
-  ) {}
+  constructor() {}
 
   // Map to store connected clients
-  private clients = new Map<string, string>(); // userId -> socketId
+  public clients = new Map<string, string>(); // userId -> socketId
 
   onModuleInit() {}
 
@@ -46,8 +42,6 @@ export class MessageGateway
 
   // implement jwt token validation
   async handleConnection(client: Socket, ...args: any[]) {
-    console.log('new connection!', client.id);
-    console.log('header', client.handshake.auth.token);
     try {
       // const token = client.handshake.headers.authorization?.split(' ')[1];
       const token = client.handshake.auth.token;
@@ -59,19 +53,20 @@ export class MessageGateway
 
       const decoded: any = jwt.verify(token, appConfig().jwt.secret);
       // const decoded: any = this.jwtService.verify(token);
-      const userId = decoded.userId;
+      const userId = decoded.sub;
       // const userId = client.handshake.query.userId as string;
       if (userId) {
         this.clients.set(userId, client.id);
-        console.log(`User ${userId} connected with socket ${client.id}`);
+        // console.log(`User ${userId} connected with socket ${client.id}`);
 
-        // await this.messageService.updateUserStatus(userId, 'online');
         await ChatRepository.updateUserStatus(userId, 'online');
         // notify the user that the user is online
-        this.server.to(client.id).emit('userStatusChange', {
+        this.server.to(this.clients.get(userId)).emit('userStatusChange', {
           user_id: userId,
           status: 'online',
         });
+
+        console.log(`User ${userId} connected`);
       }
     } catch (error) {
       client.disconnect();
@@ -80,7 +75,6 @@ export class MessageGateway
   }
 
   async handleDisconnect(client: Socket) {
-    // console.log('client disconnected!', client.id);
     const userId = [...this.clients.entries()].find(
       ([, socketId]) => socketId === client.id,
     )?.[0];
@@ -88,7 +82,7 @@ export class MessageGateway
       this.clients.delete(userId);
       console.log(`User ${userId} disconnected`);
 
-      await this.messageService.updateUserStatus(userId, 'offline');
+      await ChatRepository.updateUserStatus(userId, 'offline');
       // notify the user that the user is offline
       this.server.to(client.id).emit('userStatusChange', {
         user_id: userId,
@@ -105,8 +99,9 @@ export class MessageGateway
 
   @SubscribeMessage('sendMessage')
   async listenForMessages(@MessageBody() body: { to: string; data: any }) {
-    await this.messageService.create(body.to, body.data);
-    this.server.to(body.to).emit('message', { from: body.to, data: body.data });
+    this.server
+      // .to(this.clients.get(body.to))
+      .emit('message', { from: body.to, data: body.data });
   }
 
   @SubscribeMessage('updateMessageStatus')
@@ -114,7 +109,7 @@ export class MessageGateway
     client: Socket,
     @MessageBody() body: { message_id: string; status: MessageStatus },
   ) {
-    await this.messageService.updateMessageStatus(body.message_id, body.status);
+    await ChatRepository.updateMessageStatus(body.message_id, body.status);
     // notify the sender that the message has been sent
     this.server.to(client.id).emit('messageStatusUpdated', {
       message_id: body.message_id,
@@ -125,7 +120,7 @@ export class MessageGateway
   @SubscribeMessage('typing')
   handleTyping(client: Socket, @MessageBody() body: { to: string; data: any }) {
     this.server
-      .to(body.to)
+      .to(this.clients.get(body.to))
       .emit('userTyping', { from: body.to, data: body.data });
   }
 
@@ -135,7 +130,7 @@ export class MessageGateway
     @MessageBody() body: { to: string; data: any },
   ) {
     this.server
-      .to(body.to)
+      .to(this.clients.get(body.to))
       .emit('userStoppedTyping', { from: body.to, data: body.data });
   }
 }

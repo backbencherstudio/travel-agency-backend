@@ -109,7 +109,7 @@ export class CreatePackageDto {
   @ApiProperty({
     description: 'Package images object',
   })
-  package_images?: any;
+  package_files?: any;
 
   @ApiProperty()
   extra_services?: any;

@@ -309,7 +309,7 @@ model Package {
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
-  package_images         PackageImage[]
+  package_files          PackageFile[]
   reviews                Review[]
   package_trip_plans     PackageTripPlan[]
   package_categories     PackageCategory[]
@@ -346,10 +346,10 @@ model PackageCategory {
   updated_at DateTime @default(now())
 
   package_id String
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   category_id String
-  category    Category? @relation(fields: [category_id], references: [id])
+  category    Category? @relation(fields: [category_id], references: [id], onDelete: Cascade)
 
   @@id([package_id, category_id])
   @@map("package_categories")
@@ -377,10 +377,10 @@ model PackageTag {
   updated_at DateTime @default(now())
 
   package_id String
-  package    Package? @relation(fields: [package_id], references: [id])
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   tag_id String
-  tag    Tag?   @relation(fields: [tag_id], references: [id])
+  tag    Tag?   @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
   type String? // included, excluded
 
@@ -448,8 +448,8 @@ model PackageCancellationPolicy {
   @@map("package_cancellation_policies")
 }
 
-// this table stores package image
-model PackageImage {
+// this table stores package images, videos
+model PackageFile {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
   updated_at DateTime  @default(now())
@@ -460,10 +460,13 @@ model PackageImage {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
-  image     String?
-  image_alt String?
+  file     String?
+  file_alt String?
 
-  @@map("package_images")
+  // metadata
+  type String? // e.g. image, video
+
+  @@map("package_files")
 }
 
 // this table stores extra service information
