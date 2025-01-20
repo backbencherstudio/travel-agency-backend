@@ -287,18 +287,19 @@ model Package {
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id])
 
-  name        String
-  description String  @db.Text
-  price       Decimal
+  name          String
+  description   String  @db.Text
+  price         Decimal
   // e.g, 5 days, 4 nights
-  duration    Int?
+  duration      Int?
+  duration_type String? // e.g. days, nights, hours
 
   // minimum capacity
   min_capacity Int? @default(1)
   // person max capacity
   max_capacity Int? @default(1)
 
-  type String? @default("tour") // e.g. "tour", "cruise"
+  type String? @default("tour") // e.g. "package", "tour", "cruise"
 
   language String? // e.g. "en"
 
@@ -631,7 +632,7 @@ model TempRedeem {
   @@map("temp_redeems")
 }
 
-// -----------------end  m,.checkout-----------------
+// -----------------end  checkout-----------------
 
 // this table stores booking information
 model Booking {
@@ -1103,6 +1104,21 @@ model Country {
   destinations Destination[]
 
   @@map("countries")
+}
+
+// this table stores language list
+model Language {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // country name
+  name String? // e.g. "English"
+  code String? // e.g. "en"
+
+  @@map("languages")
 }
 
 // this table stores email template information

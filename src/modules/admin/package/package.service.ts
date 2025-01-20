@@ -36,6 +36,9 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.duration) {
         data.duration = Number(createPackageDto.duration);
       }
+      if (createPackageDto.duration_type) {
+        data.duration_type = createPackageDto.duration_type;
+      }
       if (createPackageDto.type) {
         data.type = createPackageDto.type;
       }
@@ -54,7 +57,6 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.language) {
         data.language = createPackageDto.language;
       }
-
       // add vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type != 'vendor') {
@@ -468,6 +470,9 @@ export class PackageService extends PrismaClient {
       }
       if (updatePackageDto.duration) {
         data.duration = Number(updatePackageDto.duration);
+      }
+      if (updatePackageDto.duration_type) {
+        data.duration_type = updatePackageDto.duration_type;
       }
       if (updatePackageDto.type) {
         data.type = updatePackageDto.type;

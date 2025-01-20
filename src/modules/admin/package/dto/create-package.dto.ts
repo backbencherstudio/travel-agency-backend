@@ -45,6 +45,14 @@ export class CreatePackageDto {
   })
   duration: number;
 
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty({
+    description: 'Package duration type. e.g. days, hours, minutes',
+    example: 'days',
+  })
+  duration_type?: string;
+
   @IsString()
   @ApiProperty({
     description: 'Package type. e.g. tour, cruise',

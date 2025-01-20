@@ -13,6 +13,7 @@ import { MessageStatus } from '@prisma/client';
 import * as jwt from 'jsonwebtoken';
 import { MessageService } from './message.service';
 import appConfig from '../../../config/app.config';
+import { ChatRepository } from 'src/common/repository/chat/chat.repository';
 
 @WebSocketGateway({
   cors: {
@@ -29,7 +30,10 @@ export class MessageGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly messageService: MessageService) {}
+  constructor(
+    private readonly messageService: MessageService,
+    // private jwtService: JwtService,
+  ) {}
 
   // Map to store connected clients
   private clients = new Map<string, string>(); // userId -> socketId
@@ -42,8 +46,11 @@ export class MessageGateway
 
   // implement jwt token validation
   async handleConnection(client: Socket, ...args: any[]) {
+    console.log('new connection!', client.id);
+    console.log('header', client.handshake.auth.token);
     try {
-      const token = client.handshake.headers.authorization?.split(' ')[1];
+      // const token = client.handshake.headers.authorization?.split(' ')[1];
+      const token = client.handshake.auth.token;
       if (!token) {
         client.disconnect();
         console.log('No token provided');
@@ -51,13 +58,15 @@ export class MessageGateway
       }
 
       const decoded: any = jwt.verify(token, appConfig().jwt.secret);
+      // const decoded: any = this.jwtService.verify(token);
       const userId = decoded.userId;
       // const userId = client.handshake.query.userId as string;
       if (userId) {
         this.clients.set(userId, client.id);
         console.log(`User ${userId} connected with socket ${client.id}`);
 
-        await this.messageService.updateUserStatus(userId, 'online');
+        // await this.messageService.updateUserStatus(userId, 'online');
+        await ChatRepository.updateUserStatus(userId, 'online');
         // notify the user that the user is online
         this.server.to(client.id).emit('userStatusChange', {
           user_id: userId,

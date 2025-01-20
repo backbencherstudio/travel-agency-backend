@@ -29,7 +29,7 @@ export class CreateCheckoutDto {
   excluded_packages: string;
 
   @IsOptional()
-  @IsString()
+  // @IsString()
   @ApiProperty({
     description: 'The booking travellers',
   })
@@ -44,10 +44,10 @@ export class CreateCheckoutDto {
   @ApiProperty()
   end_date: Date;
 
-  @ApiProperty({
-    description: 'The coupons,  data format: ICoupon[], in stringified format',
-  })
-  coupons: any;
+  // @ApiProperty({
+  //   description: 'The coupons,  data format: ICoupon[], in stringified format',
+  // })
+  // coupons: any;
 
   // contact details
   @IsOptional()

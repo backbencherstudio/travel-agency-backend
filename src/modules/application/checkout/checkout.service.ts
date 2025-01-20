@@ -66,10 +66,11 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
+        const package_user_id = packageData.user_id;
+
         // add vendor id if the package is from vendor
-        const userDetails = await UserRepository.getUserDetails(
-          packageData.user_id,
-        );
+        const userDetails =
+          await UserRepository.getUserDetails(package_user_id);
         if (userDetails && userDetails.type == 'vendor') {
           data['vendor_id'] = userDetails.id;
         }
@@ -173,15 +174,6 @@ export class CheckoutService extends PrismaClient {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {
         const data: any = {};
-        if (updateCheckoutDto.package_id) {
-          data.package_id = updateCheckoutDto.package_id;
-        } else {
-          return {
-            success: false,
-            message: 'Package id is required',
-          };
-        }
-
         // user details
         // if (createCheckoutDto.first_name) {
         //   data.first_name = createCheckoutDto.first_name;
@@ -218,6 +210,22 @@ export class CheckoutService extends PrismaClient {
           where: {
             id: id,
           },
+          select: {
+            checkout_items: {
+              select: {
+                package_id: true,
+                start_date: true,
+                end_date: true,
+                package: {
+                  select: {
+                    id: true,
+                    user_id: true,
+                    type: true,
+                  },
+                },
+              },
+            },
+          },
         });
 
         if (!checkoutExists) {
@@ -227,26 +235,7 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
-        const packageData = await prisma.package.findUnique({
-          where: {
-            id: updateCheckoutDto.package_id,
-          },
-        });
-
-        if (!packageData) {
-          return {
-            success: false,
-            message: 'Package not found',
-          };
-        }
-
-        // add vendor id if the package is from vendor
-        const userDetails = await UserRepository.getUserDetails(
-          packageData.user_id,
-        );
-        if (userDetails && userDetails.type == 'vendor') {
-          data.vendor_id = userDetails.id;
-        }
+        const package_id = checkoutExists.checkout_items[0].package_id;
 
         if (updateCheckoutDto.extra_services) {
           let extra_services: IExtraService[];
@@ -258,7 +247,7 @@ export class CheckoutService extends PrismaClient {
           for (const extra_service of extra_services) {
             await prisma.packageExtraService.create({
               data: {
-                package_id: updateCheckoutDto.package_id,
+                package_id: package_id,
                 extra_service_id: extra_service.id,
               },
             });
@@ -270,14 +259,8 @@ export class CheckoutService extends PrismaClient {
           where: {
             id: id,
           },
-          select: {
-            id: true,
-            checkout_extra_services: true,
-          },
           data: {
             ...data,
-            user_id: user_id,
-            type: packageData.type,
           },
         });
 
@@ -287,16 +270,6 @@ export class CheckoutService extends PrismaClient {
             message: 'Checkout not created',
           };
         }
-
-        // create checkout items
-        // await prisma.checkoutItem.create({
-        //   data: {
-        //     checkout_id: checkout.id,
-        //     package_id: updateCheckoutDto.package_id,
-        //     start_date: updateCheckoutDto.start_date,
-        //     end_date: updateCheckoutDto.end_date,
-        //   },
-        // });
 
         // create booking-travellers
         if (updateCheckoutDto.booking_travellers) {
@@ -319,31 +292,9 @@ export class CheckoutService extends PrismaClient {
           }
         }
 
-        // apply coupon
-        if (updateCheckoutDto.coupons) {
-          let coupons: ICoupon[];
-          if (updateCheckoutDto.coupons instanceof Array) {
-            coupons = updateCheckoutDto.coupons;
-          } else {
-            coupons = JSON.parse(updateCheckoutDto.coupons);
-          }
-          for (const coupon of coupons) {
-            const code = coupon['code'];
-
-            // apply coupon
-            await CouponRepository.applyCoupon({
-              user_id,
-              coupon_code: code,
-              package_id: packageData.id,
-              checkout_id: checkout.id,
-            });
-          }
-        }
-
         return {
           success: true,
           message: 'Checkout updated successfully.',
-          data: checkout,
         };
       });
 
@@ -364,6 +315,12 @@ export class CheckoutService extends PrismaClient {
           id: true,
           email: true,
           phone_number: true,
+          address1: true,
+          address2: true,
+          zip_code: true,
+          state: true,
+          city: true,
+          country: true,
           checkout_travellers: {
             select: {
               full_name: true,
