@@ -89,9 +89,10 @@ model User {
   user_bookings             Booking[]            @relation("user")
   vendor_bookings           Booking[]            @relation("vendor")
 
-  user_checkouts   Checkout[]   @relation("user")
-  vendor_checkouts Checkout[]   @relation("vendor")
-  temp_redeems     TempRedeem[]
+  user_checkouts    Checkout[]          @relation("user")
+  vendor_checkouts  Checkout[]          @relation("vendor")
+  temp_redeems      TempRedeem[]
+  UserPaymentMethod UserPaymentMethod[]
 
   @@map("users")
 }
@@ -860,6 +861,22 @@ model Coupon {
   TempRedeem      TempRedeem[]
 
   @@map("coupons")
+}
+
+// this table stores payment transaction information
+model UserPaymentMethod {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  payment_method_id String?
+  checkout_id       String?
+
+  @@map("user_payment_methods")
 }
 
 // this table stores payment transaction information

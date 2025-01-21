@@ -11,7 +11,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CheckoutService } from './checkout.service';
-import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { CreateCheckoutDto, ICoupon } from './dto/create-checkout.dto';
 import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
 
@@ -59,6 +59,30 @@ export class CheckoutController {
         updateCheckoutDto,
       );
 
+      return checkout;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Apply coupon' })
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/coupon')
+  async applyCoupon(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: { coupons: ICoupon[] },
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const checkout = await this.checkoutService.applyCoupon({
+        user_id: user_id,
+        checkout_id: id,
+        coupons: body.coupons,
+      });
       return checkout;
     } catch (error) {
       return {

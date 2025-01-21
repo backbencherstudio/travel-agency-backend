@@ -4,12 +4,15 @@ import {
   IBookingTraveller,
   ICoupon,
   IExtraService,
+  IPaymentMethod,
 } from './dto/create-checkout.dto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from 'src/common/repository/user/user.repository';
 import { CouponRepository } from 'src/common/repository/coupon/coupon.repository';
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
+import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
+import { CheckoutRepository } from 'src/common/repository/checkout/booking.repository';
 
 @Injectable()
 export class CheckoutService extends PrismaClient {
@@ -175,14 +178,13 @@ export class CheckoutService extends PrismaClient {
       const result = await this.prisma.$transaction(async (prisma) => {
         const data: any = {};
         // user details
-        // if (createCheckoutDto.first_name) {
-        //   data.first_name = createCheckoutDto.first_name;
-        // }
-        // if (createCheckoutDto.last_name) {
-        //   data.last_name = createCheckoutDto.last_name;
-        // }
         if (updateCheckoutDto.email) {
           data.email = updateCheckoutDto.email;
+        } else {
+          return {
+            success: false,
+            message: 'Email is required',
+          };
         }
         if (updateCheckoutDto.phone_number) {
           data.phone_number = updateCheckoutDto.phone_number;
@@ -288,6 +290,45 @@ export class CheckoutService extends PrismaClient {
                 full_name: traveller.full_name,
                 type: traveller.type,
               },
+            });
+          }
+        }
+
+        // create user payment methods
+        if (updateCheckoutDto.payment_methods) {
+          const payment_method: IPaymentMethod =
+            updateCheckoutDto.payment_methods;
+
+          const exp_month = Number(payment_method.expiry_date.split('/')[0]);
+          const exp_year = Number(payment_method.expiry_date.split('/')[1]);
+
+          const paymentMethodId = await StripePayment.createPaymentMethod({
+            card: {
+              number: payment_method.number,
+              exp_month: exp_month,
+              exp_year: exp_year,
+              cvc: payment_method.cvc,
+            },
+            billing_details: {
+              name: payment_method.name,
+              email: updateCheckoutDto.email,
+              address: {
+                city: updateCheckoutDto.city,
+                country: updateCheckoutDto.country,
+                line1: updateCheckoutDto.address1,
+                line2: updateCheckoutDto.address2,
+                postal_code: updateCheckoutDto.zip_code,
+                state: updateCheckoutDto.state,
+              },
+            },
+          });
+
+          if (paymentMethodId) {
+            const userDetails = await UserRepository.getUserDetails(user_id);
+
+            await StripePayment.updateCustomerPaymentMethodId({
+              customer_id: userDetails.billing_id,
+              payment_method_id: paymentMethodId.id,
             });
           }
         }
@@ -408,7 +449,15 @@ export class CheckoutService extends PrismaClient {
     }
   }
 
-  async applyCoupon(user_id: string, coupons: ICoupon[], checkout_id: string) {
+  async applyCoupon({
+    user_id,
+    coupons,
+    checkout_id,
+  }: {
+    user_id: string;
+    coupons: ICoupon[];
+    checkout_id: string;
+  }) {
     try {
       const checkout = await this.prisma.checkout.findUnique({
         where: {
@@ -463,9 +512,12 @@ export class CheckoutService extends PrismaClient {
         }
       }
 
+      const couponPrice = await CheckoutRepository.calculateCoupon(checkout_id);
+
       return {
         success: true,
         message: 'Coupon applied successfully',
+        data: couponPrice,
       };
     } catch (error) {
       return {

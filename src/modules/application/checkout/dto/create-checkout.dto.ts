@@ -6,6 +6,16 @@ export interface IBookingTraveller {
   type: string;
 }
 
+export interface IPaymentMethod {
+  id?: string;
+  number?: string;
+  name?: string;
+  expiry_date?: string;
+  // exp_month?: number;
+  // exp_year?: number;
+  cvc?: string;
+}
+
 export interface ICoupon {
   code: string;
 }
@@ -58,7 +68,7 @@ export class CreateCheckoutDto {
   })
   phone_number?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   @ApiProperty({
     description: 'The email',
@@ -66,7 +76,7 @@ export class CreateCheckoutDto {
   })
   email?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description:
@@ -75,7 +85,7 @@ export class CreateCheckoutDto {
   })
   address1?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description: 'The address2 for area, colony, street, sector, village',
@@ -83,7 +93,7 @@ export class CreateCheckoutDto {
   })
   address2?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description: 'The city',
@@ -91,7 +101,7 @@ export class CreateCheckoutDto {
   })
   city?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description: 'The zip code',
@@ -99,7 +109,7 @@ export class CreateCheckoutDto {
   })
   zip_code?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description: 'The state',
@@ -107,11 +117,17 @@ export class CreateCheckoutDto {
   })
   state?: string;
 
-  @IsOptional()
+  // @IsOptional()
   @IsString()
   @ApiProperty({
     description: 'The country',
     example: 'Ghana',
   })
   country?: string;
+
+  @IsOptional()
+  @ApiProperty({
+    description: 'The payment method',
+  })
+  payment_methods?: any;
 }
