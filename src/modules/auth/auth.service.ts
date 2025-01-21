@@ -11,6 +11,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import appConfig from '../../config/app.config';
 import { SojebStorage } from '../../common/lib/Disk/SojebStorage';
 import { DateHelper } from '../../common/helper/date.helper';
+import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
 
 @Injectable()
 export class AuthService extends PrismaClient {
@@ -203,6 +204,24 @@ export class AuthService extends PrismaClient {
           success: false,
           message: 'Failed to create account',
         };
+      }
+
+      // create stripe customer account
+      const stripeCustomer = await StripePayment.createCustomer({
+        user_id: user.id,
+        email: email,
+        name: name,
+      });
+
+      if (stripeCustomer) {
+        await this.prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            billing_id: stripeCustomer.id,
+          },
+        });
       }
 
       // create otp code

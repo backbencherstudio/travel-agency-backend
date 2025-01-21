@@ -36,7 +36,7 @@ export class PackageController {
   @Post()
   @UseInterceptors(
     FileFieldsInterceptor(
-      [{ name: 'package_images' }, { name: 'trip_plans_images' }],
+      [{ name: 'package_files' }, { name: 'trip_plans_images' }],
       {
         storage: diskStorage({
           destination:
@@ -68,7 +68,7 @@ export class PackageController {
       }),
     )
     files: {
-      package_images?: Express.Multer.File[];
+      package_files?: Express.Multer.File[];
       trip_plans_images?: Express.Multer.File[];
     },
   ) {
@@ -123,7 +123,7 @@ export class PackageController {
   @Patch(':id')
   @UseInterceptors(
     FileFieldsInterceptor(
-      [{ name: 'package_images' }, { name: 'trip_plans_images' }],
+      [{ name: 'package_files' }, { name: 'trip_plans_images' }],
       {
         storage: diskStorage({
           destination:
@@ -156,7 +156,7 @@ export class PackageController {
       }),
     )
     files: {
-      package_images?: Express.Multer.File[];
+      package_files?: Express.Multer.File[];
       trip_plans_images?: Express.Multer.File[];
     },
   ) {

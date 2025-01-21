@@ -18,7 +18,7 @@ export class PackageService extends PrismaClient {
     user_id: string,
     createPackageDto: CreatePackageDto,
     files: {
-      package_images?: Express.Multer.File[];
+      package_files?: Express.Multer.File[];
       trip_plans_images?: Express.Multer.File[];
     },
   ) {
@@ -35,6 +35,9 @@ export class PackageService extends PrismaClient {
       }
       if (createPackageDto.duration) {
         data.duration = Number(createPackageDto.duration);
+      }
+      if (createPackageDto.duration_type) {
+        data.duration_type = createPackageDto.duration_type;
       }
       if (createPackageDto.type) {
         data.type = createPackageDto.type;
@@ -54,7 +57,6 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.language) {
         data.language = createPackageDto.language;
       }
-
       // add vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type != 'vendor') {
@@ -68,15 +70,16 @@ export class PackageService extends PrismaClient {
         },
       });
 
-      // add package images to package
-      if (files.package_images && files.package_images.length > 0) {
-        const package_images_data = files.package_images.map((image) => ({
-          image: image.filename,
-          image_alt: image.originalname,
+      // add package files to package
+      if (files.package_files && files.package_files.length > 0) {
+        const package_files_data = files.package_files.map((file) => ({
+          file: file.filename,
+          file_alt: file.originalname,
           package_id: record.id,
+          type: file.mimetype,
         }));
-        await this.prisma.packageImage.createMany({
-          data: package_images_data,
+        await this.prisma.packageFile.createMany({
+          data: package_files_data,
         });
       }
 
@@ -211,10 +214,10 @@ export class PackageService extends PrismaClient {
       };
     } catch (error) {
       // delete package images from storage
-      if (files && files.package_images && files.package_images.length > 0) {
-        for (const image of files.package_images) {
+      if (files && files.package_files && files.package_files.length > 0) {
+        for (const file of files.package_files) {
           await SojebStorage.delete(
-            appConfig().storageUrl.package + image.filename,
+            appConfig().storageUrl.package + file.filename,
           );
         }
       }
@@ -267,22 +270,22 @@ export class PackageService extends PrismaClient {
               },
             },
           },
-          package_images: {
+          package_files: {
             select: {
               id: true,
-              image: true,
+              file: true,
             },
           },
         },
       });
 
-      // add image url package_images
+      // add file url package_files
       if (packages && packages.length > 0) {
         for (const record of packages) {
-          if (record.package_images) {
-            for (const image of record.package_images) {
-              image['image_url'] = SojebStorage.url(
-                appConfig().storageUrl.package + image.image,
+          if (record.package_files) {
+            for (const file of record.package_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + file.file,
               );
             }
           }
@@ -315,6 +318,7 @@ export class PackageService extends PrismaClient {
           description: true,
           price: true,
           duration: true,
+          duration_type: true,
           min_capacity: true,
           max_capacity: true,
           type: true,
@@ -355,10 +359,10 @@ export class PackageService extends PrismaClient {
               },
             },
           },
-          package_images: {
+          package_files: {
             select: {
               id: true,
-              image: true,
+              file: true,
             },
           },
           package_trip_plans: {
@@ -408,12 +412,12 @@ export class PackageService extends PrismaClient {
         };
       }
 
-      // add image url package_images
-      if (record && record.package_images.length > 0) {
-        for (const image of record.package_images) {
-          if (image.image) {
-            image['image_url'] = SojebStorage.url(
-              appConfig().storageUrl.package + image.image,
+      // add file url package_files
+      if (record && record.package_files.length > 0) {
+        for (const file of record.package_files) {
+          if (file.file) {
+            file['file_url'] = SojebStorage.url(
+              appConfig().storageUrl.package + file.file,
             );
           }
         }
@@ -451,7 +455,7 @@ export class PackageService extends PrismaClient {
     user_id: string,
     updatePackageDto: UpdatePackageDto,
     files: {
-      package_images?: Express.Multer.File[];
+      package_files?: Express.Multer.File[];
       trip_plans_images?: Express.Multer.File[];
     },
   ) {
@@ -468,6 +472,9 @@ export class PackageService extends PrismaClient {
       }
       if (updatePackageDto.duration) {
         data.duration = Number(updatePackageDto.duration);
+      }
+      if (updatePackageDto.duration_type) {
+        data.duration_type = updatePackageDto.duration_type;
       }
       if (updatePackageDto.type) {
         data.type = updatePackageDto.type;
@@ -488,6 +495,18 @@ export class PackageService extends PrismaClient {
         data.language = updatePackageDto.language;
       }
 
+      // existing package record
+      const existing_package = await this.prisma.package.findUnique({
+        where: { id: id },
+      });
+
+      if (!existing_package) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
       const record = await this.prisma.package.update({
         where: { id: id, user_id: user_id },
         data: {
@@ -496,36 +515,37 @@ export class PackageService extends PrismaClient {
         },
       });
 
-      // delete package images which is not included in updatePackageDto.package_images
-      if (updatePackageDto.package_images) {
-        const package_images = JSON.parse(updatePackageDto.package_images);
+      // delete package images which is not included in updatePackageDto.package_files
+      if (updatePackageDto.package_files) {
+        const package_files = JSON.parse(updatePackageDto.package_files);
 
-        // old package images
-        const old_package_images = await this.prisma.packageImage.findMany({
+        // old package files
+        const old_package_files = await this.prisma.packageFile.findMany({
           where: { package_id: record.id },
         });
-        // delete old package image that are not in the new package images
-        for (const old_package_image of old_package_images) {
-          if (!package_images.some((pi) => pi.id == old_package_image.id)) {
+        // delete old package file that are not in the new package files
+        for (const old_package_file of old_package_files) {
+          if (!package_files.some((pi) => pi.id == old_package_file.id)) {
             await SojebStorage.delete(
-              appConfig().storageUrl.package + old_package_image.image,
+              appConfig().storageUrl.package + old_package_file.file,
             );
-            await this.prisma.packageImage.delete({
-              where: { id: old_package_image.id, package_id: record.id },
+            await this.prisma.packageFile.delete({
+              where: { id: old_package_file.id, package_id: record.id },
             });
           }
         }
       }
 
       // add package images to package
-      if (files.package_images && files.package_images.length > 0) {
-        const package_images_data = files.package_images.map((image) => ({
-          image: image.filename,
-          image_alt: image.originalname,
+      if (files.package_files && files.package_files.length > 0) {
+        const package_files_data = files.package_files.map((file) => ({
+          file: file.filename,
+          file_alt: file.originalname,
           package_id: record.id,
+          type: file.mimetype,
         }));
-        await this.prisma.packageImage.createMany({
-          data: package_images_data,
+        await this.prisma.packageFile.createMany({
+          data: package_files_data,
         });
       }
 
@@ -756,8 +776,8 @@ export class PackageService extends PrismaClient {
       };
     } catch (error) {
       // delete package images from storage
-      if (files && files.package_images && files.package_images.length > 0) {
-        for (const image of files.package_images) {
+      if (files && files.package_files && files.package_files.length > 0) {
+        for (const image of files.package_files) {
           await SojebStorage.delete(
             appConfig().storageUrl.package + image.filename,
           );
@@ -898,13 +918,11 @@ export class PackageService extends PrismaClient {
         });
 
         // Delete package images and package
-        const packageImages = await prisma.packageImage.findMany({
+        const packageFiles = await prisma.packageFile.findMany({
           where: { package_id: id },
         });
-        for (const image of packageImages) {
-          await SojebStorage.delete(
-            appConfig().storageUrl.package + image.image,
-          );
+        for (const file of packageFiles) {
+          await SojebStorage.delete(appConfig().storageUrl.package + file.file);
         }
 
         await prisma.package.delete({ where: { id: id } });

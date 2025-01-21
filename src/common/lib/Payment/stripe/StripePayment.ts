@@ -11,6 +11,25 @@ const STRIPE_WEBHOOK_SECRET = appConfig().payment.stripe.webhook_secret;
  * Stripe payment method helper
  */
 export class StripePayment {
+  static async createPaymentMethod({
+    card,
+    billing_details,
+  }: {
+    card: stripe.PaymentMethodCreateParams.Card;
+    billing_details: stripe.PaymentMethodCreateParams.BillingDetails;
+  }): Promise<stripe.PaymentMethod> {
+    const paymentMethod = await Stripe.paymentMethods.create({
+      card: {
+        number: card.number,
+        exp_month: card.exp_month,
+        exp_year: card.exp_year,
+        cvc: card.cvc,
+      },
+      billing_details: billing_details,
+    });
+    return paymentMethod;
+  }
+
   /**
    * Add customer to stripe
    * @param email
@@ -21,18 +40,48 @@ export class StripePayment {
     name,
     email,
   }: {
-    user_id: number;
+    user_id: string;
     name: string;
     email: string;
-  }) {
+  }): Promise<stripe.Customer> {
     const customer = await Stripe.customers.create({
       name: name,
       email: email,
-
       metadata: {
         user_id: user_id,
       },
       description: 'New Customer',
+    });
+    return customer;
+  }
+
+  static async updateCustomerPaymentMethodId({
+    customer_id,
+    payment_method_id,
+  }: {
+    customer_id: string;
+    payment_method_id: string;
+  }): Promise<stripe.Customer> {
+    const customer = await Stripe.customers.update(customer_id, {
+      invoice_settings: {
+        default_payment_method: payment_method_id,
+      },
+    });
+    return customer;
+  }
+
+  static async updateCustomer({
+    customer_id,
+    name,
+    email,
+  }: {
+    customer_id: string;
+    name: string;
+    email: string;
+  }): Promise<stripe.Customer> {
+    const customer = await Stripe.customers.update(customer_id, {
+      name: name,
+      email: email,
     });
     return customer;
   }

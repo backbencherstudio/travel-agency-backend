@@ -126,10 +126,10 @@ export class PackageService extends PrismaClient {
               description: true,
             },
           },
-          package_images: {
+          package_files: {
             select: {
               id: true,
-              image: true,
+              file: true,
             },
           },
           package_trip_plans: {
@@ -160,13 +160,13 @@ export class PackageService extends PrismaClient {
         },
       });
 
-      // add image url package_images
+      // add image url package_files
       if (packages && packages.length > 0) {
         for (const record of packages) {
-          if (record.package_images) {
-            for (const image of record.package_images) {
-              image['image_url'] = SojebStorage.url(
-                appConfig().storageUrl.package + image.image,
+          if (record.package_files) {
+            for (const file of record.package_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + file.file,
               );
             }
           }
@@ -240,10 +240,10 @@ export class PackageService extends PrismaClient {
               },
             },
           },
-          package_images: {
+          package_files: {
             select: {
               id: true,
-              image: true,
+              file: true,
             },
           },
           package_trip_plans: {
@@ -293,12 +293,12 @@ export class PackageService extends PrismaClient {
         };
       }
 
-      // add image url package_images
-      if (record && record.package_images.length > 0) {
-        for (const image of record.package_images) {
-          if (image.image) {
-            image['image_url'] = SojebStorage.url(
-              appConfig().storageUrl.package + image.image,
+      // add file url package_files
+      if (record && record.package_files.length > 0) {
+        for (const file of record.package_files) {
+          if (file.file) {
+            file['file_url'] = SojebStorage.url(
+              appConfig().storageUrl.package + file.file,
             );
           }
         }
