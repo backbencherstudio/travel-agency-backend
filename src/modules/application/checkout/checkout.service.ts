@@ -326,7 +326,14 @@ export class CheckoutService extends PrismaClient {
           if (paymentMethodId) {
             const userDetails = await UserRepository.getUserDetails(user_id);
 
-            await StripePayment.updateCustomerPaymentMethodId({
+            // attach payment method to stripe customer
+            await StripePayment.attachCustomerPaymentMethodId({
+              customer_id: userDetails.billing_id,
+              payment_method_id: paymentMethodId.id,
+            });
+
+            // make it default payment method
+            await StripePayment.setCustomerDefaultPaymentMethodId({
               customer_id: userDetails.billing_id,
               payment_method_id: paymentMethodId.id,
             });

@@ -55,7 +55,20 @@ export class StripePayment {
     return customer;
   }
 
-  static async updateCustomerPaymentMethodId({
+  static async attachCustomerPaymentMethodId({
+    customer_id,
+    payment_method_id,
+  }: {
+    customer_id: string;
+    payment_method_id: string;
+  }): Promise<stripe.PaymentMethod> {
+    const customer = await Stripe.paymentMethods.attach(payment_method_id, {
+      customer: customer_id,
+    });
+    return customer;
+  }
+
+  static async setCustomerDefaultPaymentMethodId({
     customer_id,
     payment_method_id,
   }: {
