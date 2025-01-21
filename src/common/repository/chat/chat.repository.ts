@@ -8,6 +8,17 @@ export class ChatRepository {
    * @returns
    */
   static async updateMessageStatus(message_id: string, status: MessageStatus) {
+    // if message exist
+    const message = await prisma.message.findFirst({
+      where: {
+        id: message_id,
+      },
+    });
+
+    if (!message) {
+      return;
+    }
+
     await prisma.message.update({
       where: {
         id: message_id,
@@ -23,6 +34,16 @@ export class ChatRepository {
    * @returns
    */
   static async updateUserStatus(user_id: string, status: string) {
+    // if user exist
+    const user = await prisma.user.findFirst({
+      where: {
+        id: user_id,
+      },
+    });
+
+    if (!user) {
+      return;
+    }
     return await prisma.user.update({
       where: { id: user_id },
       data: {
