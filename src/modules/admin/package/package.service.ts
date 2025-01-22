@@ -51,9 +51,6 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = createPackageDto.cancellation_policy_id;
       }
-      if (createPackageDto.destination_id) {
-        data.destination_id = createPackageDto.destination_id;
-      }
       if (createPackageDto.language) {
         data.language = createPackageDto.language;
       }
@@ -123,6 +120,28 @@ export class PackageService extends PrismaClient {
               extra_service_id: extra_service.id,
             },
           });
+        }
+      }
+
+      // add destination to package
+      if (createPackageDto.destinations) {
+        const destinations = JSON.parse(createPackageDto.destinations);
+        for (const destination of destinations) {
+          const existing_destination =
+            await this.prisma.packageDestination.findFirst({
+              where: {
+                destination_id: destination.id,
+                package_id: record.id,
+              },
+            });
+          if (!existing_destination) {
+            await this.prisma.packageDestination.create({
+              data: {
+                destination_id: destination.id,
+                package_id: record.id,
+              },
+            });
+          }
         }
       }
 
@@ -258,7 +277,22 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
-          destination_id: true,
+          package_destinations: {
+            select: {
+              destination: {
+                select: {
+                  id: true,
+                  name: true,
+                  country: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
           cancellation_policy_id: true,
           package_categories: {
             select: {
@@ -330,14 +364,18 @@ export class PackageService extends PrismaClient {
               user_id: true,
             },
           },
-          destination: {
+          package_destinations: {
             select: {
-              id: true,
-              name: true,
-              country: {
+              destination: {
                 select: {
                   id: true,
                   name: true,
+                  country: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -487,9 +525,6 @@ export class PackageService extends PrismaClient {
       }
       if (updatePackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
-      }
-      if (updatePackageDto.destination_id) {
-        data.destination_id = updatePackageDto.destination_id;
       }
       if (updatePackageDto.language) {
         data.language = updatePackageDto.language;
@@ -767,6 +802,28 @@ export class PackageService extends PrismaClient {
               extra_service_id: extra_service.id,
             },
           });
+        }
+      }
+
+      // add destination to package
+      if (updatePackageDto.destinations) {
+        const destinations = JSON.parse(updatePackageDto.destinations);
+        for (const destination of destinations) {
+          const existing_destination =
+            await this.prisma.packageDestination.findFirst({
+              where: {
+                destination_id: destination.id,
+                package_id: record.id,
+              },
+            });
+          if (!existing_destination) {
+            await this.prisma.packageDestination.create({
+              data: {
+                destination_id: destination.id,
+                package_id: record.id,
+              },
+            });
+          }
         }
       }
 

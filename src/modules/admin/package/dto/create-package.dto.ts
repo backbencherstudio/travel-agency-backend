@@ -75,9 +75,18 @@ export class CreatePackageDto {
   @ApiProperty()
   cancellation_policy_id?: string;
 
-  @IsString()
-  @ApiProperty()
-  destination_id?: string;
+  @ApiProperty({
+    description: 'Destination array object with stringyfied ids',
+    example: [
+      {
+        id: '1',
+      },
+      {
+        id: '2',
+      },
+    ],
+  })
+  destinations: string;
 
   @IsNotEmpty()
   @ApiProperty()

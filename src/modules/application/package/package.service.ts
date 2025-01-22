@@ -107,14 +107,18 @@ export class PackageService extends PrismaClient {
               user_id: true,
             },
           },
-          destination: {
+          package_destinations: {
             select: {
-              id: true,
-              name: true,
-              country: {
+              destination: {
                 select: {
                   id: true,
                   name: true,
+                  country: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -211,14 +215,18 @@ export class PackageService extends PrismaClient {
               user_id: true,
             },
           },
-          destination: {
+          package_destinations: {
             select: {
-              id: true,
-              name: true,
-              country: {
+              destination: {
                 select: {
                   id: true,
                   name: true,
+                  country: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },

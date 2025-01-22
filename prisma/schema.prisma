@@ -251,8 +251,8 @@ model Destination {
   country_id String?
   country    Country? @relation(fields: [country_id], references: [id])
 
-  destination_images DestinationImage[]
-  packages           Package[]
+  destination_images   DestinationImage[]
+  package_destinations PackageDestination[]
 
   @@map("destinations")
 }
@@ -304,9 +304,6 @@ model Package {
 
   language String? // e.g. "en"
 
-  destination_id String?
-  destination    Destination? @relation(fields: [destination_id], references: [id])
-
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
@@ -319,8 +316,25 @@ model Package {
   package_extra_services PackageExtraService[]
   checkout_items         CheckoutItem[]
   checkout_extraServices CheckoutExtraService[]
+  package_destinations   PackageDestination[]
 
   @@map("packages")
+}
+
+// this table stores package destination relationship
+model PackageDestination {
+  // id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  destination_id String
+  destination    Destination? @relation(fields: [destination_id], references: [id], onDelete: Cascade)
+
+  @@id([package_id, destination_id])
+  @@map("package_destinations")
 }
 
 // this table stores category
