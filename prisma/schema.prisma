@@ -303,7 +303,8 @@ model Package {
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
-  language String? // e.g. "en"
+  language_id String?
+  language    Language? @relation(fields: [language_id], references: [id])
 
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
@@ -1153,8 +1154,9 @@ model Language {
   status     Int?      @default(1) @db.SmallInt
 
   // country name
-  name String? // e.g. "English"
-  code String? // e.g. "en"
+  name     String? // e.g. "English"
+  code     String? // e.g. "en"
+  packages Package[]
 
   @@map("languages")
 }

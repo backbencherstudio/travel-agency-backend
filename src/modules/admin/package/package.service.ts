@@ -277,6 +277,12 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          language: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           package_destinations: {
             select: {
               destination: {
@@ -356,6 +362,12 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          language: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           reviews: {
             select: {
               id: true,
