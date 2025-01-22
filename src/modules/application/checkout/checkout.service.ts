@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import {
   CreateCheckoutDto,
   IBookingTraveller,
-  ICoupon,
   IExtraService,
   IPaymentMethod,
 } from './dto/create-checkout.dto';
@@ -12,7 +11,7 @@ import { UserRepository } from 'src/common/repository/user/user.repository';
 import { CouponRepository } from 'src/common/repository/coupon/coupon.repository';
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
 import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
-import { CheckoutRepository } from 'src/common/repository/checkout/booking.repository';
+import { CheckoutRepository } from 'src/common/repository/checkout/checkout.repository';
 
 @Injectable()
 export class CheckoutService extends PrismaClient {

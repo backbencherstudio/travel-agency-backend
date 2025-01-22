@@ -5,7 +5,7 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
-import { CheckoutRepository } from '../../../common/repository/checkout/booking.repository';
+import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
