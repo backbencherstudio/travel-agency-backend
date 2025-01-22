@@ -76,6 +76,21 @@ export class CouponRepository {
       // limit
       // make sure coupon usage
       if (coupon.max_uses != null) {
+        // check total usages for temp redeem
+        const total_usages_temp = await prisma.tempRedeem.count({
+          where: {
+            coupon_id: coupon.id,
+          },
+        });
+
+        if (total_usages_temp >= coupon.max_uses) {
+          return {
+            success: false,
+            message: 'Coupon is exceeded maximum usage',
+          };
+        }
+
+        // check total usages for booking coupon
         const total_usages = await prisma.bookingCoupon.count({
           where: {
             coupon_id: coupon.id,
@@ -91,6 +106,22 @@ export class CouponRepository {
 
       // make sure coupon usage for single user
       if (coupon.max_uses_per_user != null) {
+        // check  for temp redeem
+        const total_usages_temp = await prisma.tempRedeem.count({
+          where: {
+            coupon_id: coupon.id,
+            user_id: user_id,
+          },
+        });
+
+        if (total_usages_temp >= coupon.max_uses_per_user) {
+          return {
+            success: false,
+            message: 'Coupon is exceeded maximum usage',
+          };
+        }
+
+        // check for booking coupon
         const user_usages = await prisma.bookingCoupon.count({
           where: {
             coupon_id: coupon.id,
@@ -144,6 +175,52 @@ export class CouponRepository {
         success: true,
         message: 'Coupon applied successfully',
         coupon: coupon,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  static async removeCouponById({
+    coupon_id,
+    user_id,
+    checkout_id,
+  }: {
+    coupon_id: string;
+    user_id: string;
+    checkout_id: string;
+  }) {
+    try {
+      // check if coupon exists
+      const coupon = await prisma.tempRedeem.findFirst({
+        where: {
+          id: coupon_id,
+          user_id: user_id,
+          checkout_id: checkout_id,
+        },
+      });
+
+      if (!coupon) {
+        return {
+          success: false,
+          message: 'Coupon not found',
+        };
+      }
+
+      await prisma.tempRedeem.deleteMany({
+        where: {
+          id: coupon_id,
+          user_id: user_id,
+          checkout_id: checkout_id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Coupon removed successfully',
       };
     } catch (error) {
       return {

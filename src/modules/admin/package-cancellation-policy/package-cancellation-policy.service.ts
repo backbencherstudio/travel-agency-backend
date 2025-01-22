@@ -12,6 +12,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
   }
 
   async create(
+    user_id: string,
     createPackageCancellationPolicyDto: CreatePackageCancellationPolicyDto,
   ) {
     try {
@@ -21,6 +22,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
         data: {
           policy,
           description,
+          user_id: user_id,
         },
       });
 
@@ -74,6 +76,14 @@ export class PackageCancellationPolicyService extends PrismaClient {
             updated_at: true,
           },
         });
+
+      if (!packageCancellationPolicy) {
+        return {
+          success: false,
+          message: 'Package cancellation policy not found',
+        };
+      }
+
       return {
         success: true,
         data: packageCancellationPolicy,
@@ -88,6 +98,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
 
   async update(
     id: string,
+    user_id: string,
     updatePackageCancellationPolicyDto: UpdatePackageCancellationPolicyDto,
   ) {
     try {
@@ -102,6 +113,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
         where: { id: id },
         data: {
           ...data,
+          user_id: user_id,
           updated_at: DateHelper.now(),
         },
       });

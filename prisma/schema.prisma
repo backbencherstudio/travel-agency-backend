@@ -89,10 +89,11 @@ model User {
   user_bookings             Booking[]            @relation("user")
   vendor_bookings           Booking[]            @relation("vendor")
 
-  user_checkouts    Checkout[]          @relation("user")
-  vendor_checkouts  Checkout[]          @relation("vendor")
-  temp_redeems      TempRedeem[]
-  UserPaymentMethod UserPaymentMethod[]
+  user_checkouts                Checkout[]                  @relation("user")
+  vendor_checkouts              Checkout[]                  @relation("vendor")
+  temp_redeems                  TempRedeem[]
+  user_payment_methods          UserPaymentMethod[]
+  package_cancellation_policies PackageCancellationPolicy[]
 
   @@map("users")
 }
@@ -450,6 +451,9 @@ model PackageCancellationPolicy {
   updated_at DateTime  @default(now())
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
 
   // cancellation policy
   // available values:

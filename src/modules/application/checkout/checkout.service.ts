@@ -384,6 +384,20 @@ export class CheckoutService extends PrismaClient {
               },
             },
           },
+          temp_redeems: {
+            select: {
+              id: true,
+              coupon: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  amount: true,
+                  amount_type: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -492,6 +506,71 @@ export class CheckoutService extends PrismaClient {
       return {
         success: applyCoupon.success,
         message: applyCoupon.message,
+        data: couponPrice,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async removeCoupon({
+    coupon_id,
+    user_id,
+    checkout_id,
+  }: {
+    coupon_id: string;
+    user_id: string;
+    checkout_id: string;
+  }) {
+    try {
+      const checkout = await this.prisma.checkout.findUnique({
+        where: {
+          id: checkout_id,
+        },
+        select: {
+          id: true,
+          checkout_items: {
+            select: {
+              package_id: true,
+            },
+          },
+          checkout_extra_services: {
+            select: {
+              extra_service_id: true,
+            },
+          },
+        },
+      });
+
+      if (!checkout) {
+        return {
+          success: false,
+          message: 'Checkout not found',
+        };
+      }
+
+      if (!checkout.checkout_items || checkout.checkout_items.length == 0) {
+        return {
+          success: false,
+          message: 'Checkout items not found',
+        };
+      }
+
+      // remove coupon
+      const removeCoupon = await CouponRepository.removeCouponById({
+        coupon_id: coupon_id,
+        user_id: user_id,
+        checkout_id: checkout.id,
+      });
+
+      const couponPrice = await CheckoutRepository.calculateCoupon(checkout_id);
+
+      return {
+        success: removeCoupon.success,
+        message: removeCoupon.message,
         data: couponPrice,
       };
     } catch (error) {
