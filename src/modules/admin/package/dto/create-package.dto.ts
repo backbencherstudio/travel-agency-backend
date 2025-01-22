@@ -124,8 +124,15 @@ export class CreatePackageDto {
   extra_services?: any;
 
   @ApiProperty({
-    description: 'Language of the package',
-    example: 'en',
+    description: 'Package array object with stringyfied ids',
+    example: [
+      {
+        id: '1',
+      },
+      {
+        id: '2',
+      },
+    ],
   })
-  language?: string;
+  languages?: string;
 }

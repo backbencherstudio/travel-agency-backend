@@ -51,9 +51,6 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = createPackageDto.cancellation_policy_id;
       }
-      if (createPackageDto.language) {
-        data.language = createPackageDto.language;
-      }
       // add vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type != 'vendor') {
@@ -170,6 +167,29 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // add language to package
+      if (createPackageDto.languages) {
+        const languages = JSON.parse(createPackageDto.languages);
+        for (const language of languages) {
+          const existing_language = await this.prisma.packageLanguage.findFirst(
+            {
+              where: {
+                language_id: language.id,
+                package_id: record.id,
+              },
+            },
+          );
+          if (!existing_language) {
+            await this.prisma.packageLanguage.create({
+              data: {
+                language_id: language.id,
+                package_id: record.id,
+              },
+            });
+          }
+        }
+      }
+
       // add tag to excluded_packages
       if (createPackageDto.excluded_packages) {
         const excluded_packages = JSON.parse(
@@ -277,6 +297,16 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_languages: {
+            select: {
+              language: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package_destinations: {
             select: {
               destination: {
@@ -356,6 +386,16 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_languages: {
+            select: {
+              language: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           reviews: {
             select: {
               id: true,
@@ -525,9 +565,6 @@ export class PackageService extends PrismaClient {
       }
       if (updatePackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
-      }
-      if (updatePackageDto.language) {
-        data.language = updatePackageDto.language;
       }
 
       // existing package record
@@ -802,6 +839,29 @@ export class PackageService extends PrismaClient {
               extra_service_id: extra_service.id,
             },
           });
+        }
+      }
+
+      // add language to package
+      if (updatePackageDto.languages) {
+        const languages = JSON.parse(updatePackageDto.languages);
+        for (const language of languages) {
+          const existing_language = await this.prisma.packageLanguage.findFirst(
+            {
+              where: {
+                language_id: language.id,
+                package_id: record.id,
+              },
+            },
+          );
+          if (!existing_language) {
+            await this.prisma.packageLanguage.create({
+              data: {
+                language_id: language.id,
+                package_id: record.id,
+              },
+            });
+          }
         }
       }
 

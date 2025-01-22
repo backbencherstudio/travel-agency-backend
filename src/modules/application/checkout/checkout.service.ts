@@ -151,14 +151,14 @@ export class CheckoutService extends PrismaClient {
       const result = await this.prisma.$transaction(async (prisma) => {
         const data: any = {};
         // user details
-        if (updateCheckoutDto.email) {
-          data.email = updateCheckoutDto.email;
-        } else {
-          return {
-            success: false,
-            message: 'Email is required',
-          };
-        }
+        // if (updateCheckoutDto.email) {
+        //   data.email = updateCheckoutDto.email;
+        // } else {
+        //   return {
+        //     success: false,
+        //     message: 'Email is required',
+        //   };
+        // }
         if (updateCheckoutDto.phone_number) {
           data.phone_number = updateCheckoutDto.phone_number;
         }
@@ -284,7 +284,7 @@ export class CheckoutService extends PrismaClient {
             },
             billing_details: {
               name: payment_method.name,
-              email: updateCheckoutDto.email,
+              // email: updateCheckoutDto.email,
               address: {
                 city: updateCheckoutDto.city,
                 country: updateCheckoutDto.country,
