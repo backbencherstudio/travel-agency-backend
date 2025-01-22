@@ -62,12 +62,11 @@ export class CouponRepository {
         }
       }
 
+      const _isExpired = this._isExpired(coupon);
+      const _isAvailable = this._isAvailable(coupon);
+
       // make sure coupon is not expired and available
-      if (
-        coupon.status == 0 ||
-        this._isExpired(coupon) ||
-        !this._isAvailable(coupon)
-      ) {
+      if (coupon.status == 0 || _isExpired == true || !_isAvailable) {
         return {
           success: false,
           message: 'Coupon is not active or it has expired',
@@ -154,9 +153,11 @@ export class CouponRepository {
     }
   }
 
-  private static async _isExpired(coupon: Coupon) {
+  private static _isExpired(coupon: Coupon) {
     if (coupon.expires_at != null) {
-      if (coupon.expires_at >= DateHelper.now()) {
+      if (
+        DateHelper.format(coupon.expires_at) >= DateHelper.now().toISOString()
+      ) {
         // not expired
         return false;
       } else {
@@ -169,9 +170,11 @@ export class CouponRepository {
     }
   }
 
-  private static async _isAvailable(coupon: Coupon) {
+  private static _isAvailable(coupon: Coupon) {
     if (coupon.starts_at != null) {
-      if (coupon.starts_at > DateHelper.now()) {
+      if (
+        DateHelper.format(coupon.starts_at) > DateHelper.now().toISOString()
+      ) {
         // not available
         return false;
       } else {
