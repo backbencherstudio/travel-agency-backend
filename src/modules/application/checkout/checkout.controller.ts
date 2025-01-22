@@ -74,14 +74,15 @@ export class CheckoutController {
   async applyCoupon(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() body: { coupons: ICoupon[] },
+    // @Body() body: { coupons: ICoupon[] },
+    @Body() body: { code: string },
   ) {
     try {
       const user_id = req.user.userId;
       const checkout = await this.checkoutService.applyCoupon({
         user_id: user_id,
         checkout_id: id,
-        coupons: body.coupons,
+        code: body.code,
       });
       return checkout;
     } catch (error) {

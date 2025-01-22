@@ -30,32 +30,6 @@ export class CheckoutService extends PrismaClient {
             message: 'Package id is required',
           };
         }
-        // user details
-        if (createCheckoutDto.email) {
-          data['email'] = createCheckoutDto.email;
-        }
-        if (createCheckoutDto.phone_number) {
-          data['phone_number'] = createCheckoutDto.phone_number;
-        }
-        if (createCheckoutDto.address1) {
-          data['address1'] = createCheckoutDto.address1;
-        }
-        if (createCheckoutDto.address2) {
-          data['address2'] = createCheckoutDto.address2;
-        }
-        if (createCheckoutDto.city) {
-          data['city'] = createCheckoutDto.city;
-        }
-        if (createCheckoutDto.state) {
-          data['state'] = createCheckoutDto.state;
-        }
-        if (createCheckoutDto.zip_code) {
-          data['zip_code'] = createCheckoutDto.zip_code;
-        }
-        if (createCheckoutDto.country) {
-          data['country'] = createCheckoutDto.country;
-        }
-
         const packageData = await prisma.package.findUnique({
           where: {
             id: createCheckoutDto.package_id,
@@ -326,7 +300,14 @@ export class CheckoutService extends PrismaClient {
           if (paymentMethodId) {
             const userDetails = await UserRepository.getUserDetails(user_id);
 
-            await StripePayment.updateCustomerPaymentMethodId({
+            // attach payment method to stripe customer
+            await StripePayment.attachCustomerPaymentMethodId({
+              customer_id: userDetails.billing_id,
+              payment_method_id: paymentMethodId.id,
+            });
+
+            // make it default payment method
+            await StripePayment.setCustomerDefaultPaymentMethodId({
               customer_id: userDetails.billing_id,
               payment_method_id: paymentMethodId.id,
             });
@@ -451,11 +432,13 @@ export class CheckoutService extends PrismaClient {
 
   async applyCoupon({
     user_id,
-    coupons,
+    code,
+    // coupons,
     checkout_id,
   }: {
     user_id: string;
-    coupons: ICoupon[];
+    code: string;
+    // coupons: ICoupon[];
     checkout_id: string;
   }) {
     try {
@@ -492,31 +475,40 @@ export class CheckoutService extends PrismaClient {
         };
       }
 
-      // apply coupon
-      if (coupons) {
-        if (coupons instanceof Array) {
-          coupons = coupons;
-        } else {
-          coupons = JSON.parse(coupons);
-        }
-        for (const coupon of coupons) {
-          const code = coupon['code'];
+      // apply multiple coupon
+      // if (coupons) {
+      //   if (coupons instanceof Array) {
+      //     coupons = coupons;
+      //   } else {
+      //     coupons = JSON.parse(coupons);
+      //   }
+      //   for (const coupon of coupons) {
+      //     const code = coupon['code'];
 
-          // apply coupon
-          await CouponRepository.applyCoupon({
-            user_id,
-            coupon_code: code,
-            package_id: checkout.checkout_items[0].package_id,
-            checkout_id: checkout.id,
-          });
-        }
-      }
+      //     // apply coupon
+      //     const applyCoupon = await CouponRepository.applyCoupon({
+      //       user_id,
+      //       coupon_code: code,
+      //       package_id: checkout.checkout_items[0].package_id,
+      //       checkout_id: checkout.id,
+      //     });
+
+      //     responses.push(applyCoupon);
+      //   }
+      // }
+
+      // apply coupon
+      const applyCoupon = await CouponRepository.applyCoupon({
+        user_id,
+        coupon_code: code,
+        package_id: checkout.checkout_items[0].package_id,
+        checkout_id: checkout.id,
+      });
 
       const couponPrice = await CheckoutRepository.calculateCoupon(checkout_id);
 
       return {
-        success: true,
-        message: 'Coupon applied successfully',
+        ...applyCoupon,
         data: couponPrice,
       };
     } catch (error) {
