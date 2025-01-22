@@ -17,6 +17,9 @@ export class CouponService extends PrismaClient {
       if (createCouponDto.name) {
         data.name = createCouponDto.name;
       }
+      if (createCouponDto.code) {
+        data.code = createCouponDto.code;
+      }
       if (createCouponDto.description) {
         data.description = createCouponDto.description;
       }
@@ -78,6 +81,7 @@ export class CouponService extends PrismaClient {
         select: {
           id: true,
           name: true,
+          code: true,
           description: true,
           amount_type: true,
           amount: true,
@@ -88,6 +92,7 @@ export class CouponService extends PrismaClient {
           min_type: true,
           min_amount: true,
           min_quantity: true,
+          status: true,
           created_at: true,
           updated_at: true,
         },
@@ -111,6 +116,7 @@ export class CouponService extends PrismaClient {
         select: {
           id: true,
           name: true,
+          code: true,
           description: true,
           amount_type: true,
           amount: true,
@@ -121,6 +127,7 @@ export class CouponService extends PrismaClient {
           min_type: true,
           min_amount: true,
           min_quantity: true,
+          status: true,
           created_at: true,
           updated_at: true,
         },
@@ -159,6 +166,9 @@ export class CouponService extends PrismaClient {
       const data: any = {};
       if (updateCouponDto.name) {
         data.name = updateCouponDto.name;
+      }
+      if (updateCouponDto.code) {
+        data.code = updateCouponDto.code;
       }
       if (updateCouponDto.description) {
         data.description = updateCouponDto.description;

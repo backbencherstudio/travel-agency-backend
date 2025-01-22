@@ -8,6 +8,12 @@ export class CreateCouponDto {
   name?: string;
 
   @ApiProperty({
+    description: 'The code of the coupon',
+    example: 'TEST10',
+  })
+  code?: string;
+
+  @ApiProperty({
     description: 'The description of the coupon',
     example: '10% off on all orders',
   })
