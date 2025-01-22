@@ -475,31 +475,9 @@ export class CheckoutService extends PrismaClient {
         };
       }
 
-      // apply multiple coupon
-      // if (coupons) {
-      //   if (coupons instanceof Array) {
-      //     coupons = coupons;
-      //   } else {
-      //     coupons = JSON.parse(coupons);
-      //   }
-      //   for (const coupon of coupons) {
-      //     const code = coupon['code'];
-
-      //     // apply coupon
-      //     const applyCoupon = await CouponRepository.applyCoupon({
-      //       user_id,
-      //       coupon_code: code,
-      //       package_id: checkout.checkout_items[0].package_id,
-      //       checkout_id: checkout.id,
-      //     });
-
-      //     responses.push(applyCoupon);
-      //   }
-      // }
-
       // apply coupon
       const applyCoupon = await CouponRepository.applyCoupon({
-        user_id,
+        user_id: user_id,
         coupon_code: code,
         package_id: checkout.checkout_items[0].package_id,
         checkout_id: checkout.id,
@@ -508,7 +486,8 @@ export class CheckoutService extends PrismaClient {
       const couponPrice = await CheckoutRepository.calculateCoupon(checkout_id);
 
       return {
-        ...applyCoupon,
+        success: applyCoupon.success,
+        message: applyCoupon.message,
         data: couponPrice,
       };
     } catch (error) {

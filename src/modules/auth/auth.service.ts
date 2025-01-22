@@ -43,6 +43,13 @@ export class AuthService extends PrismaClient {
         },
       });
 
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
       if (user.avatar) {
         user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
