@@ -4,6 +4,7 @@ import { UpdatePackageCancellationPolicyDto } from './dto/update-package-cancell
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class PackageCancellationPolicyService extends PrismaClient {
@@ -38,10 +39,26 @@ export class PackageCancellationPolicyService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll(user_id?: string) {
     try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (!userDetails) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const whereClause = {};
+      if (userDetails.type == 'vendor') {
+        whereClause['user_id'] = user_id;
+      }
+
       const packageCancellationPolicies =
         await this.prisma.packageCancellationPolicy.findMany({
+          where: {
+            ...whereClause,
+          },
           select: {
             id: true,
             policy: true,
@@ -63,11 +80,24 @@ export class PackageCancellationPolicyService extends PrismaClient {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user_id?: string) {
     try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (!userDetails) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const whereClause = {};
+      if (userDetails.type == 'vendor') {
+        whereClause['user_id'] = user_id;
+      }
+
       const packageCancellationPolicy =
         await this.prisma.packageCancellationPolicy.findUnique({
-          where: { id: id },
+          where: { id: id, ...whereClause },
           select: {
             id: true,
             policy: true,
