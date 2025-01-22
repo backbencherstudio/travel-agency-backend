@@ -127,5 +127,5 @@ export class CreatePackageDto {
     description: 'Language of the package',
     example: 'en',
   })
-  language?: string;
+  language_id?: string;
 }

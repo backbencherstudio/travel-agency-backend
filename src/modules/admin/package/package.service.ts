@@ -51,8 +51,8 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = createPackageDto.cancellation_policy_id;
       }
-      if (createPackageDto.language) {
-        data.language = createPackageDto.language;
+      if (createPackageDto.language_id) {
+        data.language_id = createPackageDto.language_id;
       }
       // add vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
@@ -538,8 +538,8 @@ export class PackageService extends PrismaClient {
       if (updatePackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
       }
-      if (updatePackageDto.language) {
-        data.language = updatePackageDto.language;
+      if (updatePackageDto.language_id) {
+        data.language_id = updatePackageDto.language_id;
       }
 
       // existing package record
