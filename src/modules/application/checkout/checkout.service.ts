@@ -364,13 +364,18 @@ export class CheckoutService extends PrismaClient {
                   description: true,
                   price: true,
                   duration: true,
-                  destination: {
+                  package_destinations: {
                     select: {
-                      id: true,
-                      name: true,
-                      country: {
+                      destination: {
                         select: {
+                          id: true,
                           name: true,
+                          country: {
+                            select: {
+                              id: true,
+                              name: true,
+                            },
+                          },
                         },
                       },
                     },
