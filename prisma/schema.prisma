@@ -303,9 +303,6 @@ model Package {
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
-  language_id String?
-  language    Language? @relation(fields: [language_id], references: [id])
-
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
@@ -319,8 +316,25 @@ model Package {
   checkout_items         CheckoutItem[]
   checkout_extraServices CheckoutExtraService[]
   package_destinations   PackageDestination[]
+  package_languages      PackageLanguage[]
 
   @@map("packages")
+}
+
+// this table stores package language relationship
+model PackageLanguage {
+  // id         String    @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  language_id String
+  language    Language? @relation(fields: [language_id], references: [id], onDelete: Cascade)
+
+  @@id([package_id, language_id])
+  @@map("package_languages")
 }
 
 // this table stores package destination relationship
@@ -1154,9 +1168,10 @@ model Language {
   status     Int?      @default(1) @db.SmallInt
 
   // country name
-  name     String? // e.g. "English"
-  code     String? // e.g. "en"
-  packages Package[]
+  name String? // e.g. "English"
+  code String? // e.g. "en"
+
+  package_languages PackageLanguage[]
 
   @@map("languages")
 }

@@ -1,6 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateCheckoutDto } from './create-checkout.dto';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateCheckoutDto extends PartialType(CreateCheckoutDto) {
   // @ApiProperty({
@@ -16,14 +16,6 @@ export class UpdateCheckoutDto extends PartialType(CreateCheckoutDto) {
     example: '+233543212345',
   })
   phone_number?: string;
-
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty({
-    description: 'The email',
-    example: 'example@gmail.com',
-  })
-  email?: string;
 
   // @IsOptional()
   @IsString()
