@@ -4,6 +4,7 @@ import { UpdatePackageCancellationPolicyDto } from './dto/update-package-cancell
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class PackageCancellationPolicyService extends PrismaClient {
@@ -12,6 +13,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
   }
 
   async create(
+    user_id: string,
     createPackageCancellationPolicyDto: CreatePackageCancellationPolicyDto,
   ) {
     try {
@@ -21,6 +23,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
         data: {
           policy,
           description,
+          user_id: user_id,
         },
       });
 
@@ -36,10 +39,26 @@ export class PackageCancellationPolicyService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll(user_id?: string) {
     try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (!userDetails) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const whereClause = {};
+      if (userDetails.type == 'vendor') {
+        whereClause['user_id'] = user_id;
+      }
+
       const packageCancellationPolicies =
         await this.prisma.packageCancellationPolicy.findMany({
+          where: {
+            ...whereClause,
+          },
           select: {
             id: true,
             policy: true,
@@ -61,11 +80,24 @@ export class PackageCancellationPolicyService extends PrismaClient {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user_id?: string) {
     try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (!userDetails) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const whereClause = {};
+      if (userDetails.type == 'vendor') {
+        whereClause['user_id'] = user_id;
+      }
+
       const packageCancellationPolicy =
         await this.prisma.packageCancellationPolicy.findUnique({
-          where: { id: id },
+          where: { id: id, ...whereClause },
           select: {
             id: true,
             policy: true,
@@ -74,6 +106,14 @@ export class PackageCancellationPolicyService extends PrismaClient {
             updated_at: true,
           },
         });
+
+      if (!packageCancellationPolicy) {
+        return {
+          success: false,
+          message: 'Package cancellation policy not found',
+        };
+      }
+
       return {
         success: true,
         data: packageCancellationPolicy,
@@ -88,6 +128,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
 
   async update(
     id: string,
+    user_id: string,
     updatePackageCancellationPolicyDto: UpdatePackageCancellationPolicyDto,
   ) {
     try {
@@ -102,6 +143,7 @@ export class PackageCancellationPolicyService extends PrismaClient {
         where: { id: id },
         data: {
           ...data,
+          user_id: user_id,
           updated_at: DateHelper.now(),
         },
       });

@@ -15,7 +15,7 @@ export class CheckoutRepository {
       let total = 0.0;
       for (const coupon of coupon_prices) {
         if (coupon.amount_type == 'percentage') {
-          total += subtotal * Number(coupon.amount);
+          total += (subtotal * Number(coupon.amount)) / 100;
         } else {
           total += Number(coupon.amount);
         }

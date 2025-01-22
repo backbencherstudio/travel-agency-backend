@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { PackageCancellationPolicyService } from './package-cancellation-policy.service';
 import { CreatePackageCancellationPolicyDto } from './dto/create-package-cancellation-policy.dto';
@@ -17,11 +18,12 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { Role } from 'src/common/guard/role/role.enum';
 import { ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 
 @ApiBearerAuth()
 @ApiTags('Package Cancellation Policy')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.VENDOR)
 @Controller('admin/package-cancellation-policy')
 export class PackageCancellationPolicyController {
   constructor(
@@ -31,12 +33,16 @@ export class PackageCancellationPolicyController {
   @ApiOperation({ summary: 'Create package cancellation policy' })
   @Post()
   async create(
+    @Req() req: Request,
     @Body()
     createPackageCancellationPolicyDto: CreatePackageCancellationPolicyDto,
   ) {
     try {
+      const user_id = req.user.userId;
+
       const packageCancellationPolicy =
         await this.packageCancellationPolicyService.create(
+          user_id,
           createPackageCancellationPolicyDto,
         );
       return packageCancellationPolicy;
@@ -81,14 +87,18 @@ export class PackageCancellationPolicyController {
   @ApiOperation({ summary: 'Update a package cancellation policy' })
   @Patch(':id')
   async update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body()
     updatePackageCancellationPolicyDto: UpdatePackageCancellationPolicyDto,
   ) {
     try {
+      const user_id = req.user.userId;
+
       const packageCancellationPolicy =
         await this.packageCancellationPolicyService.update(
           id,
+          user_id,
           updatePackageCancellationPolicyDto,
         );
       return packageCancellationPolicy;
