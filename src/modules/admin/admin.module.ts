@@ -14,6 +14,7 @@ import { ExtraServiceModule } from './extra-service/extra-service.module';
 import { CouponModule } from './coupon/coupon.module';
 import { LanguageModule } from './language/language.module';
 import { TravellerTypeModule } from './traveller-type/traveller-type.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TravellerTypeModule } from './traveller-type/traveller-type.module';
     CouponModule,
     LanguageModule,
     TravellerTypeModule,
+    ReviewsModule,
   ],
 })
 export class AdminModule {}
