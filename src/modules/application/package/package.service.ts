@@ -33,9 +33,9 @@ export class PackageService extends PrismaClient {
       budget_start?: number;
       budget_end?: number;
       ratings?: number[];
-      free_cancellation?: boolean;
+      free_cancellation?: string[];
       destinations?: string[];
-      languages?: string;
+      languages?: string[];
     };
   }) {
     try {
@@ -65,6 +65,10 @@ export class PackageService extends PrismaClient {
       }
 
       if (ratings) {
+        // if not array
+        if (!Array.isArray(ratings)) {
+          ratings = [ratings];
+        }
         whereClause['reviews'] = {
           some: {
             rating_value: {
@@ -73,19 +77,38 @@ export class PackageService extends PrismaClient {
           },
         };
       }
+
       if (free_cancellation) {
+        // if not array
+        if (!Array.isArray(free_cancellation)) {
+          free_cancellation = [free_cancellation];
+        }
         whereClause['cancellation_policy'] = {
-          policy: 'free_cancellation',
-        };
-      }
-      if (destinations) {
-        whereClause['destination'] = {
           id: {
-            in: destinations,
+            in: free_cancellation,
           },
         };
       }
+
+      if (destinations) {
+        // if not array
+        if (!Array.isArray(destinations)) {
+          destinations = [destinations];
+        }
+
+        whereClause['package_destinations'] = {
+          some: {
+            destination_id: {
+              in: destinations,
+            },
+          },
+        };
+      }
+
       if (languages) {
+        if (!Array.isArray(languages)) {
+          languages = [languages];
+        }
         whereClause['package_languages'] = {
           some: {
             language_id: {
@@ -388,6 +411,18 @@ export class PackageService extends PrismaClient {
       if (createReviewDto.comment) {
         data['comment'] = createReviewDto.comment;
       }
+
+      // check if package exists
+      const packageRecord = await this.prisma.package.findFirst({
+        where: { id: package_id },
+      });
+      if (!packageRecord) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
       // check if user has review
       const review = await this.prisma.review.findFirst({
         where: { user_id: user_id, package_id: package_id },
@@ -420,6 +455,17 @@ export class PackageService extends PrismaClient {
 
   async removeReview(package_id: string, review_id: string, user_id: string) {
     try {
+      // check if package exists
+      const packageRecord = await this.prisma.package.findFirst({
+        where: { id: package_id },
+      });
+      if (!packageRecord) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
       // check if user has review
       const review = await this.prisma.review.findFirst({
         where: { id: review_id, user_id: user_id },
