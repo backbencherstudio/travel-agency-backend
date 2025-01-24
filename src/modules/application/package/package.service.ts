@@ -147,6 +147,16 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_traveller_types: {
+            select: {
+              traveller_type: {
+                select: {
+                  id: true,
+                  type: true,
+                },
+              },
+            },
+          },
           package_languages: {
             select: {
               language: {
@@ -265,6 +275,16 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_traveller_types: {
+            select: {
+              traveller_type: {
+                select: {
+                  id: true,
+                  type: true,
+                },
+              },
+            },
+          },
           package_languages: {
             select: {
               language: {

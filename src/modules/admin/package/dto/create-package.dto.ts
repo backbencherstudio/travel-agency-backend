@@ -98,6 +98,9 @@ export class CreatePackageDto {
   @ApiProperty()
   excluded_packages: string;
 
+  @ApiProperty()
+  traveller_types?: string;
+
   // @IsNotEmpty()
   @ApiProperty()
   // trip_plans: {

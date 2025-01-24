@@ -167,6 +167,28 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // add traveller_type to package
+      if (createPackageDto.traveller_types) {
+        const traveller_types = JSON.parse(createPackageDto.traveller_types);
+        for (const traveller_type of traveller_types) {
+          const existing_traveller_type =
+            await this.prisma.packageTravellerType.findFirst({
+              where: {
+                package_id: record.id,
+                traveller_type_id: traveller_type.id,
+              },
+            });
+          if (!existing_traveller_type) {
+            await this.prisma.packageTravellerType.create({
+              data: {
+                package_id: record.id,
+                traveller_type_id: traveller_type.id,
+              },
+            });
+          }
+        }
+      }
+
       // add language to package
       if (createPackageDto.languages) {
         const languages = JSON.parse(createPackageDto.languages);
@@ -775,6 +797,29 @@ export class PackageService extends PrismaClient {
           }
         }
       }
+
+      // add traveller_type to package
+      if (updatePackageDto.traveller_types) {
+        const traveller_types = JSON.parse(updatePackageDto.traveller_types);
+        for (const traveller_type of traveller_types) {
+          const existing_traveller_type =
+            await this.prisma.packageTravellerType.findFirst({
+              where: {
+                package_id: record.id,
+                traveller_type_id: traveller_type.id,
+              },
+            });
+          if (!existing_traveller_type) {
+            await this.prisma.packageTravellerType.create({
+              data: {
+                package_id: record.id,
+                traveller_type_id: traveller_type.id,
+              },
+            });
+          }
+        }
+      }
+
       // add category to package
       if (updatePackageDto.package_category) {
         // const package_category = JSON.parse(createPackageDto.package_category);
