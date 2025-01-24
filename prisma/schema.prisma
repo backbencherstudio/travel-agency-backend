@@ -321,6 +321,22 @@ model Package {
   @@map("packages")
 }
 
+// this table stores type of people
+model TravellerType {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // traveller type
+  // available values:
+  // adult, child, infant
+  type String?
+
+  @@map("traveller_types")
+}
+
 // this table stores package language relationship
 model PackageLanguage {
   // id         String    @id @default(cuid())
