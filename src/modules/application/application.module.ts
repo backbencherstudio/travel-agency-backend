@@ -8,6 +8,7 @@ import { PackageModule } from './package/package.module';
 import { BookingModule } from './booking/booking.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { CancellationPolicyModule } from './cancellation-policy/cancellation-policy.module';
+import { LanguageModule } from './language/language.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CancellationPolicyModule } from './cancellation-policy/cancellation-pol
     BookingModule,
     CheckoutModule,
     CancellationPolicyModule,
+    LanguageModule,
   ],
 })
 export class ApplicationModule {}

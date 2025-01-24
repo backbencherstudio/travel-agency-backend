@@ -4,7 +4,6 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { CreateReviewDto } from './dto/create-review.dto';
-import { DateHelper } from '../../../common/helper/date.helper';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -23,18 +22,20 @@ export class PackageService extends PrismaClient {
       ratings,
       free_cancellation,
       destinations,
+      languages,
     },
   }: {
     filters: {
       q?: string;
       type?: string;
-      duration_start?: Date;
-      duration_end?: Date;
+      duration_start?: string;
+      duration_end?: string;
       budget_start?: number;
       budget_end?: number;
       ratings?: number[];
       free_cancellation?: boolean;
       destinations?: string[];
+      languages?: string;
     };
   }) {
     try {
@@ -46,17 +47,23 @@ export class PackageService extends PrismaClient {
         whereClause['type'] = type;
       }
       if (duration_start && duration_end) {
-        whereClause['duration'] = {
-          gte: DateHelper.format(duration_start),
-          lte: DateHelper.format(duration_end),
-        };
+        // const diff = DateHelper.diff(duration_start, duration_end, 'day') + 1;
+        // whereClause['duration'] = {
+        //   gte: DateHelper.format(duration_start),
+        //   lte: DateHelper.format(duration_end),
+        // };
       }
-      if (budget_start && budget_end) {
+      if (budget_start) {
         whereClause['price'] = {
-          gte: budget_start,
-          lte: budget_end,
+          gte: Number(budget_start),
+          // lte: Number(budget_end),
         };
+
+        if (budget_end) {
+          whereClause['price']['lte'] = Number(budget_end);
+        }
       }
+
       if (ratings) {
         whereClause['reviews'] = {
           some: {
@@ -75,6 +82,15 @@ export class PackageService extends PrismaClient {
         whereClause['destination'] = {
           id: {
             in: destinations,
+          },
+        };
+      }
+      if (languages) {
+        whereClause['package_languages'] = {
+          some: {
+            language_id: {
+              in: languages,
+            },
           },
         };
       }
