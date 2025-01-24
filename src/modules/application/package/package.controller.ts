@@ -25,8 +25,6 @@ export class PackageController {
   @Get()
   async findAll(@Query() query: QueryPackageDto) {
     try {
-      console.log('des', query.destinations);
-
       const q = query.q;
       const type = query.type;
       const duration_start = query.duration_start;

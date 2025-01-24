@@ -69,10 +69,16 @@ export class PackageService extends PrismaClient {
         if (!Array.isArray(ratings)) {
           ratings = [ratings];
         }
+
+        const minRating = Math.min(...ratings);
+        const maxRating = Math.max(...ratings);
+
         whereClause['reviews'] = {
           some: {
             rating_value: {
-              in: ratings,
+              // in: ratings.map((rating) => Number(rating)),
+              gte: minRating,
+              lte: maxRating,
             },
           },
         };

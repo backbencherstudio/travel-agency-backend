@@ -1,8 +1,10 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class QueryPackageDto {
   @IsOptional()
+  @ApiProperty()
   q?: string;
 
   @IsOptional()
@@ -22,7 +24,6 @@ export class QueryPackageDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt({ each: true })
   ratings?: number[];
 
   @IsOptional()
