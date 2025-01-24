@@ -78,10 +78,13 @@ export class PackageService extends PrismaClient {
             rating_value: {
               // in: ratings.map((rating) => Number(rating)),
               gte: minRating,
-              lte: maxRating,
             },
           },
         };
+
+        if (ratings.length > 1) {
+          whereClause['reviews']['some']['rating_value']['lte'] = maxRating;
+        }
       }
 
       if (free_cancellation) {
