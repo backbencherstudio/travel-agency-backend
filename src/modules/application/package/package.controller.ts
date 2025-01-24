@@ -27,13 +27,14 @@ export class PackageController {
     query: {
       q?: string;
       type?: string;
-      duration_start?: Date;
-      duration_end?: Date;
+      duration_start?: string;
+      duration_end?: string;
       budget_start?: number;
       budget_end?: number;
       ratings?: number[];
       free_cancellation?: boolean;
       destinations?: string[];
+      languages?: string;
     },
   ) {
     try {
@@ -46,6 +47,7 @@ export class PackageController {
       const ratings = query.ratings;
       const free_cancellation = query.free_cancellation;
       const destinations = query.destinations;
+      const languages = query.languages;
 
       const packages = await this.packageService.findAll({
         filters: {
@@ -58,6 +60,7 @@ export class PackageController {
           ratings: ratings,
           free_cancellation: free_cancellation,
           destinations: destinations,
+          languages: languages,
         },
       });
       return packages;
