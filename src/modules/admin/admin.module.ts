@@ -13,6 +13,7 @@ import { WebsiteInfoModule } from './website-info/website-info.module';
 import { ExtraServiceModule } from './extra-service/extra-service.module';
 import { CouponModule } from './coupon/coupon.module';
 import { LanguageModule } from './language/language.module';
+import { TravellerTypeModule } from './traveller-type/traveller-type.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { LanguageModule } from './language/language.module';
     ExtraServiceModule,
     CouponModule,
     LanguageModule,
+    TravellerTypeModule,
   ],
 })
 export class AdminModule {}

@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PackageService } from './package.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { QueryPackageDto } from './dto/query-package.dto';
 
 @ApiTags('Package')
 @Controller('package')
@@ -22,21 +23,7 @@ export class PackageController {
 
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  async findAll(
-    @Query()
-    query: {
-      q?: string;
-      type?: string;
-      duration_start?: string;
-      duration_end?: string;
-      budget_start?: number;
-      budget_end?: number;
-      ratings?: number[];
-      free_cancellation?: boolean;
-      destinations?: string[];
-      languages?: string;
-    },
-  ) {
+  async findAll(@Query() query: QueryPackageDto) {
     try {
       const q = query.q;
       const type = query.type;

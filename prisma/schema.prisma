@@ -306,19 +306,55 @@ model Package {
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
 
-  package_files          PackageFile[]
-  reviews                Review[]
-  package_trip_plans     PackageTripPlan[]
-  package_categories     PackageCategory[]
-  package_tags           PackageTag[]
-  booking_items          BookingItem[]
-  package_extra_services PackageExtraService[]
-  checkout_items         CheckoutItem[]
-  checkout_extraServices CheckoutExtraService[]
-  package_destinations   PackageDestination[]
-  package_languages      PackageLanguage[]
+  package_files           PackageFile[]
+  reviews                 Review[]
+  package_trip_plans      PackageTripPlan[]
+  package_categories      PackageCategory[]
+  package_tags            PackageTag[]
+  booking_items           BookingItem[]
+  package_extra_services  PackageExtraService[]
+  checkout_items          CheckoutItem[]
+  checkout_extraServices  CheckoutExtraService[]
+  package_destinations    PackageDestination[]
+  package_languages       PackageLanguage[]
+  package_traveller_types PackageTravellerType[]
 
   @@map("packages")
+}
+
+// this table stores type of people
+model TravellerType {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // traveller type
+  // available values:
+  // adult, child, infant
+  type                    String?
+  package_traveller_types PackageTravellerType[]
+
+  @@map("traveller_types")
+}
+
+// this table stores package traveller-type relationship
+model PackageTravellerType {
+  // id         String    @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  traveller_type_id String
+  traveller_type    TravellerType? @relation(fields: [traveller_type_id], references: [id], onDelete: Cascade)
+
+  type String? @default("allowed") // allowed, not_allowed
+
+  @@id([package_id, traveller_type_id])
+  @@map("package_traveller_types")
 }
 
 // this table stores package language relationship
