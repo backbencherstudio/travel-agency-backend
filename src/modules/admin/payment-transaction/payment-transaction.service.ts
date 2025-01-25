@@ -30,6 +30,8 @@ export class PaymentTransactionService extends PrismaClient {
             reference_number: true,
             status: true,
             provider: true,
+            amount: true,
+            currency: true,
             paid_amount: true,
             paid_currency: true,
             booking: {
@@ -93,6 +95,8 @@ export class PaymentTransactionService extends PrismaClient {
             reference_number: true,
             status: true,
             provider: true,
+            amount: true,
+            currency: true,
             paid_amount: true,
             paid_currency: true,
             booking: {
