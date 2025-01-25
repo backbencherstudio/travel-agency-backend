@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { UserRepository } from 'src/common/repository/user/user.repository';
+import { UserRepository } from '../../../common/repository/user/user.repository';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
 
 @Injectable()
 export class PaymentTransactionService extends PrismaClient {
@@ -36,19 +38,29 @@ export class PaymentTransactionService extends PrismaClient {
                 invoice_number: true,
                 status: true,
                 total_amount: true,
-              },
-            },
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone_number: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatar: true,
+                  },
+                },
               },
             },
           },
         },
       );
+
+      // add avatar url
+      for (const paymentTransaction of paymentTransactions) {
+        if (paymentTransaction.booking.user.avatar) {
+          paymentTransaction.booking.user['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar +
+              paymentTransaction.booking.user.avatar,
+          );
+        }
+      }
+
       return {
         success: true,
         data: paymentTransactions,
@@ -89,14 +101,13 @@ export class PaymentTransactionService extends PrismaClient {
                 invoice_number: true,
                 status: true,
                 total_amount: true,
-              },
-            },
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone_number: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatar: true,
+                  },
+                },
               },
             },
           },
@@ -107,6 +118,14 @@ export class PaymentTransactionService extends PrismaClient {
           success: false,
           message: 'Payment transaction not found',
         };
+      }
+
+      // add avatar url
+      if (paymentTransaction.booking.user.avatar) {
+        paymentTransaction.booking.user['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar +
+            paymentTransaction.booking.user.avatar,
+        );
       }
 
       return {
