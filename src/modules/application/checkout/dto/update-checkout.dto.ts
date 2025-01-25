@@ -17,7 +17,7 @@ export class UpdateCheckoutDto extends PartialType(CreateCheckoutDto) {
   })
   phone_number?: string;
 
-  // @IsOptional()
+  @IsOptional()
   @IsString()
   @ApiProperty({
     description:

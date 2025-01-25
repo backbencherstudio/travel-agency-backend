@@ -162,11 +162,11 @@ export class BookingService extends PrismaClient {
         });
 
         // delete checkout
-        await prisma.checkout.delete({
-          where: {
-            id: checkout.id,
-          },
-        });
+        // await prisma.checkout.delete({
+        //   where: {
+        //     id: checkout.id,
+        //   },
+        // });
 
         return {
           success: true,
