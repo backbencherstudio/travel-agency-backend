@@ -161,6 +161,13 @@ export class BookingService extends PrismaClient {
           },
         });
 
+        // delete checkout
+        await prisma.checkout.delete({
+          where: {
+            id: checkout.id,
+          },
+        });
+
         return {
           success: true,
           message: 'Booking created successfully.',
