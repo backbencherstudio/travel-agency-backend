@@ -966,6 +966,8 @@ model PaymentTransaction {
   // values: pending succeeded, processing, requires_payment_method
   status           String?  @default("pending")
   raw_status       String? // e.g. succeeded, processing, requires_payment_method
+  amount           Decimal?
+  currency         String?
   paid_amount      Decimal?
   paid_currency    String?
 

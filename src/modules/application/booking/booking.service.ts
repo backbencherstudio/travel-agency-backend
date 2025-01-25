@@ -160,6 +160,13 @@ export class BookingService extends PrismaClient {
             status: 'pending',
           },
         });
+        // await TransactionRepository.createTransaction({
+        //   booking_id: booking.id,
+        //   reference_number: paymentIntent.id,
+        //   amount: total_price,
+        //   currency: 'usd',
+        //   status: 'pending',
+        // });
 
         // delete checkout
         await prisma.checkout.delete({

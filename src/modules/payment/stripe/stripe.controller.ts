@@ -25,33 +25,39 @@ export class StripeController {
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
           // Update transaction status in database
-          await TransactionRepository.updateTransaction(
-            paymentIntent.id,
-            'succeeded',
-          );
+          await TransactionRepository.updateTransaction({
+            reference_number: paymentIntent.id,
+            status: 'succeeded',
+            paid_amount: paymentIntent.amount,
+            paid_currency: paymentIntent.currency,
+            raw_status: paymentIntent.status,
+          });
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;
           // Update transaction status in database
-          await TransactionRepository.updateTransaction(
-            failedPaymentIntent.id,
-            'failed',
-          );
+          await TransactionRepository.updateTransaction({
+            reference_number: failedPaymentIntent.id,
+            status: 'failed',
+            raw_status: failedPaymentIntent.status,
+          });
         case 'payment_intent.canceled':
           const canceledPaymentIntent = event.data.object;
           // Update transaction status in database
-          await TransactionRepository.updateTransaction(
-            canceledPaymentIntent.id,
-            'canceled',
-          );
+          await TransactionRepository.updateTransaction({
+            reference_number: canceledPaymentIntent.id,
+            status: 'canceled',
+            raw_status: canceledPaymentIntent.status,
+          });
           break;
         case 'payment_intent.requires_action':
           const requireActionPaymentIntent = event.data.object;
           // Update transaction status in database
-          await TransactionRepository.updateTransaction(
-            requireActionPaymentIntent.id,
-            'canceled',
-          );
+          await TransactionRepository.updateTransaction({
+            reference_number: requireActionPaymentIntent.id,
+            status: 'requires_action',
+            raw_status: requireActionPaymentIntent.status,
+          });
           break;
         default:
           console.log(`Unhandled event type ${event.type}`);
