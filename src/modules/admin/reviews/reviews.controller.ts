@@ -1,24 +1,27 @@
-import { Controller, Get, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Request } from 'express';
 
 @ApiBearerAuth()
 @ApiTags('Reviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.VENDOR)
-@Controller('reviews')
+@Controller('admin/reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  @ApiResponse({ description: 'Create review' })
+  @ApiResponse({ description: 'Get all reviews' })
   @Get()
-  async findAll() {
+  async findAll(@Req() req: Request) {
     try {
-      const reviews = await this.reviewsService.findAll();
+      const user_id = req.user.userId;
+
+      const reviews = await this.reviewsService.findAll(user_id);
       return reviews;
     } catch (error) {
       return {
@@ -28,7 +31,7 @@ export class ReviewsController {
     }
   }
 
-  @ApiResponse({ description: 'Get one' })
+  @ApiResponse({ description: 'Get one review' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
@@ -43,8 +46,18 @@ export class ReviewsController {
     }
   }
 
+  @ApiResponse({ description: 'Delete review' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.reviewsService.remove(id);
+  async remove(@Param('id') id: string) {
+    try {
+      const result = await this.reviewsService.remove(id);
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }
