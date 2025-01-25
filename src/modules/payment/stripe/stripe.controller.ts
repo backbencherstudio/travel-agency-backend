@@ -14,7 +14,7 @@ export class StripeController {
   ) {
     try {
       const payload = req.rawBody.toString();
-      const event = await this.stripeService.handleWebhook(signature, payload);
+      const event = await this.stripeService.handleWebhook(payload, signature);
 
       // Handle events
       switch (event.type) {

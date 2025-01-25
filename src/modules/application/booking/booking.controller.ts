@@ -3,9 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -14,7 +12,6 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
 
 @ApiBearerAuth()
 @ApiTags('Booking')
@@ -46,23 +43,35 @@ export class BookingController {
     }
   }
 
+  @ApiOperation({ summary: 'Get all bookings' })
   @Get()
-  findAll() {
-    return this.bookingService.findAll();
+  async findAll(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const bookings = await this.bookingService.findAll(user_id);
+
+      return bookings;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
+  @ApiOperation({ summary: 'Get one booking' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.bookingService.findOne(+id);
-  }
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const booking = await this.bookingService.findOne(id, user_id);
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBookingDto: UpdateBookingDto) {
-    return this.bookingService.update(+id, updateBookingDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.bookingService.remove(+id);
+      return booking;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }

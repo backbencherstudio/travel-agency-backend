@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
@@ -39,6 +38,13 @@ export class BookingService extends PrismaClient {
           return {
             success: false,
             message: 'Checkout not found',
+          };
+        }
+
+        if (!user_id) {
+          return {
+            success: false,
+            message: 'User not found',
           };
         }
 
@@ -155,6 +161,13 @@ export class BookingService extends PrismaClient {
           },
         });
 
+        // delete checkout
+        await prisma.checkout.delete({
+          where: {
+            id: checkout.id,
+          },
+        });
+
         return {
           success: true,
           message: 'Booking created successfully.',
@@ -173,19 +186,79 @@ export class BookingService extends PrismaClient {
     }
   }
 
-  findAll() {
-    return `This action returns all booking`;
+  async findAll(user_id: string) {
+    try {
+      const bookings = await this.booking.findMany({
+        where: {
+          user_id: user_id,
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          email: true,
+          phone_number: true,
+          address1: true,
+          address2: true,
+          city: true,
+          state: true,
+          zip_code: true,
+          country: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: bookings,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} booking`;
-  }
+  async findOne(id: string, user_id: string) {
+    try {
+      const booking = await this.booking.findUnique({
+        where: {
+          id: id,
+          user_id: user_id,
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          email: true,
+          phone_number: true,
+          address1: true,
+          address2: true,
+          city: true,
+          state: true,
+          zip_code: true,
+          country: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
 
-  update(id: number, updateBookingDto: UpdateBookingDto) {
-    return `This action updates a #${id} booking`;
-  }
+      if (!booking) {
+        return {
+          success: false,
+          message: 'Booking information not found',
+        };
+      }
 
-  remove(id: number) {
-    return `This action removes a #${id} booking`;
+      return {
+        success: true,
+        data: booking,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }
