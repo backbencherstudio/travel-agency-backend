@@ -5,7 +5,7 @@ export class ArrayHelper {
    * @param haystack
    * @returns
    */
-  public static inArray(needle, haystack: any[]) {
+  public static inArray(needle: any, haystack: any[]) {
     const length = haystack.length;
     for (let i = 0; i < length; i++) {
       if (haystack[i] == needle) return true;

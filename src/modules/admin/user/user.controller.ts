@@ -1,0 +1,95 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import { UserService } from './user.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Role } from '../../../common/guard/role/role.enum';
+import { Roles } from '../../../common/guard/role/roles.decorator';
+import { RolesGuard } from '../../../common/guard/role/roles.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+
+@ApiBearerAuth()
+@ApiTags('User')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+@Controller('admin/user')
+export class UserController {
+  constructor(private readonly userService: UserService) {}
+
+  @ApiResponse({ description: 'Create a user' })
+  @Post()
+  async create(@Body() createUserDto: CreateUserDto) {
+    try {
+      const user = await this.userService.create(createUserDto);
+      return user;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiResponse({ description: 'Get all users' })
+  @Get()
+  async findAll() {
+    try {
+      const users = await this.userService.findAll();
+      return users;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiResponse({ description: 'Get a user by id' })
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    try {
+      const user = await this.userService.findOne(id);
+      return user;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    try {
+      const user = await this.userService.update(id, updateUserDto);
+      return user;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    try {
+      const user = await this.userService.remove(id);
+      return user;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+}

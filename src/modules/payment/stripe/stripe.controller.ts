@@ -28,7 +28,7 @@ export class StripeController {
           await TransactionRepository.updateTransaction({
             reference_number: paymentIntent.id,
             status: 'succeeded',
-            paid_amount: paymentIntent.amount,
+            paid_amount: paymentIntent.amount / 100, // amount in dollars
             paid_currency: paymentIntent.currency,
             raw_status: paymentIntent.status,
           });

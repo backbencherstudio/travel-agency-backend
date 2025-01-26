@@ -5,6 +5,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
 import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
+import { UserRepository } from 'src/common/repository/user/user.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -146,17 +147,22 @@ export class BookingService extends PrismaClient {
           }
         }
 
+        const userDetails = await UserRepository.getUserDetails(user_id);
+
         // create payment intent
-        const paymentIntent = await StripePayment.createPaymentIntent(
-          total_price,
-          'usd',
-        );
+        const paymentIntent = await StripePayment.createPaymentIntent({
+          amount: total_price,
+          currency: 'usd',
+          customer_id: userDetails.billing_id,
+        });
 
         // create transaction
         await prisma.paymentTransaction.create({
           data: {
             booking_id: booking.id,
             reference_number: paymentIntent.id,
+            amount: total_price,
+            currency: 'usd',
             status: 'pending',
           },
         });

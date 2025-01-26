@@ -122,23 +122,20 @@ export class StripePayment {
     return session;
   }
 
-  static async createPaymentIntent(
-    amount: number,
-    currency: string,
-  ): Promise<stripe.PaymentIntent> {
+  static async createPaymentIntent({
+    amount,
+    currency,
+    customer_id,
+  }: {
+    amount: number;
+    currency: string;
+    customer_id: string;
+  }): Promise<stripe.PaymentIntent> {
     return Stripe.paymentIntents.create({
       amount: amount * 100, // amount in cents
-      currency,
+      currency: currency,
+      customer: customer_id,
     });
-  }
-
-  static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {
-    const event = Stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      STRIPE_WEBHOOK_SECRET,
-    );
-    return event;
   }
 
   /**
@@ -168,7 +165,35 @@ export class StripePayment {
       },
       success_url: success_url,
       cancel_url: cancel_url,
+      // automatic_tax: { enabled: true },
     });
     return session;
+  }
+
+  /**
+   * Calculate taxes
+   * @param amount
+   * @returns
+   */
+  static async calculateTaxes(amount: number): Promise<stripe.TaxRate> {
+    const taxes = await Stripe.taxRates.create({
+      display_name: 'Sales Tax',
+      inclusive: false,
+      percentage: 0.05,
+      description: 'Sales Tax',
+      country: 'US',
+      state: 'CA',
+      jurisdiction: 'US',
+    });
+    return taxes;
+  }
+
+  static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {
+    const event = Stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      STRIPE_WEBHOOK_SECRET,
+    );
+    return event;
   }
 }
