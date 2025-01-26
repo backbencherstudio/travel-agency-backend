@@ -58,6 +58,7 @@ export class PageService extends PrismaClient {
       const packages = await this.prisma.package.findMany({
         where: {
           status: 1,
+          type: 'package',
         },
         take: 3,
         select: {
@@ -72,6 +73,16 @@ export class PageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_categories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package_traveller_types: {
             select: {
               traveller_type: {
