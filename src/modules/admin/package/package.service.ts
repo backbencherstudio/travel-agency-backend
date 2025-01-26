@@ -502,6 +502,16 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          package_traveller_types: {
+            select: {
+              traveller_type: {
+                select: {
+                  id: true,
+                  type: true,
+                },
+              },
+            },
+          },
         },
       });
 

@@ -10,7 +10,7 @@ import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 export class PackageService extends PrismaClient {
   constructor(
     private prisma: PrismaService,
-    private messageGateway: MessageGateway,
+    private readonly messageGateway: MessageGateway,
   ) {
     super();
   }

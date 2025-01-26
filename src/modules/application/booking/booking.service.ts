@@ -224,10 +224,42 @@ export class BookingService extends PrismaClient {
     }
   }
 
-  async findAll(user_id: string) {
+  async findAll({
+    user_id,
+    q,
+    status = null,
+    approve,
+  }: {
+    user_id?: string;
+    q?: string;
+    status?: number;
+    approve?: string;
+  }) {
     try {
+      const where_condition = {};
+      // search using q
+      if (q) {
+        where_condition['OR'] = [
+          { invoice_number: { contains: q, mode: 'insensitive' } },
+          { user: { name: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
+
+      if (status) {
+        where_condition['status'] = Number(status);
+      }
+
+      if (approve) {
+        if (approve === 'approved') {
+          where_condition['approved_at'] = { not: null };
+        } else {
+          where_condition['approved_at'] = null;
+        }
+      }
+
       const bookings = await this.booking.findMany({
         where: {
+          ...where_condition,
           user_id: user_id,
         },
         orderBy: {
@@ -252,6 +284,12 @@ export class BookingService extends PrismaClient {
                   name: true,
                 },
               },
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
             },
           },
           created_at: true,

@@ -74,7 +74,7 @@ export class BlogService extends PrismaClient {
   }: {
     q?: string;
     status?: number;
-    approve: string;
+    approve?: string;
   }) {
     try {
       const whereClause = {};

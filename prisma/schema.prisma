@@ -351,7 +351,7 @@ model PackageTravellerType {
   traveller_type_id String
   traveller_type    TravellerType? @relation(fields: [traveller_type_id], references: [id], onDelete: Cascade)
 
-  type String? @default("allowed") // allowed, not_allowed
+  type String? @default("not_allowed") // allowed, not_allowed
 
   @@id([package_id, traveller_type_id])
   @@map("package_traveller_types")

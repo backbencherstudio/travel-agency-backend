@@ -28,11 +28,21 @@ export class BookingController {
 
   @ApiOperation({ summary: 'Get all bookings' })
   @Get()
-  async findAll(@Req() req: Request, @Query() query: { q: string }) {
+  async findAll(
+    @Req() req: Request,
+    @Query() query: { q?: string; status?: number; approve?: string },
+  ) {
     try {
       const user_id = req.user.userId;
       const q = query.q;
-      const bookings = await this.bookingService.findAll({ user_id, q });
+      const status = query.status;
+      const approve = query.approve;
+      const bookings = await this.bookingService.findAll({
+        user_id,
+        q,
+        status,
+        approve,
+      });
 
       return bookings;
     } catch (error) {
