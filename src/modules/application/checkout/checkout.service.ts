@@ -22,6 +22,15 @@ export class CheckoutService extends PrismaClient {
   async create(user_id: string, createCheckoutDto: CreateCheckoutDto) {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {
+        const existingUserDetails =
+          await UserRepository.getUserDetails(user_id);
+
+        if (!existingUserDetails) {
+          return {
+            success: false,
+            message: 'User not found',
+          };
+        }
         const data = {};
         if (!createCheckoutDto.package_id) {
           return {
@@ -44,9 +53,23 @@ export class CheckoutService extends PrismaClient {
 
         const package_user_id = packageData.user_id;
 
+        if (!package_user_id) {
+          return {
+            success: false,
+            message: 'Package owner not found',
+          };
+        }
+
         // add vendor id if the package is from vendor
         const userDetails =
           await UserRepository.getUserDetails(package_user_id);
+
+        if (!userDetails) {
+          return {
+            success: false,
+            message: 'Package owner not found',
+          };
+        }
         if (userDetails && userDetails.type == 'vendor') {
           data['vendor_id'] = userDetails.id;
         }
@@ -427,9 +450,7 @@ export class CheckoutService extends PrismaClient {
         totalRating += review.rating_value;
         totalReviews++;
       }
-
       const averageRating = totalRating / totalReviews;
-
       checkoutData['average_rating'] = averageRating;
 
       return {

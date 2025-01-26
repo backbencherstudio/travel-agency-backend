@@ -601,8 +601,15 @@ export class PackageService extends PrismaClient {
         };
       }
 
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const record = await this.prisma.package.update({
-        where: { id: id, user_id: user_id },
+        where: { id: id, ...where_condition },
         data: {
           ...data,
           updated_at: DateHelper.now(),

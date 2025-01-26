@@ -58,6 +58,7 @@ export class PageService extends PrismaClient {
       const packages = await this.prisma.package.findMany({
         where: {
           status: 1,
+          type: 'package',
         },
         take: 3,
         select: {
@@ -72,6 +73,16 @@ export class PageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_categories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package_traveller_types: {
             select: {
               traveller_type: {
@@ -167,6 +178,30 @@ export class PageService extends PrismaClient {
             }
           }
         }
+      }
+
+      // get reviews for the packages
+      for (const record of packages) {
+        const reviews = await this.prisma.review.findMany({
+          where: {
+            package_id: record.id,
+          },
+          select: {
+            id: true,
+            rating_value: true,
+            comment: true,
+          },
+        });
+
+        // calculate avarage rating
+        let totalRating = 0;
+        let totalReviews = 0;
+        for (const review of reviews) {
+          totalRating += review.rating_value;
+          totalReviews++;
+        }
+        const averageRating = totalRating / totalReviews;
+        record['average_rating'] = averageRating;
       }
 
       const reviews = await this.prisma.review.findMany({

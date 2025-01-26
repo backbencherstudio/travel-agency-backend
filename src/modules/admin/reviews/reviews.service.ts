@@ -47,7 +47,7 @@ export class ReviewsService extends PrismaClient {
 
       // add url to avatar
       for (const review of reviews) {
-        if (review.user.avatar) {
+        if (review.user && review.user.avatar) {
           review.user['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + review.user.avatar,
           );

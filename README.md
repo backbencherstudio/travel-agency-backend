@@ -45,6 +45,7 @@ yarn start:dev
 ```
 
 or just directly run using docker:
+
 ```
 docker compose up
 ```
@@ -63,6 +64,10 @@ Then run.
 yarn start:prod
 ```
 
+## Api documentation
+
+Swagger: http://{domain_name}/api/docs
+
 ## Tech used
 
 - Typescript
@@ -70,4 +75,5 @@ yarn start:prod
 - Nest.js
 - Prisma
 - Postgres
+- Redis
 - etc.

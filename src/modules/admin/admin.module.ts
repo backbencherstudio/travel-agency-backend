@@ -17,6 +17,7 @@ import { TravellerTypeModule } from './traveller-type/traveller-type.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentTransactionModule } from './payment-transaction/payment-transaction.module';
 import { UserModule } from './user/user.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UserModule } from './user/user.module';
     ReviewsModule,
     PaymentTransactionModule,
     UserModule,
+    BookingModule,
   ],
 })
 export class AdminModule {}

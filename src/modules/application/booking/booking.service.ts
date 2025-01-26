@@ -6,6 +6,8 @@ import { BookingRepository } from '../../../common/repository/booking/booking.re
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
 import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
 import { UserRepository } from 'src/common/repository/user/user.repository';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+import appConfig from 'src/config/app.config';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -75,6 +77,9 @@ export class BookingService extends PrismaClient {
         if (checkout.country) {
           data['country'] = checkout.country;
         }
+        if (checkout.vendor_id) {
+          data['vendor_id'] = checkout.vendor_id;
+        }
 
         // create invoice number
         const invoice_number = await BookingRepository.createInvoiceNumber();
@@ -86,16 +91,18 @@ export class BookingService extends PrismaClient {
           data: {
             ...data,
             invoice_number: invoice_number,
+            total_amount: total_price,
             user_id: user_id,
           },
         });
 
+        // create booking-extra-services
         if (checkout.checkout_extra_services.length > 0) {
           for (const extra_service of checkout.checkout_extra_services) {
             await prisma.bookingExtraService.create({
               data: {
                 booking_id: booking.id,
-                extra_service_id: extra_service.id,
+                extra_service_id: extra_service.extra_service_id,
               },
             });
           }
@@ -150,20 +157,28 @@ export class BookingService extends PrismaClient {
 
         const currency = 'usd';
         // calculate tax
-        const tax_calculation = await StripePayment.calculateTax({
-          amount: total_price,
-          currency: currency,
-          customer_id: userDetails.billing_id,
-        });
+        // const tax_calculation = await StripePayment.calculateTax({
+        //   amount: total_price,
+        //   currency: currency,
+        //   customer_details: {
+        //     address: {
+        //       city: checkout.city,
+        //       country: checkout.country,
+        //       line1: checkout.address1,
+        //       postal_code: checkout.zip_code,
+        //       state: checkout.state,
+        //     },
+        //   },
+        // });
 
         // create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent({
           amount: total_price,
           currency: currency,
           customer_id: userDetails.billing_id,
-          metadata: {
-            tax_calculation: tax_calculation.id,
-          },
+          // metadata: {
+          //   tax_calculation: tax_calculation.id,
+          // },
         });
 
         // create transaction
@@ -253,14 +268,77 @@ export class BookingService extends PrismaClient {
         select: {
           id: true,
           invoice_number: true,
+          status: true,
+          vendor_id: true,
+          user_id: true,
+          type: true,
+          total_amount: true,
+          payment_status: true,
+          payment_raw_status: true,
+          paid_amount: true,
+          paid_currency: true,
+          first_name: true,
+          last_name: true,
           email: true,
           phone_number: true,
           address1: true,
           address2: true,
           city: true,
           state: true,
-          zip_code: true,
-          country: true,
+          comments: true,
+          user: {
+            select: {
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  name: true,
+                  price: true,
+                },
+              },
+            },
+          },
+          booking_extra_services: {
+            select: {
+              extra_service: {
+                select: {
+                  name: true,
+                  price: true,
+                },
+              },
+            },
+          },
+          booking_travellers: {
+            select: {
+              full_name: true,
+              type: true,
+            },
+          },
+          booking_coupons: {
+            select: {
+              coupon: {
+                select: {
+                  name: true,
+                  amount: true,
+                  amount_type: true,
+                },
+              },
+            },
+          },
+          payment_transactions: {
+            select: {
+              amount: true,
+              currency: true,
+              paid_amount: true,
+              paid_currency: true,
+              status: true,
+            },
+          },
           created_at: true,
           updated_at: true,
         },
@@ -271,6 +349,13 @@ export class BookingService extends PrismaClient {
           success: false,
           message: 'Booking information not found',
         };
+      }
+
+      // add avatar url
+      if (booking.user && booking.user.avatar) {
+        booking.user['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + booking.user.avatar,
+        );
       }
 
       return {
