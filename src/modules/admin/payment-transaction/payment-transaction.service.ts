@@ -55,7 +55,11 @@ export class PaymentTransactionService extends PrismaClient {
 
       // add avatar url
       for (const paymentTransaction of paymentTransactions) {
-        if (paymentTransaction.booking.user.avatar) {
+        if (
+          paymentTransaction.booking &&
+          paymentTransaction.booking.user &&
+          paymentTransaction.booking.user.avatar
+        ) {
           paymentTransaction.booking.user['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar +
               paymentTransaction.booking.user.avatar,
