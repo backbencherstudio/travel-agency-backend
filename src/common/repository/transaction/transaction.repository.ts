@@ -61,18 +61,42 @@ export class TransactionRepository {
     raw_status?: string;
   }) {
     const data = {};
+    const booking_data = {};
     if (status) {
       data['status'] = status;
+      booking_data['payment_status'] = status;
     }
     if (paid_amount) {
       data['paid_amount'] = Number(paid_amount);
+      booking_data['paid_amount'] = Number(paid_amount);
     }
     if (paid_currency) {
       data['paid_currency'] = paid_currency;
+      booking_data['paid_currency'] = paid_currency;
     }
     if (raw_status) {
       data['raw_status'] = raw_status;
+      booking_data['payment_raw_status'] = raw_status;
     }
+
+    const paymentTransaction = await prisma.paymentTransaction.findMany({
+      where: {
+        reference_number: reference_number,
+      },
+    });
+
+    // update booking status
+    if (paymentTransaction.length > 0) {
+      await prisma.booking.update({
+        where: {
+          id: paymentTransaction[0].booking_id,
+        },
+        data: {
+          ...booking_data,
+        },
+      });
+    }
+
     return await prisma.paymentTransaction.updateMany({
       where: {
         reference_number: reference_number,
