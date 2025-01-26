@@ -1,0 +1,222 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
+
+@Injectable()
+export class PageService extends PrismaClient {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
+
+  async homePage() {
+    try {
+      const destinations = await this.prisma.destination.findMany({
+        where: {
+          status: 1,
+        },
+        select: {
+          id: true,
+          name: true,
+          destination_images: {
+            select: {
+              image: true,
+            },
+          },
+          country: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      // add image url to destinations
+      if (destinations.length > 0) {
+        for (const destination of destinations) {
+          if (destination.destination_images.length > 0) {
+            for (const image of destination.destination_images) {
+              image['image_url'] = SojebStorage.url(
+                appConfig().storageUrl.destination + image.image,
+              );
+            }
+          }
+        }
+      }
+
+      const packages = await this.prisma.package.findMany({
+        where: {
+          status: 1,
+        },
+        select: {
+          id: true,
+          created_at: true,
+          updated_at: true,
+          user_id: true,
+          name: true,
+          description: true,
+          price: true,
+          duration: true,
+          min_capacity: true,
+          max_capacity: true,
+          type: true,
+          package_traveller_types: {
+            select: {
+              traveller_type: {
+                select: {
+                  id: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          package_languages: {
+            select: {
+              language: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          reviews: {
+            select: {
+              id: true,
+              rating_value: true,
+              comment: true,
+              user_id: true,
+            },
+          },
+          package_destinations: {
+            select: {
+              destination: {
+                select: {
+                  id: true,
+                  name: true,
+                  country: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          cancellation_policy: {
+            select: {
+              id: true,
+              policy: true,
+              description: true,
+            },
+          },
+          package_files: {
+            select: {
+              id: true,
+              file: true,
+            },
+          },
+          package_trip_plans: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              package_trip_plan_images: {
+                select: {
+                  id: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          package_tags: {
+            select: {
+              tag_id: true,
+              type: true,
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      // add image url package_files
+      if (packages && packages.length > 0) {
+        for (const record of packages) {
+          if (record.package_files) {
+            for (const file of record.package_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + file.file,
+              );
+            }
+          }
+        }
+      }
+
+      const reviews = await this.prisma.review.findMany({
+        where: {
+          status: 1,
+        },
+        take: 6,
+        select: {
+          id: true,
+          rating_value: true,
+          comment: true,
+          user_id: true,
+        },
+      });
+
+      const blogs = await this.prisma.blog.findMany({
+        where: {
+          status: 1,
+          approved_at: {
+            not: null,
+          },
+        },
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          read_time: true,
+          blog_images: {
+            select: {
+              image: true,
+            },
+          },
+        },
+      });
+
+      // add image url
+      for (const blog of blogs) {
+        if (blog.blog_images.length > 0) {
+          for (const image of blog.blog_images) {
+            image['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.blog + image.image,
+            );
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          destinations: destinations,
+          packages: packages,
+          reviews: reviews,
+          blogs: blogs,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+}

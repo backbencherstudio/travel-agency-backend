@@ -7,6 +7,7 @@ import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
 import { UserRepository } from '../../../common/repository/user/user.repository';
+import { StringHelper } from '../../../common/helper/string.helper';
 
 @Injectable()
 export class BlogService extends PrismaClient {
@@ -29,6 +30,7 @@ export class BlogService extends PrismaClient {
       }
       if (createBlogDto.body) {
         data['body'] = createBlogDto.body;
+        data['read_time'] = StringHelper.getReadTime(createBlogDto.body);
       }
 
       // add vendor id if the package is from vendor
@@ -96,11 +98,11 @@ export class BlogService extends PrismaClient {
           id: true,
           title: true,
           description: true,
-          body: true,
           approved_at: true,
           created_at: true,
           updated_at: true,
           status: true,
+          read_time: true,
           blog_images: {
             select: {
               image: true,
@@ -145,6 +147,7 @@ export class BlogService extends PrismaClient {
           title: true,
           description: true,
           body: true,
+          read_time: true,
           approved_at: true,
           created_at: true,
           updated_at: true,
@@ -207,6 +210,7 @@ export class BlogService extends PrismaClient {
       }
       if (updateBlogDto.body) {
         data['body'] = updateBlogDto.body;
+        data['read_time'] = StringHelper.getReadTime(updateBlogDto.body);
       }
       const blog = await this.prisma.blog.update({
         where: { id },
