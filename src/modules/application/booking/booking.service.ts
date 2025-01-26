@@ -230,6 +230,9 @@ export class BookingService extends PrismaClient {
         where: {
           user_id: user_id,
         },
+        orderBy: {
+          created_at: 'desc',
+        },
         select: {
           id: true,
           invoice_number: true,
@@ -241,6 +244,16 @@ export class BookingService extends PrismaClient {
           state: true,
           zip_code: true,
           country: true,
+          total_amount: true,
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
           created_at: true,
           updated_at: true,
         },

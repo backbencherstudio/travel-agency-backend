@@ -224,6 +224,9 @@ export class PageService extends PrismaClient {
             not: null,
           },
         },
+        orderBy: {
+          created_at: 'desc',
+        },
         take: 3,
         select: {
           id: true,
@@ -235,16 +238,36 @@ export class PageService extends PrismaClient {
               image: true,
             },
           },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
         },
       });
 
-      // add image url
-      for (const blog of blogs) {
-        if (blog.blog_images.length > 0) {
-          for (const image of blog.blog_images) {
-            image['image_url'] = SojebStorage.url(
-              appConfig().storageUrl.blog + image.image,
+      // add avatar url
+      if (blogs && blogs.length > 0) {
+        for (const blog of blogs) {
+          if (blog.user && blog.user.avatar) {
+            blog.user['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + blog.user.avatar,
             );
+          }
+        }
+      }
+
+      // add image url blog_images
+      if (blogs && blogs.length > 0) {
+        for (const blog of blogs) {
+          if (blog.blog_images && blog.blog_images.length > 0) {
+            for (const image of blog.blog_images) {
+              image['image_url'] = SojebStorage.url(
+                appConfig().storageUrl.blog + image.image,
+              );
+            }
           }
         }
       }
