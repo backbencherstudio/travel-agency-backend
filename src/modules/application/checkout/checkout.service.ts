@@ -427,9 +427,7 @@ export class CheckoutService extends PrismaClient {
         totalRating += review.rating_value;
         totalReviews++;
       }
-
       const averageRating = totalRating / totalReviews;
-
       checkoutData['average_rating'] = averageRating;
 
       return {
