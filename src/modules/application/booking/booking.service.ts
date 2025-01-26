@@ -92,10 +92,9 @@ export class BookingService extends PrismaClient {
 
         if (checkout.checkout_extra_services.length > 0) {
           for (const extra_service of checkout.checkout_extra_services) {
-            await prisma.checkoutExtraService.create({
+            await prisma.bookingExtraService.create({
               data: {
-                package_id: extra_service.package_id,
-                checkout_id: checkout.id,
+                booking_id: booking.id,
                 extra_service_id: extra_service.id,
               },
             });
