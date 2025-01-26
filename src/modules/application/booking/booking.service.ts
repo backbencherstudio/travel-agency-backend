@@ -277,6 +277,7 @@ export class BookingService extends PrismaClient {
           zip_code: true,
           country: true,
           total_amount: true,
+          payment_status: true,
           booking_items: {
             select: {
               package: {
