@@ -12,7 +12,17 @@ export class BookingService extends PrismaClient {
     super();
   }
 
-  async findAll({ user_id, q }: { user_id?: string; q?: string }) {
+  async findAll({
+    user_id,
+    q,
+    status = null,
+    approve,
+  }: {
+    user_id?: string;
+    q?: string;
+    status?: number;
+    approve?: string;
+  }) {
     try {
       const where_condition = {};
       // filter using vendor id if the package is from vendor
@@ -28,6 +38,18 @@ export class BookingService extends PrismaClient {
           { invoice_number: { contains: q, mode: 'insensitive' } },
           { user: { name: { contains: q, mode: 'insensitive' } } },
         ];
+      }
+
+      if (status) {
+        where_condition['status'] = Number(status);
+      }
+
+      if (approve) {
+        if (approve === 'approved') {
+          where_condition['approved_at'] = { not: null };
+        } else {
+          where_condition['approved_at'] = null;
+        }
       }
 
       const bookings = await this.prisma.booking.findMany({

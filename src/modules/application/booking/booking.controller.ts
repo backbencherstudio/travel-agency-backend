@@ -6,6 +6,7 @@ import {
   Param,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -45,10 +46,21 @@ export class BookingController {
 
   @ApiOperation({ summary: 'Get all bookings' })
   @Get()
-  async findAll(@Req() req: Request) {
+  async findAll(
+    @Req() req: Request,
+    @Query() query: { q?: string; status?: number; approve?: string },
+  ) {
     try {
       const user_id = req.user.userId;
-      const bookings = await this.bookingService.findAll(user_id);
+      const q = query.q;
+      const status = query.status;
+      const approve = query.approve;
+      const bookings = await this.bookingService.findAll({
+        user_id,
+        q,
+        status,
+        approve,
+      });
 
       return bookings;
     } catch (error) {
