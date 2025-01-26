@@ -126,15 +126,18 @@ export class StripePayment {
     amount,
     currency,
     customer_id,
+    metadata,
   }: {
     amount: number;
     currency: string;
     customer_id: string;
+    metadata?: stripe.MetadataParam;
   }): Promise<stripe.PaymentIntent> {
     return Stripe.paymentIntents.create({
       amount: amount * 100, // amount in cents
       currency: currency,
       customer: customer_id,
+      metadata: metadata,
     });
   }
 
@@ -175,17 +178,37 @@ export class StripePayment {
    * @param amount
    * @returns
    */
-  static async calculateTaxes(amount: number): Promise<stripe.TaxRate> {
-    const taxes = await Stripe.taxRates.create({
-      display_name: 'Sales Tax',
-      inclusive: false,
-      percentage: 0.05,
-      description: 'Sales Tax',
-      country: 'US',
-      state: 'CA',
-      jurisdiction: 'US',
+  static async calculateTax({
+    amount,
+    currency,
+    customer_id,
+  }: {
+    amount: number;
+    currency: string;
+    customer_id: string;
+  }): Promise<stripe.Tax.Calculation> {
+    const taxCalculation = await Stripe.tax.calculations.create({
+      currency: currency,
+      customer: customer_id,
+      line_items: [
+        {
+          amount: amount * 100,
+          tax_behavior: 'exclusive',
+        },
+      ],
     });
-    return taxes;
+    return taxCalculation;
+  }
+
+  // create a tax transaction
+  static async createTaxTransaction(
+    tax_calculation: string,
+  ): Promise<stripe.Tax.Transaction> {
+    const taxTransaction = await Stripe.tax.transactions.createFromCalculation({
+      calculation: tax_calculation,
+      reference: 'tax_transaction',
+    });
+    return taxTransaction;
   }
 
   static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {

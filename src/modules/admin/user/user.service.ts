@@ -34,9 +34,20 @@ export class UserService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll({ q }: { q?: string }) {
     try {
+      const whereClause = {};
+      if (q) {
+        whereClause['OR'] = [
+          { name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+        ];
+      }
+
       const users = await this.prisma.user.findMany({
+        where: {
+          ...whereClause,
+        },
         select: {
           id: true,
           name: true,

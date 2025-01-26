@@ -32,9 +32,9 @@ export class PageService extends PrismaClient {
         },
       });
 
-      // add image url to destinations
       if (destinations.length > 0) {
         for (const destination of destinations) {
+          // add image url to destinations
           if (destination.destination_images.length > 0) {
             for (const image of destination.destination_images) {
               image['image_url'] = SojebStorage.url(
@@ -42,6 +42,16 @@ export class PageService extends PrismaClient {
               );
             }
           }
+          // add tour count
+          destination['tour_count'] = await this.prisma.package.count({
+            where: {
+              package_destinations: {
+                some: {
+                  destination_id: destination.id,
+                },
+              },
+            },
+          });
         }
       }
 
@@ -49,6 +59,7 @@ export class PageService extends PrismaClient {
         where: {
           status: 1,
         },
+        take: 3,
         select: {
           id: true,
           created_at: true,
@@ -203,6 +214,17 @@ export class PageService extends PrismaClient {
         }
       }
 
+      const faqs = await this.prisma.faq.findMany({
+        orderBy: {
+          sort_order: 'asc',
+        },
+        select: {
+          id: true,
+          question: true,
+          answer: true,
+        },
+      });
+
       return {
         success: true,
         data: {
@@ -210,6 +232,7 @@ export class PageService extends PrismaClient {
           packages: packages,
           reviews: reviews,
           blogs: blogs,
+          faqs: faqs,
         },
       };
     } catch (error) {

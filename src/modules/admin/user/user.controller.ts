@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -41,9 +42,10 @@ export class UserController {
 
   @ApiResponse({ description: 'Get all users' })
   @Get()
-  async findAll() {
+  async findAll(@Query() query: { q?: string }) {
     try {
-      const users = await this.userService.findAll();
+      const q = query.q;
+      const users = await this.userService.findAll({ q });
       return users;
     } catch (error) {
       return {

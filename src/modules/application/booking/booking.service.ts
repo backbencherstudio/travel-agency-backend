@@ -148,11 +148,22 @@ export class BookingService extends PrismaClient {
 
         const userDetails = await UserRepository.getUserDetails(user_id);
 
+        const currency = 'usd';
+        // calculate tax
+        const tax_calculation = await StripePayment.calculateTax({
+          amount: total_price,
+          currency: currency,
+          customer_id: userDetails.billing_id,
+        });
+
         // create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent({
           amount: total_price,
-          currency: 'usd',
+          currency: currency,
           customer_id: userDetails.billing_id,
+          metadata: {
+            tax_calculation: tax_calculation.id,
+          },
         });
 
         // create transaction
