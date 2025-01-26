@@ -1,7 +1,8 @@
 import * as bcrypt from 'bcrypt';
-import { PrismaClient, User } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import appConfig from '../../../config/app.config';
-import { String } from 'aws-sdk/clients/cloudhsm';
+import { ArrayHelper } from '../../helper/array.helper';
+import { Role } from '../../guard/role/role.enum';
 
 const prisma = new PrismaClient();
 
@@ -99,7 +100,17 @@ export class UserRepository {
    * @param param0
    * @returns
    */
-  static async inviteUser({ name, username, email, role_id }) {
+  static async inviteUser({
+    name,
+    username,
+    email,
+    role_id,
+  }: {
+    name: string;
+    username: string;
+    email: string;
+    role_id: string;
+  }) {
     try {
       const user = await prisma.user.create({
         data: {
@@ -132,8 +143,8 @@ export class UserRepository {
     user_id,
     role_id,
   }: {
-    user_id: String;
-    role_id: String;
+    user_id: string;
+    role_id: string;
   }) {
     const role = await prisma.roleUser.create({
       data: {
@@ -181,16 +192,57 @@ export class UserRepository {
     email,
     password,
     role_id = null,
-  }): Promise<User> {
+    type = 'user',
+  }: {
+    name: string;
+    email: string;
+    password: string;
+    role_id?: string;
+    type?: string;
+  }) {
     try {
-      password = await bcrypt.hash(password, appConfig().security.salt);
+      const data = {};
+      if (name) {
+        data['name'] = name;
+      }
+      if (email) {
+        // Check if email already exist
+        const userEmailExist = await UserRepository.exist({
+          field: 'email',
+          value: String(email),
+        });
+
+        if (userEmailExist) {
+          return {
+            success: false,
+            message: 'Email already exist',
+          };
+        }
+
+        data['email'] = email;
+      }
+      if (password) {
+        data['password'] = await bcrypt.hash(
+          password,
+          appConfig().security.salt,
+        );
+      }
+
+      if (ArrayHelper.inArray(type, Object.values(Role))) {
+        data['type'] = type;
+      } else {
+        return {
+          success: false,
+          message: 'Invalid user type',
+        };
+      }
+
       const user = await prisma.user.create({
         data: {
-          name: name,
-          email: email,
-          password: password,
+          ...data,
         },
       });
+
       if (user) {
         if (role_id) {
           // attach role
@@ -200,17 +252,177 @@ export class UserRepository {
           });
         }
 
-        return user;
+        return {
+          success: true,
+          message: 'User created successfully',
+          data: user,
+        };
       } else {
-        return null;
+        return {
+          success: false,
+          message: 'User creation failed',
+        };
       }
     } catch (error) {
-      throw error;
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  /**
+   * create user under a tenant
+   * @param param0
+   * @returns
+   */
+  static async updateUser(
+    user_id: string,
+    {
+      name,
+      email,
+      password,
+      role_id = null,
+      type = 'user',
+    }: {
+      name?: string;
+      email?: string;
+      password?: string;
+      role_id?: string;
+      type?: string;
+    },
+  ) {
+    try {
+      const data = {};
+      if (name) {
+        data['name'] = name;
+      }
+      if (email) {
+        // Check if email already exist
+        const userEmailExist = await UserRepository.exist({
+          field: 'email',
+          value: String(email),
+        });
+
+        if (userEmailExist) {
+          return {
+            success: false,
+            message: 'Email already exist',
+          };
+        }
+        data['email'] = email;
+      }
+      if (password) {
+        data['password'] = await bcrypt.hash(
+          password,
+          appConfig().security.salt,
+        );
+      }
+
+      if (ArrayHelper.inArray(type, Object.values(Role))) {
+        data['type'] = type;
+      } else {
+        return {
+          success: false,
+          message: 'Invalid user type',
+        };
+      }
+
+      const existUser = await prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+      });
+
+      if (!existUser) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      const user = await prisma.user.update({
+        where: {
+          id: user_id,
+        },
+        data: {
+          ...data,
+        },
+      });
+
+      if (user) {
+        if (role_id) {
+          // attach role
+          await this.attachRole({
+            user_id: user.id,
+            role_id: role_id,
+          });
+        }
+
+        return {
+          success: true,
+          message: 'User updated successfully',
+          data: user,
+        };
+      } else {
+        return {
+          success: false,
+          message: 'User update failed',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  /**
+   * delete user
+   * @param param0
+   * @returns
+   */
+  static async deleteUser(user_id: string) {
+    try {
+      // check if user exist
+      const existUser = await prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+      });
+      if (!existUser) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      await prisma.user.delete({
+        where: {
+          id: user_id,
+        },
+      });
+      return {
+        success: true,
+        message: 'User deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 
   // change password
-  static async changePassword({ email, password }) {
+  static async changePassword({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) {
     try {
       password = await bcrypt.hash(password, appConfig().security.salt);
       const user = await prisma.user.update({
@@ -228,7 +440,13 @@ export class UserRepository {
   }
 
   // change email
-  static async changeEmail({ user_id, new_email }) {
+  static async changeEmail({
+    user_id,
+    new_email,
+  }: {
+    user_id: string;
+    new_email: string;
+  }) {
     try {
       const user = await prisma.user.update({
         where: {
@@ -245,7 +463,13 @@ export class UserRepository {
   }
 
   // validate password
-  static async validatePassword({ email, password }) {
+  static async validatePassword({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) {
     const user = await prisma.user.findFirst({
       where: {
         email: email,

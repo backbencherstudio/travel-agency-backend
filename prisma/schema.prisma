@@ -1078,6 +1078,8 @@ model Blog {
   description String? @db.Text
   body        String? @db.Text
 
+  read_time Int? @default(0) // in minutes
+
   // update according to like record count
   like_count Int? @default(0)
 

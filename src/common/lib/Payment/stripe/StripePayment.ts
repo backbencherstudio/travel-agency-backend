@@ -122,23 +122,23 @@ export class StripePayment {
     return session;
   }
 
-  static async createPaymentIntent(
-    amount: number,
-    currency: string,
-  ): Promise<stripe.PaymentIntent> {
+  static async createPaymentIntent({
+    amount,
+    currency,
+    customer_id,
+    metadata,
+  }: {
+    amount: number;
+    currency: string;
+    customer_id: string;
+    metadata?: stripe.MetadataParam;
+  }): Promise<stripe.PaymentIntent> {
     return Stripe.paymentIntents.create({
       amount: amount * 100, // amount in cents
-      currency,
+      currency: currency,
+      customer: customer_id,
+      metadata: metadata,
     });
-  }
-
-  static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {
-    const event = Stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      STRIPE_WEBHOOK_SECRET,
-    );
-    return event;
   }
 
   /**
@@ -168,7 +168,55 @@ export class StripePayment {
       },
       success_url: success_url,
       cancel_url: cancel_url,
+      // automatic_tax: { enabled: true },
     });
     return session;
+  }
+
+  /**
+   * Calculate taxes
+   * @param amount
+   * @returns
+   */
+  static async calculateTax({
+    amount,
+    currency,
+    customer_id,
+  }: {
+    amount: number;
+    currency: string;
+    customer_id: string;
+  }): Promise<stripe.Tax.Calculation> {
+    const taxCalculation = await Stripe.tax.calculations.create({
+      currency: currency,
+      customer: customer_id,
+      line_items: [
+        {
+          amount: amount * 100,
+          tax_behavior: 'exclusive',
+        },
+      ],
+    });
+    return taxCalculation;
+  }
+
+  // create a tax transaction
+  static async createTaxTransaction(
+    tax_calculation: string,
+  ): Promise<stripe.Tax.Transaction> {
+    const taxTransaction = await Stripe.tax.transactions.createFromCalculation({
+      calculation: tax_calculation,
+      reference: 'tax_transaction',
+    });
+    return taxTransaction;
+  }
+
+  static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {
+    const event = Stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      STRIPE_WEBHOOK_SECRET,
+    );
+    return event;
   }
 }

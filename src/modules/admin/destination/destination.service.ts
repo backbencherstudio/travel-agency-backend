@@ -105,6 +105,7 @@ export class DestinationService extends PrismaClient {
           }
         }
       }
+
       return {
         success: true,
         data: destinations,

@@ -5,6 +5,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
 import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
+import { UserRepository } from 'src/common/repository/user/user.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -91,10 +92,9 @@ export class BookingService extends PrismaClient {
 
         if (checkout.checkout_extra_services.length > 0) {
           for (const extra_service of checkout.checkout_extra_services) {
-            await prisma.checkoutExtraService.create({
+            await prisma.bookingExtraService.create({
               data: {
-                package_id: extra_service.package_id,
-                checkout_id: checkout.id,
+                booking_id: booking.id,
                 extra_service_id: extra_service.id,
               },
             });
@@ -146,17 +146,33 @@ export class BookingService extends PrismaClient {
           }
         }
 
+        const userDetails = await UserRepository.getUserDetails(user_id);
+
+        const currency = 'usd';
+        // calculate tax
+        const tax_calculation = await StripePayment.calculateTax({
+          amount: total_price,
+          currency: currency,
+          customer_id: userDetails.billing_id,
+        });
+
         // create payment intent
-        const paymentIntent = await StripePayment.createPaymentIntent(
-          total_price,
-          'usd',
-        );
+        const paymentIntent = await StripePayment.createPaymentIntent({
+          amount: total_price,
+          currency: currency,
+          customer_id: userDetails.billing_id,
+          metadata: {
+            tax_calculation: tax_calculation.id,
+          },
+        });
 
         // create transaction
         await prisma.paymentTransaction.create({
           data: {
             booking_id: booking.id,
             reference_number: paymentIntent.id,
+            amount: total_price,
+            currency: 'usd',
             status: 'pending',
           },
         });

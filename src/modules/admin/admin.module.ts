@@ -16,6 +16,7 @@ import { LanguageModule } from './language/language.module';
 import { TravellerTypeModule } from './traveller-type/traveller-type.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentTransactionModule } from './payment-transaction/payment-transaction.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PaymentTransactionModule } from './payment-transaction/payment-transact
     TravellerTypeModule,
     ReviewsModule,
     PaymentTransactionModule,
+    UserModule,
   ],
 })
 export class AdminModule {}

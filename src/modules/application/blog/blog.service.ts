@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import appConfig from '../../../config/app.config';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
-import { StringHelper } from '../../../common/helper/string.helper';
 import { LikeRepository } from '../../../common/repository/like/like.repository';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
@@ -29,8 +28,8 @@ export class BlogService extends PrismaClient {
         select: {
           id: true,
           title: true,
-          body: true,
           description: true,
+          read_time: true,
           created_at: true,
           status: true,
           user: {
@@ -61,11 +60,6 @@ export class BlogService extends PrismaClient {
         }
       }
 
-      // add read time
-      for (const blog of blogs) {
-        blog['read_time'] = StringHelper.getReadTime(blog.body);
-      }
-
       return {
         success: true,
         data: blogs,
@@ -88,6 +82,7 @@ export class BlogService extends PrismaClient {
           body: true,
           like_count: true,
           description: true,
+          read_time: true,
           created_at: true,
           status: true,
           user: {

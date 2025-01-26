@@ -215,7 +215,7 @@ export class AuthService extends PrismaClient {
 
       // create stripe customer account
       const stripeCustomer = await StripePayment.createCustomer({
-        user_id: user.id,
+        user_id: user.data.id,
         email: email,
         name: name,
       });
@@ -223,7 +223,7 @@ export class AuthService extends PrismaClient {
       if (stripeCustomer) {
         await this.prisma.user.update({
           where: {
-            id: user.id,
+            id: user.data.id,
           },
           data: {
             billing_id: stripeCustomer.id,
@@ -233,7 +233,7 @@ export class AuthService extends PrismaClient {
 
       // create otp code
       const token = await UcodeRepository.createToken({
-        userId: user.id,
+        userId: user.data.id,
         isOtp: true,
       });
 
