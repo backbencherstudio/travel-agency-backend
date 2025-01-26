@@ -181,19 +181,20 @@ export class StripePayment {
   static async calculateTax({
     amount,
     currency,
-    customer_id,
+    customer_details,
   }: {
     amount: number;
     currency: string;
-    customer_id: string;
+    customer_details: stripe.Tax.CalculationCreateParams.CustomerDetails;
   }): Promise<stripe.Tax.Calculation> {
     const taxCalculation = await Stripe.tax.calculations.create({
       currency: currency,
-      customer: customer_id,
+      customer_details: customer_details,
       line_items: [
         {
           amount: amount * 100,
           tax_behavior: 'exclusive',
+          reference: 'tax_calculation',
         },
       ],
     });

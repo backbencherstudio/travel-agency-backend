@@ -2,7 +2,6 @@ import { Controller, Post, Req, Headers } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
-import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
 
 @Controller('payment/stripe')
 export class StripeController {
@@ -26,9 +25,9 @@ export class StripeController {
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
           // create tax transaction
-          await StripePayment.createTaxTransaction(
-            paymentIntent.metadata['tax_calculation'],
-          );
+          // await StripePayment.createTaxTransaction(
+          //   paymentIntent.metadata['tax_calculation'],
+          // );
           // Update transaction status in database
           await TransactionRepository.updateTransaction({
             reference_number: paymentIntent.id,

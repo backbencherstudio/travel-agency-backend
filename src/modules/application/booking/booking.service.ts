@@ -90,12 +90,13 @@ export class BookingService extends PrismaClient {
           },
         });
 
+        // create booking-extra-services
         if (checkout.checkout_extra_services.length > 0) {
           for (const extra_service of checkout.checkout_extra_services) {
             await prisma.bookingExtraService.create({
               data: {
                 booking_id: booking.id,
-                extra_service_id: extra_service.id,
+                extra_service_id: extra_service.extra_service_id,
               },
             });
           }
@@ -150,20 +151,28 @@ export class BookingService extends PrismaClient {
 
         const currency = 'usd';
         // calculate tax
-        const tax_calculation = await StripePayment.calculateTax({
-          amount: total_price,
-          currency: currency,
-          customer_id: userDetails.billing_id,
-        });
+        // const tax_calculation = await StripePayment.calculateTax({
+        //   amount: total_price,
+        //   currency: currency,
+        //   customer_details: {
+        //     address: {
+        //       city: checkout.city,
+        //       country: checkout.country,
+        //       line1: checkout.address1,
+        //       postal_code: checkout.zip_code,
+        //       state: checkout.state,
+        //     },
+        //   },
+        // });
 
         // create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent({
           amount: total_price,
           currency: currency,
           customer_id: userDetails.billing_id,
-          metadata: {
-            tax_calculation: tax_calculation.id,
-          },
+          // metadata: {
+          //   tax_calculation: tax_calculation.id,
+          // },
         });
 
         // create transaction
