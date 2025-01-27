@@ -5,6 +5,7 @@ import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { MessageGateway } from '../../../modules/chat/message/message.gateway';
+import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -466,7 +467,7 @@ export class PackageService extends PrismaClient {
           message: 'You have already reviewed this package',
         };
       }
-      const createReview = await this.prisma.review.create({
+      await this.prisma.review.create({
         data: {
           ...data,
           package_id: package_id,
@@ -475,12 +476,20 @@ export class PackageService extends PrismaClient {
       });
 
       // notify the user that the package is reviewed
+      await NotificationRepository.createNotification({
+        sender_id: user_id,
+        receiver_id: packageRecord.user_id,
+        text: 'Your package has been reviewed',
+        type: 'review',
+        entity_id: package_id,
+      });
+
       this.messageGateway.server.emit('packageReview', {
-        package_id: package_id,
-        user_id: user_id,
-        review_id: createReview.id,
-        rating_value: createReview.rating_value,
-        comment: createReview.comment,
+        sender_id: user_id,
+        receiver_id: packageRecord.user_id,
+        text: 'Your package has been reviewed',
+        type: 'review',
+        entity_id: package_id,
       });
 
       return {
