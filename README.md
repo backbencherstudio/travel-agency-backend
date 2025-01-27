@@ -1,4 +1,4 @@
-# travel-agency-backend
+# Description
 
 Travel agency backend system created using nestjs
 
@@ -30,6 +30,16 @@ Install all dependencies
 yarn install
 ```
 
+## Setup
+
+Copy .env.example to .env and config according to your needs.
+
+Migrate database:
+
+```bash
+npx prisma migrate dev
+```
+
 Seed dummy data to database
 
 ```
@@ -38,30 +48,24 @@ yarn cmd seed
 
 ## Running:
 
-Running in development:
+```bash
+# development
+yarn start
 
-```
+# watch mode
 yarn start:dev
+
+# production mode
+yarn start:prod
+
+# watch mode with swc compiler (faster)
+yarn start:dev-swc
 ```
 
-or just directly run using docker:
+For docker:
 
 ```
 docker compose up
-```
-
-Running in production:
-
-First build the project.
-
-```
-yarn build
-```
-
-Then run.
-
-```
-yarn start:prod
 ```
 
 ## Api documentation
@@ -71,9 +75,10 @@ Swagger: http://{domain_name}/api/docs
 ## Tech used
 
 - Typescript
-- Node.js
 - Nest.js
 - Prisma
 - Postgres
+- Socket.io
+- Bullmq
 - Redis
 - etc.

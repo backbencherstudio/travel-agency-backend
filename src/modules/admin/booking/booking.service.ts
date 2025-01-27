@@ -56,6 +56,41 @@ export class BookingService extends PrismaClient {
         where: {
           ...where_condition,
         },
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          email: true,
+          phone_number: true,
+          address1: true,
+          address2: true,
+          city: true,
+          state: true,
+          zip_code: true,
+          country: true,
+          total_amount: true,
+          status: true,
+          payment_status: true,
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          created_at: true,
+          updated_at: true,
+        },
       });
 
       return {
