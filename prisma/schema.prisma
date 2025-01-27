@@ -221,7 +221,7 @@ model Notification {
   // user_who_fired_event
   sender_id   String?
   sender      User?   @relation("sender", fields: [sender_id], references: [id])
-  // user_to_notify, if it's null then notify all users, and if it's not null then notify only that user
+  // user_to_notify, if it's null then notify all admin, and if it's not null then notify only that user
   receiver_id String?
   receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
 

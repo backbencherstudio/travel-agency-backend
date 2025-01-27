@@ -19,10 +19,17 @@ export class NotificationRepository {
     type,
     entity_id,
   }: {
-    sender_id: string;
-    receiver_id: string;
-    text: string;
-    type?: 'message' | 'comment' | 'review' | 'booking' | 'payment_transaction';
+    sender_id?: string;
+    receiver_id?: string;
+    text?: string;
+    type?:
+      | 'message'
+      | 'comment'
+      | 'review'
+      | 'booking'
+      | 'payment_transaction'
+      | 'package'
+      | 'blog';
     entity_id?: string;
   }) {
     const notificationEventData = {};

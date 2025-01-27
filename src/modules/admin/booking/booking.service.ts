@@ -5,7 +5,6 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
-import { NotificationRepository } from 'src/common/repository/notification/notification.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {

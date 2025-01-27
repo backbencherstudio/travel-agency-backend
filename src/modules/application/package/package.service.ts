@@ -44,28 +44,30 @@ export class PackageService extends PrismaClient {
     };
   }) {
     try {
-      const whereClause = {};
+      const where_condition = {};
       if (q) {
-        whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
+        where_condition['OR'] = [
+          { title: { contains: q, mode: 'insensitive' } },
+        ];
       }
       if (type) {
-        whereClause['type'] = type;
+        where_condition['type'] = type;
       }
       if (duration_start && duration_end) {
         // const diff = DateHelper.diff(duration_start, duration_end, 'day') + 1;
-        // whereClause['duration'] = {
+        // where_condition['duration'] = {
         //   gte: DateHelper.format(duration_start),
         //   lte: DateHelper.format(duration_end),
         // };
       }
       if (budget_start) {
-        whereClause['price'] = {
+        where_condition['price'] = {
           gte: Number(budget_start),
           // lte: Number(budget_end),
         };
 
         if (budget_end) {
-          whereClause['price']['lte'] = Number(budget_end);
+          where_condition['price']['lte'] = Number(budget_end);
         }
       }
 
@@ -78,7 +80,7 @@ export class PackageService extends PrismaClient {
         const minRating = Math.min(...ratings);
         const maxRating = Math.max(...ratings);
 
-        whereClause['reviews'] = {
+        where_condition['reviews'] = {
           some: {
             rating_value: {
               // in: ratings.map((rating) => Number(rating)),
@@ -88,7 +90,7 @@ export class PackageService extends PrismaClient {
         };
 
         if (ratings.length > 1) {
-          whereClause['reviews']['some']['rating_value']['lte'] = maxRating;
+          where_condition['reviews']['some']['rating_value']['lte'] = maxRating;
         }
       }
 
@@ -97,7 +99,7 @@ export class PackageService extends PrismaClient {
         if (!Array.isArray(free_cancellation)) {
           free_cancellation = [free_cancellation];
         }
-        whereClause['cancellation_policy'] = {
+        where_condition['cancellation_policy'] = {
           id: {
             in: free_cancellation,
           },
@@ -110,7 +112,7 @@ export class PackageService extends PrismaClient {
           destinations = [destinations];
         }
 
-        whereClause['package_destinations'] = {
+        where_condition['package_destinations'] = {
           some: {
             destination_id: {
               in: destinations,
@@ -123,7 +125,7 @@ export class PackageService extends PrismaClient {
         if (!Array.isArray(languages)) {
           languages = [languages];
         }
-        whereClause['package_languages'] = {
+        where_condition['package_languages'] = {
           some: {
             language_id: {
               in: languages,
@@ -134,7 +136,7 @@ export class PackageService extends PrismaClient {
 
       const packages = await this.prisma.package.findMany({
         where: {
-          ...whereClause,
+          ...where_condition,
           status: 1,
           approved_at: {
             not: null,

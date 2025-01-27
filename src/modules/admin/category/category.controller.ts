@@ -21,11 +21,11 @@ import { Role } from '../../../common/guard/role/role.enum';
 @ApiBearerAuth()
 @ApiTags('Category')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create category' })
   @Post()
   async create(@Body() createCategoryDto: CreateCategoryDto) {
@@ -40,6 +40,7 @@ export class CategoryController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all categories' })
   @Get()
   async findAll(@Query() query: { q?: string; status?: number }) {
@@ -60,6 +61,7 @@ export class CategoryController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
@@ -73,6 +75,7 @@ export class CategoryController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update category' })
   @Patch(':id')
   async update(
@@ -90,6 +93,7 @@ export class CategoryController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {

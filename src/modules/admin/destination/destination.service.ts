@@ -6,6 +6,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @Injectable()
 export class DestinationService extends PrismaClient {
@@ -60,9 +61,19 @@ export class DestinationService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll(user_id: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const destinations = await this.prisma.destination.findMany({
+        where: {
+          ...where_condition,
+        },
         select: {
           id: true,
           name: true,
@@ -118,10 +129,17 @@ export class DestinationService extends PrismaClient {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user_id: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const destination = await this.prisma.destination.findUnique({
-        where: { id },
+        where: { id, ...where_condition },
         select: {
           id: true,
           name: true,
@@ -180,6 +198,23 @@ export class DestinationService extends PrismaClient {
     images?: Express.Multer.File[],
   ) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
+      // check exist destination
+      const destination = await this.prisma.destination.findUnique({
+        where: { id, user_id, ...where_condition },
+      });
+      if (!destination) {
+        return {
+          success: false,
+          message: 'Destination not found',
+        };
+      }
       const data: any = {};
       if (updateDestinationDto.name) {
         data.name = updateDestinationDto.name;
@@ -191,7 +226,7 @@ export class DestinationService extends PrismaClient {
         data.country_id = updateDestinationDto.country_id;
       }
       await this.prisma.destination.update({
-        where: { id, user_id },
+        where: { id, user_id, ...where_condition },
         data: {
           ...data,
           updated_at: DateHelper.now(),

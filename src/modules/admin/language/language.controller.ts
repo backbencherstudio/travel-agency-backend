@@ -20,11 +20,11 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 @ApiBearerAuth()
 @ApiTags('language')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/language')
 export class LanguageController {
   constructor(private readonly languageService: LanguageService) {}
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create language' })
   @Post()
   async create(@Body() createLanguageDto: CreateLanguageDto) {
@@ -39,6 +39,7 @@ export class LanguageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all languages' })
   @Get()
   async findAll() {
@@ -53,6 +54,7 @@ export class LanguageController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get one language' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -67,6 +69,7 @@ export class LanguageController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update language' })
   @Patch(':id')
   async update(
@@ -84,6 +87,7 @@ export class LanguageController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete language' })
   @Delete(':id')
   async remove(@Param('id') id: string) {

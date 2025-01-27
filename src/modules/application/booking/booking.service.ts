@@ -383,10 +383,42 @@ export class BookingService extends PrismaClient {
           },
           booking_items: {
             select: {
+              start_date: true,
+              end_date: true,
               package: {
                 select: {
+                  id: true,
                   name: true,
                   price: true,
+                  package_files: {
+                    select: {
+                      file: true,
+                    },
+                  },
+                  package_destinations: {
+                    select: {
+                      destination: {
+                        select: {
+                          name: true,
+                          country: {
+                            select: {
+                              name: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  reviews: {
+                    select: {
+                      id: true,
+                      rating_value: true,
+                      comment: true,
+                      user_id: true,
+                      created_at: true,
+                      updated_at: true,
+                    },
+                  },
                 },
               },
             },
@@ -444,6 +476,29 @@ export class BookingService extends PrismaClient {
         booking.user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + booking.user.avatar,
         );
+      }
+
+      // add image url to package
+      for (const booking_item of booking.booking_items) {
+        for (const file of booking_item.package.package_files) {
+          if (file.file) {
+            file['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.package + file.file,
+            );
+          }
+        }
+      }
+
+      for (const items of booking.booking_items) {
+        // calculate avarage rating
+        let totalRating = 0;
+        let totalReviews = 0;
+        for (const review of items.package.reviews) {
+          totalRating += review.rating_value;
+          totalReviews++;
+        }
+        const averageRating = totalRating / totalReviews;
+        items['average_rating'] = averageRating;
       }
 
       return {

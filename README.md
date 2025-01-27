@@ -19,7 +19,7 @@ stripe listen --forward-to localhost:4000/api/payment/stripe/webhook
 trigger a event for testing:
 
 ```
-stripe trigger invoice.payment_succeeded
+stripe trigger payment_intent.succeeded
 ```
 
 ## Installation

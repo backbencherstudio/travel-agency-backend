@@ -91,9 +91,10 @@ export class PackageController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  async findAll() {
+  async findAll(@Req() req: Request) {
     try {
-      const packages = await this.packageService.findAll();
+      const user_id = req.user.userId;
+      const packages = await this.packageService.findAll(user_id);
       return packages;
     } catch (error) {
       return {
@@ -106,9 +107,10 @@ export class PackageController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get package by id' })
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Req() req: Request, @Param('id') id: string) {
     try {
-      const record = await this.packageService.findOne(id);
+      const user_id = req.user.userId;
+      const record = await this.packageService.findOne(id, user_id);
       return record;
     } catch (error) {
       return {
@@ -181,11 +183,17 @@ export class PackageController {
   @ApiOperation({ summary: 'Update package status' })
   @Patch(':id/status')
   async updateStatus(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: { status: number },
   ) {
     try {
-      const record = await this.packageService.updateStatus(id, body.status);
+      const user_id = req.user.userId;
+      const record = await this.packageService.updateStatus(
+        id,
+        body.status,
+        user_id,
+      );
 
       return record;
     } catch (error) {

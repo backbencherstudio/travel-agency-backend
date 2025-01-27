@@ -20,11 +20,11 @@ import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 @ApiBearerAuth()
 @ApiTags('Extra Service')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/extra-service')
 export class ExtraServiceController {
   constructor(private readonly extraServiceService: ExtraServiceService) {}
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create extra service' })
   @Post()
   async create(@Body() createExtraServiceDto: CreateExtraServiceDto) {
@@ -42,6 +42,7 @@ export class ExtraServiceController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all extra services' })
   @Get()
   async findAll() {
@@ -57,6 +58,7 @@ export class ExtraServiceController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get extra service by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -72,6 +74,7 @@ export class ExtraServiceController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update extra service' })
   @Patch(':id')
   async update(
@@ -93,6 +96,7 @@ export class ExtraServiceController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete extra service' })
   @Delete(':id')
   async remove(@Param('id') id: string) {
