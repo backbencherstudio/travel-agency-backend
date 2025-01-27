@@ -185,7 +185,17 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async register({ name, email, password }) {
+  async register({
+    name,
+    email,
+    password,
+    type,
+  }: {
+    name: string;
+    email: string;
+    password: string;
+    type?: string;
+  }) {
     try {
       // Check if email already exist
       const userEmailExist = await UserRepository.exist({
@@ -204,6 +214,7 @@ export class AuthService extends PrismaClient {
         name: name,
         email: email,
         password: password,
+        type: type,
       });
 
       if (user == null) {

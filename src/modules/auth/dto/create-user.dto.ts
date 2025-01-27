@@ -13,5 +13,11 @@ export class CreateUserDto {
   @IsNotEmpty()
   @MinLength(8, { message: 'Password should be minimum 8' })
   @ApiProperty()
-  password: number;
+  password: string;
+
+  @ApiProperty({
+    type: String,
+    example: 'user',
+  })
+  type?: string;
 }

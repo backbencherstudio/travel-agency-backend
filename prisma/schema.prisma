@@ -42,6 +42,9 @@ model User {
   deleted_at DateTime?
   status     Int?      @default(1) @db.SmallInt
 
+  // approved_at is used for admin approval for vendor approving
+  approved_at DateTime?
+
   // available values:
   // online, busy, offline
   availability String?

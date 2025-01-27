@@ -53,6 +53,7 @@ export class AuthController {
     const name = data.name;
     const email = data.email;
     const password = data.password;
+    const type = data.type;
 
     if (!name) {
       throw new HttpException('Name not provided', HttpStatus.UNAUTHORIZED);
@@ -68,6 +69,7 @@ export class AuthController {
       name: name,
       email: email,
       password: password,
+      type: type,
     });
   }
 
