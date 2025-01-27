@@ -34,12 +34,25 @@ export class PaymentTransactionService extends PrismaClient {
             currency: true,
             paid_amount: true,
             paid_currency: true,
+            created_at: true,
+            updated_at: true,
             booking: {
               select: {
                 id: true,
                 invoice_number: true,
                 status: true,
                 total_amount: true,
+                booking_items: {
+                  select: {
+                    id: true,
+                    package: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
                 user: {
                   select: {
                     id: true,
@@ -103,12 +116,25 @@ export class PaymentTransactionService extends PrismaClient {
             currency: true,
             paid_amount: true,
             paid_currency: true,
+            created_at: true,
+            updated_at: true,
             booking: {
               select: {
                 id: true,
                 invoice_number: true,
                 status: true,
                 total_amount: true,
+                booking_items: {
+                  select: {
+                    id: true,
+                    package: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
                 user: {
                   select: {
                     id: true,
@@ -129,7 +155,11 @@ export class PaymentTransactionService extends PrismaClient {
       }
 
       // add avatar url
-      if (paymentTransaction.booking.user.avatar) {
+      if (
+        paymentTransaction.booking &&
+        paymentTransaction.booking.user &&
+        paymentTransaction.booking.user.avatar
+      ) {
         paymentTransaction.booking.user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar +
             paymentTransaction.booking.user.avatar,

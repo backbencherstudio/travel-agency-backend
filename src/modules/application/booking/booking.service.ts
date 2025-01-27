@@ -5,13 +5,18 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
 import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
-import { UserRepository } from 'src/common/repository/user/user.repository';
-import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
-import appConfig from 'src/config/app.config';
+import { UserRepository } from '../../../common/repository/user/user.repository';
+import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import appConfig from '../../../config/app.config';
+import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
+import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 
 @Injectable()
 export class BookingService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly messageGateway: MessageGateway,
+  ) {
     super();
   }
 
@@ -206,6 +211,24 @@ export class BookingService extends PrismaClient {
           },
         });
 
+        // send notification
+        await NotificationRepository.createNotification({
+          sender_id: user_id,
+          receiver_id: booking.vendor_id,
+          text: 'New booking created',
+          type: 'booking',
+          entity_id: booking.id,
+        });
+
+        // send message
+        this.messageGateway.server.emit('notification', {
+          sender_id: user_id,
+          receiver_id: booking.vendor_id,
+          text: 'New booking created',
+          type: 'booking',
+          entity_id: booking.id,
+        });
+
         return {
           success: true,
           message: 'Booking created successfully.',
@@ -278,6 +301,7 @@ export class BookingService extends PrismaClient {
           country: true,
           total_amount: true,
           payment_status: true,
+          status: true,
           booking_items: {
             select: {
               package: {

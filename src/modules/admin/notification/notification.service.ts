@@ -1,0 +1,100 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { SojebStorage } from 'src/common/lib/Disk/SojebStorage';
+import appConfig from 'src/config/app.config';
+import { UserRepository } from 'src/common/repository/user/user.repository';
+import { Role } from 'src/common/guard/role/role.enum';
+
+@Injectable()
+export class NotificationService extends PrismaClient {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
+
+  async findAll(user_id: string) {
+    try {
+      const where_condition = {};
+      const userDetails = await UserRepository.getUserDetails(user_id);
+
+      if (userDetails.type == Role.ADMIN) {
+        where_condition['receiver_id'] = user_id;
+      } else if (userDetails.type == Role.VENDOR) {
+        where_condition['receiver_id'] = user_id;
+      }
+
+      const notifications = await this.prisma.notification.findMany({
+        where: {
+          ...where_condition,
+        },
+        select: {
+          id: true,
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      });
+
+      // add url to avatar
+      if (notifications.length > 0) {
+        for (const notification of notifications) {
+          if (notification.sender && notification.sender.avatar) {
+            notification.sender['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + notification.sender.avatar,
+            );
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: notifications,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async remove(id: string, user_id: string) {
+    try {
+      // check if notification exists
+      const notification = await this.prisma.notification.findUnique({
+        where: {
+          id: id,
+          receiver_id: user_id,
+        },
+      });
+
+      if (!notification) {
+        return {
+          success: false,
+          message: 'Notification not found',
+        };
+      }
+
+      await this.prisma.notification.delete({
+        where: {
+          id: id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Notification deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+}

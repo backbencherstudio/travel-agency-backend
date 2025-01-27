@@ -197,9 +197,11 @@ model NotificationEvent {
   status     Int?      @default(1) @db.SmallInt
 
   // available values:
-  // message, task, project, comment
-  type          String?
-  text          String?        @db.Text
+  // message, comment, review, booking, payment_transaction
+  type String?
+  // e.g. "You have a new message from John Doe"
+  text String? @db.Text
+
   notifications Notification[]
 
   @@map("notification_events")
@@ -216,7 +218,7 @@ model Notification {
   // user_who_fired_event
   sender_id   String?
   sender      User?   @relation("sender", fields: [sender_id], references: [id])
-  // user_to_notify 
+  // user_to_notify, if it's null then notify all users, and if it's not null then notify only that user
   receiver_id String?
   receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
 
@@ -225,7 +227,7 @@ model Notification {
   notification_event    NotificationEvent? @relation(fields: [notification_event_id], references: [id])
 
   // entity id, e.g. message_id
-  entity_id Int?
+  entity_id String?
 
   // seen_by_user, Is message seen by user (receiver user)
   read_at DateTime?

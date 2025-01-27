@@ -83,6 +83,26 @@ export class BookingController {
     }
   }
 
+  // update status
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() updateBookingDto: UpdateBookingDto,
+  ) {
+    try {
+      const booking = await this.bookingService.updateStatus(
+        id,
+        updateBookingDto,
+      );
+      return booking;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {

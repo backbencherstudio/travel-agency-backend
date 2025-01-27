@@ -5,6 +5,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { NotificationRepository } from 'src/common/repository/notification/notification.repository';
 
 @Injectable()
 export class BookingService extends PrismaClient {
@@ -56,6 +57,41 @@ export class BookingService extends PrismaClient {
         where: {
           ...where_condition,
         },
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          invoice_number: true,
+          email: true,
+          phone_number: true,
+          address1: true,
+          address2: true,
+          city: true,
+          state: true,
+          zip_code: true,
+          country: true,
+          total_amount: true,
+          status: true,
+          payment_status: true,
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          created_at: true,
+          updated_at: true,
+        },
       });
 
       return {
@@ -106,6 +142,7 @@ export class BookingService extends PrismaClient {
             select: {
               package: {
                 select: {
+                  id: true,
                   name: true,
                   price: true,
                 },
@@ -181,6 +218,17 @@ export class BookingService extends PrismaClient {
 
   async update(id: string, updateBookingDto: UpdateBookingDto) {
     try {
+      // check if exists
+      const existBooking = await this.prisma.booking.findUnique({
+        where: { id },
+      });
+      if (!existBooking) {
+        return {
+          success: false,
+          message: 'Booking not found',
+        };
+      }
+
       const booking = await this.prisma.booking.update({
         where: { id },
         data: updateBookingDto,
@@ -189,6 +237,44 @@ export class BookingService extends PrismaClient {
       return {
         success: true,
         data: booking,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async updateStatus(id: string, updateBookingDto: UpdateBookingDto) {
+    try {
+      // check if exists
+      const existBooking = await this.prisma.booking.findUnique({
+        where: { id },
+      });
+      if (!existBooking) {
+        return {
+          success: false,
+          message: 'Booking not found',
+        };
+      }
+
+      await this.prisma.booking.update({
+        where: { id },
+        data: updateBookingDto,
+      });
+
+      // send notification
+      // await NotificationRepository.createNotification({
+      //   sender_id: booking.user_id,
+      //   receiver_id: booking.vendor_id,
+      //   text: 'Your booking has been updated',
+      //   type: 'booking',
+      // });
+
+      return {
+        success: true,
+        message: 'Booking status updated',
       };
     } catch (error) {
       return {
