@@ -265,6 +265,18 @@ export class BookingService extends PrismaClient {
         where_condition['OR'] = [
           { invoice_number: { contains: q, mode: 'insensitive' } },
           { user: { name: { contains: q, mode: 'insensitive' } } },
+          {
+            booking_items: {
+              some: {
+                package: {
+                  name: {
+                    contains: q,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
+          },
         ];
       }
 
