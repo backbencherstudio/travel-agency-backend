@@ -8,10 +8,15 @@ import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { StringHelper } from '../../../common/helper/string.helper';
+import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
+import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 
 @Injectable()
 export class BlogService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly messageGateway: MessageGateway,
+  ) {
     super();
   }
 
@@ -55,6 +60,24 @@ export class BlogService extends PrismaClient {
           })),
         });
       }
+
+      if (userDetails && userDetails.type != 'admin') {
+        // notify the admin that the package is created
+        await NotificationRepository.createNotification({
+          sender_id: user_id,
+          text: 'Blog has been created',
+          type: 'blog',
+          entity_id: blog.id,
+        });
+
+        this.messageGateway.server.emit('notification', {
+          sender_id: user_id,
+          text: 'Blog has been created',
+          type: 'blog',
+          entity_id: blog.id,
+        });
+      }
+
       return {
         success: true,
         message: 'Blog created successfully',

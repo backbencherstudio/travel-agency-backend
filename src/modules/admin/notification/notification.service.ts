@@ -18,7 +18,10 @@ export class NotificationService extends PrismaClient {
       const userDetails = await UserRepository.getUserDetails(user_id);
 
       if (userDetails.type == Role.ADMIN) {
-        where_condition['receiver_id'] = user_id;
+        where_condition['OR'] = [
+          { receiver_id: { equals: user_id } },
+          { receiver_id: { equals: null } },
+        ];
       } else if (userDetails.type == Role.VENDOR) {
         where_condition['receiver_id'] = user_id;
       }
@@ -29,12 +32,30 @@ export class NotificationService extends PrismaClient {
         },
         select: {
           id: true,
+          sender_id: true,
+          receiver_id: true,
+          entity_id: true,
           sender: {
             select: {
               id: true,
               name: true,
               email: true,
               avatar: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+          notification_event: {
+            select: {
+              id: true,
+              type: true,
+              text: true,
             },
           },
         },
@@ -46,6 +67,12 @@ export class NotificationService extends PrismaClient {
           if (notification.sender && notification.sender.avatar) {
             notification.sender['avatar_url'] = SojebStorage.url(
               appConfig().storageUrl.avatar + notification.sender.avatar,
+            );
+          }
+
+          if (notification.receiver && notification.receiver.avatar) {
+            notification.receiver['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + notification.receiver.avatar,
             );
           }
         }

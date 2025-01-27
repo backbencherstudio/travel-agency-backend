@@ -20,11 +20,11 @@ import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 @ApiBearerAuth()
 @ApiTags('Traveller Type')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/traveller-type')
 export class TravellerTypeController {
   constructor(private readonly travellerTypeService: TravellerTypeService) {}
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create traveller-type' })
   @Post()
   async create(@Body() createTravellerTypeDto: CreateTravellerTypeDto) {
@@ -42,6 +42,7 @@ export class TravellerTypeController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all traveller-type' })
   @Get()
   async findAll() {
@@ -57,6 +58,7 @@ export class TravellerTypeController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get one traveller-type' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -72,6 +74,7 @@ export class TravellerTypeController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update traveller-type' })
   @Patch(':id')
   async update(
@@ -93,6 +96,7 @@ export class TravellerTypeController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete traveller-type' })
   @Delete(':id')
   async remove(@Param('id') id: string) {

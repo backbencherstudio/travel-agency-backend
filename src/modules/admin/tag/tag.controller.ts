@@ -20,11 +20,11 @@ import { Role } from '../../../common/guard/role/role.enum';
 @ApiBearerAuth()
 @ApiTags('Tag')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('admin/tag')
 export class TagController {
   constructor(private readonly tagService: TagService) {}
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create tag' })
   @Post()
   async create(@Body() createTagDto: CreateTagDto) {
@@ -39,6 +39,7 @@ export class TagController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all tags' })
   @Get()
   async findAll() {
@@ -53,6 +54,7 @@ export class TagController {
     }
   }
 
+  @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get tag by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -67,6 +69,7 @@ export class TagController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update tag' })
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
@@ -81,6 +84,7 @@ export class TagController {
     }
   }
 
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete tag' })
   @Delete(':id')
   async remove(@Param('id') id: string) {

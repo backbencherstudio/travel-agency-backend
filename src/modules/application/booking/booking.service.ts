@@ -383,10 +383,32 @@ export class BookingService extends PrismaClient {
           },
           booking_items: {
             select: {
+              start_date: true,
+              end_date: true,
               package: {
                 select: {
+                  id: true,
                   name: true,
                   price: true,
+                  package_files: {
+                    select: {
+                      file: true,
+                    },
+                  },
+                  package_destinations: {
+                    select: {
+                      destination: {
+                        select: {
+                          name: true,
+                          country: {
+                            select: {
+                              name: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -444,6 +466,17 @@ export class BookingService extends PrismaClient {
         booking.user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + booking.user.avatar,
         );
+      }
+
+      // add image url to package
+      for (const booking_item of booking.booking_items) {
+        for (const file of booking_item.package.package_files) {
+          if (file.file) {
+            file['image_url'] = SojebStorage.url(
+              appConfig().storageUrl.package + file.file,
+            );
+          }
+        }
       }
 
       return {

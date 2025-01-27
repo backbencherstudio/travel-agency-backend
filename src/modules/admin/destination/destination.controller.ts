@@ -31,7 +31,7 @@ import { Request } from 'express';
 @ApiBearerAuth()
 @ApiTags('Destination')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.VENDOR)
 @Controller('admin/destination')
 export class DestinationController {
   constructor(private readonly destinationService: DestinationService) {}
@@ -85,9 +85,10 @@ export class DestinationController {
 
   @ApiOperation({ summary: 'Get all destinations' })
   @Get()
-  async findAll() {
+  async findAll(@Req() req: Request) {
     try {
-      const destinations = await this.destinationService.findAll();
+      const user_id = req.user.userId;
+      const destinations = await this.destinationService.findAll(user_id);
       return destinations;
     } catch (error) {
       return {
@@ -99,9 +100,10 @@ export class DestinationController {
 
   @ApiOperation({ summary: 'Get destination by id' })
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Req() req: Request, @Param('id') id: string) {
     try {
-      const destination = await this.destinationService.findOne(id);
+      const user_id = req.user.userId;
+      const destination = await this.destinationService.findOne(id, user_id);
       return destination;
     } catch (error) {
       return {

@@ -7,10 +7,15 @@ import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { DateHelper } from '../../../common/helper/date.helper';
 import { UserRepository } from '../../../common/repository/user/user.repository';
+import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
+import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 
 @Injectable()
 export class PackageService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly messageGateway: MessageGateway,
+  ) {
     super();
   }
 
@@ -269,6 +274,23 @@ export class PackageService extends PrismaClient {
         });
       }
 
+      if (userDetails && userDetails.type != 'admin') {
+        // notify the admin that the package is created
+        await NotificationRepository.createNotification({
+          sender_id: user_id,
+          text: 'Package has been created',
+          type: 'package',
+          entity_id: record.id,
+        });
+
+        this.messageGateway.server.emit('notification', {
+          sender_id: user_id,
+          text: 'Package has been created',
+          type: 'package',
+          entity_id: record.id,
+        });
+      }
+
       return {
         success: true,
         message: 'Package created successfully',
@@ -302,9 +324,17 @@ export class PackageService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll(user_id?: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const packages = await this.prisma.package.findMany({
+        where: { ...where_condition },
         select: {
           id: true,
           created_at: true,
@@ -389,10 +419,17 @@ export class PackageService extends PrismaClient {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user_id?: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const record = await this.prisma.package.findUnique({
-        where: { id: id },
+        where: { id: id, ...where_condition },
         select: {
           id: true,
           created_at: true,
@@ -983,10 +1020,17 @@ export class PackageService extends PrismaClient {
     }
   }
 
-  async updateStatus(id: string, status: number) {
+  async updateStatus(id: string, status: number, user_id: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       const record = await this.prisma.package.findUnique({
-        where: { id },
+        where: { id, ...where_condition },
       });
 
       if (!record) {
@@ -997,7 +1041,7 @@ export class PackageService extends PrismaClient {
       }
 
       await this.prisma.package.update({
-        where: { id },
+        where: { id, ...where_condition },
         data: { status: status },
       });
 

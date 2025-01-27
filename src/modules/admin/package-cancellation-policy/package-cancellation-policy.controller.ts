@@ -56,10 +56,11 @@ export class PackageCancellationPolicyController {
 
   @ApiOperation({ summary: 'Get all package cancellation policies' })
   @Get()
-  async findAll() {
+  async findAll(@Req() req: Request) {
     try {
+      const user_id = req.user.userId;
       const packageCancellationPolicies =
-        await this.packageCancellationPolicyService.findAll();
+        await this.packageCancellationPolicyService.findAll(user_id);
       return packageCancellationPolicies;
     } catch (error) {
       return {
@@ -71,10 +72,11 @@ export class PackageCancellationPolicyController {
 
   @ApiOperation({ summary: 'Get a package cancellation policy by id' })
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Req() req: Request, @Param('id') id: string) {
     try {
+      const user_id = req.user.userId;
       const packageCancellationPolicy =
-        await this.packageCancellationPolicyService.findOne(id);
+        await this.packageCancellationPolicyService.findOne(id, user_id);
       return packageCancellationPolicy;
     } catch (error) {
       return {

@@ -41,7 +41,13 @@ export class PackageCancellationPolicyService extends PrismaClient {
 
   async findAll(user_id?: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
+
       if (!userDetails) {
         return {
           success: false,
@@ -49,15 +55,10 @@ export class PackageCancellationPolicyService extends PrismaClient {
         };
       }
 
-      const whereClause = {};
-      if (userDetails.type == 'vendor') {
-        whereClause['user_id'] = user_id;
-      }
-
       const packageCancellationPolicies =
         await this.prisma.packageCancellationPolicy.findMany({
           where: {
-            ...whereClause,
+            ...where_condition,
           },
           select: {
             id: true,
@@ -82,7 +83,12 @@ export class PackageCancellationPolicyService extends PrismaClient {
 
   async findOne(id: string, user_id?: string) {
     try {
+      const where_condition = {};
+      // filter using vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
+      if (userDetails && userDetails.type == 'vendor') {
+        where_condition['user_id'] = user_id;
+      }
       if (!userDetails) {
         return {
           success: false,
@@ -90,14 +96,9 @@ export class PackageCancellationPolicyService extends PrismaClient {
         };
       }
 
-      const whereClause = {};
-      if (userDetails.type == 'vendor') {
-        whereClause['user_id'] = user_id;
-      }
-
       const packageCancellationPolicy =
         await this.prisma.packageCancellationPolicy.findUnique({
-          where: { id: id, ...whereClause },
+          where: { id: id, ...where_condition },
           select: {
             id: true,
             policy: true,
