@@ -409,6 +409,13 @@ export class BookingService extends PrismaClient {
                       },
                     },
                   },
+                  reviews: {
+                    select: {
+                      id: true,
+                      rating_value: true,
+                      comment: true,
+                    },
+                  },
                 },
               },
             },
@@ -477,6 +484,18 @@ export class BookingService extends PrismaClient {
             );
           }
         }
+      }
+
+      for (const items of booking.booking_items) {
+        // calculate avarage rating
+        let totalRating = 0;
+        let totalReviews = 0;
+        for (const review of items.package.reviews) {
+          totalRating += review.rating_value;
+          totalReviews++;
+        }
+        const averageRating = totalRating / totalReviews;
+        items['average_rating'] = averageRating;
       }
 
       return {
