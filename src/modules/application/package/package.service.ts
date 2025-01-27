@@ -484,7 +484,7 @@ export class PackageService extends PrismaClient {
         entity_id: package_id,
       });
 
-      this.messageGateway.server.emit('packageReview', {
+      this.messageGateway.server.emit('notification', {
         sender_id: user_id,
         receiver_id: packageRecord.user_id,
         text: 'Your package has been reviewed',

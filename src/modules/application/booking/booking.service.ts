@@ -221,7 +221,7 @@ export class BookingService extends PrismaClient {
         });
 
         // send message
-        this.messageGateway.server.emit('newBooking', {
+        this.messageGateway.server.emit('notification', {
           sender_id: user_id,
           receiver_id: booking.vendor_id,
           text: 'New booking created',
