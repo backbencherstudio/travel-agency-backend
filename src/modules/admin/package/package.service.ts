@@ -349,6 +349,13 @@ export class PackageService extends PrismaClient {
           min_capacity: true,
           max_capacity: true,
           type: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
           package_languages: {
             select: {
               language: {
