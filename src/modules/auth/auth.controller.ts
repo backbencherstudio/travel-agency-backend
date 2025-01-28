@@ -47,6 +47,23 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({ summary: 'Convert to vendor' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('convert-to-vendor')
+  async convertToVendor(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const response = await this.authService.convertToVendor(user_id);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @ApiOperation({ summary: 'Register a user' })
   @Post('register')
   async create(@Body() data: CreateUserDto) {

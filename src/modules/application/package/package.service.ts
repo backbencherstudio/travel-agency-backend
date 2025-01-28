@@ -6,6 +6,7 @@ import appConfig from '../../../config/app.config';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
+import { UpdateReviewDto } from './dto/update-review.dto';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -447,6 +448,9 @@ export class PackageService extends PrismaClient {
       if (createReviewDto.comment) {
         data['comment'] = createReviewDto.comment;
       }
+      if (createReviewDto.booking_id) {
+        data['booking_id'] = createReviewDto.booking_id;
+      }
 
       // check if package exists
       const packageRecord = await this.prisma.package.findFirst({
@@ -497,6 +501,78 @@ export class PackageService extends PrismaClient {
       return {
         success: true,
         message: 'Review created successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async updateReview(
+    package_id: string,
+    review_id: string,
+    user_id: string,
+    updateReviewDto: UpdateReviewDto,
+  ) {
+    try {
+      const data = {};
+      if (updateReviewDto.rating_value) {
+        data['rating_value'] = updateReviewDto.rating_value;
+      }
+      if (updateReviewDto.comment) {
+        data['comment'] = updateReviewDto.comment;
+      }
+
+      // check if package exists
+      const packageRecord = await this.prisma.package.findFirst({
+        where: { id: package_id },
+      });
+      if (!packageRecord) {
+        return {
+          success: false,
+          message: 'Package not found',
+        };
+      }
+
+      // check if user has review
+      const review = await this.prisma.review.findFirst({
+        where: { user_id: user_id, package_id: package_id },
+      });
+      if (!review) {
+        return {
+          success: false,
+          message: 'You have not reviewed this package',
+        };
+      }
+      await this.prisma.review.update({
+        where: { id: review_id },
+        data: {
+          ...data,
+        },
+      });
+
+      // notify the user that the package is reviewed
+      await NotificationRepository.createNotification({
+        sender_id: user_id,
+        receiver_id: packageRecord.user_id,
+        text: 'Your package has been reviewed',
+        type: 'review',
+        entity_id: package_id,
+      });
+
+      this.messageGateway.server.emit('notification', {
+        sender_id: user_id,
+        receiver_id: packageRecord.user_id,
+        text: 'Your package has been reviewed',
+        type: 'review',
+        entity_id: package_id,
+      });
+
+      return {
+        success: true,
+        message: 'Review updated successfully',
       };
     } catch (error) {
       return {

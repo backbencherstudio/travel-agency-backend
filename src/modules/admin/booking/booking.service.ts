@@ -29,7 +29,7 @@ export class BookingService extends PrismaClient {
       if (user_id) {
         const userDetails = await UserRepository.getUserDetails(user_id);
         if (userDetails && userDetails.type == 'vendor') {
-          where_condition['user_id'] = user_id;
+          where_condition['vendor_id'] = user_id;
         }
       }
       // search using q

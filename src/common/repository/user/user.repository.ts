@@ -482,4 +482,37 @@ export class UserRepository {
       return false;
     }
   }
+
+  // convert user type to admin/vendor
+  static async convertTo(user_id: string, type: string = 'vendor') {
+    try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+      if (!userDetails) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+      if (userDetails.type == 'vendor') {
+        return {
+          success: false,
+          message: 'User is already a vendor',
+        };
+      }
+      await prisma.user.update({
+        where: { id: user_id },
+        data: { type: type },
+      });
+
+      return {
+        success: true,
+        message: 'Converted to ' + type + ' successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }
