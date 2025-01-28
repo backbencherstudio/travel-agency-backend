@@ -388,21 +388,44 @@ export class BookingService extends PrismaClient {
               package: {
                 select: {
                   id: true,
+                  created_at: true,
+                  updated_at: true,
+                  status: true,
+                  approved_at: true,
+                  user_id: true,
                   name: true,
+                  description: true,
                   price: true,
                   duration: true,
-                  package_files: {
+                  min_capacity: true,
+                  max_capacity: true,
+                  type: true,
+                  user: {
                     select: {
-                      file: true,
+                      id: true,
+                      name: true,
+                      type: true,
+                    },
+                  },
+                  package_languages: {
+                    select: {
+                      language: {
+                        select: {
+                          id: true,
+                          name: true,
+                        },
+                      },
                     },
                   },
                   package_destinations: {
                     select: {
                       destination: {
                         select: {
+                          id: true,
                           name: true,
                           country: {
                             select: {
+                              id: true,
                               name: true,
                             },
                           },
@@ -410,14 +433,38 @@ export class BookingService extends PrismaClient {
                       },
                     },
                   },
+                  cancellation_policy_id: true,
+                  package_categories: {
+                    select: {
+                      category: {
+                        select: {
+                          id: true,
+                          name: true,
+                        },
+                      },
+                    },
+                  },
+                  package_files: {
+                    select: {
+                      id: true,
+                      file: true,
+                    },
+                  },
                   reviews: {
                     select: {
                       id: true,
+                      package_id: true,
                       rating_value: true,
                       comment: true,
-                      user_id: true,
                       created_at: true,
                       updated_at: true,
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          avatar: true,
+                        },
+                      },
                     },
                   },
                 },
@@ -501,6 +548,14 @@ export class BookingService extends PrismaClient {
         const averageRating = totalRating / totalReviews;
         items['average_rating'] = averageRating;
       }
+
+      // reviews count
+      const reviewsCount = await this.prisma.review.count({
+        where: {
+          package_id: booking.booking_items[0].package.id,
+        },
+      });
+      booking['reviews_count'] = reviewsCount;
 
       return {
         success: true,

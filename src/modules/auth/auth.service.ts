@@ -75,6 +75,19 @@ export class AuthService extends PrismaClient {
     }
   }
 
+  async convertToVendor(user_id: string) {
+    try {
+      const response = await UserRepository.convertTo(user_id, 'vendor');
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async updateUser(
     userId: string,
     updateUserDto: UpdateUserDto,

@@ -448,6 +448,9 @@ export class PackageService extends PrismaClient {
       if (createReviewDto.comment) {
         data['comment'] = createReviewDto.comment;
       }
+      if (createReviewDto.booking_id) {
+        data['booking_id'] = createReviewDto.booking_id;
+      }
 
       // check if package exists
       const packageRecord = await this.prisma.package.findFirst({
