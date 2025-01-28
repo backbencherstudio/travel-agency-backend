@@ -17,6 +17,10 @@ jobs:
           export $(cat .env | xargs)
         shell: bash
 
+      - name: Set DATABASE_URL from GitHub Secrets
+        run: echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
+
+
       - name: Install dependencies
         run: |
           yarn install
