@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -15,6 +16,7 @@ import { PackageService } from './package.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { QueryPackageDto } from './dto/query-package.dto';
+import { UpdateReviewDto } from 'src/modules/admin/reviews/dto/update-review.dto';
 
 @ApiTags('Package')
 @Controller('package')
@@ -89,6 +91,34 @@ export class PackageController {
         id,
         user_id,
         createReviewDto,
+      );
+      return review;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  // update review
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update review' })
+  @Patch(':id/review/:review_id')
+  async updateReview(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Param('review_id') review_id: string,
+    @Body() updateReviewDto: UpdateReviewDto,
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const review = await this.packageService.updateReview(
+        id,
+        review_id,
+        user_id,
+        updateReviewDto,
       );
       return review;
     } catch (error) {

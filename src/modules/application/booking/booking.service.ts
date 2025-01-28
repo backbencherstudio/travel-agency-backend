@@ -390,6 +390,7 @@ export class BookingService extends PrismaClient {
                   id: true,
                   name: true,
                   price: true,
+                  duration: true,
                   package_files: {
                     select: {
                       file: true,
