@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import appConfig from '../../../config/app.config';
 import { ArrayHelper } from '../../helper/array.helper';
 import { Role } from '../../guard/role/role.enum';
+import { DateHelper } from '../../helper/date.helper';
 
 const prisma = new PrismaClient();
 
@@ -228,13 +229,12 @@ export class UserRepository {
         );
       }
 
-      if (ArrayHelper.inArray(type, Object.values(Role))) {
+      if (type && ArrayHelper.inArray(type, Object.values(Role))) {
         data['type'] = type;
-      } else {
-        return {
-          success: false,
-          message: 'Invalid user type',
-        };
+
+        if (type == Role.VENDOR) {
+          data['approved_at'] = DateHelper.now();
+        }
       }
 
       const user = await prisma.user.create({
