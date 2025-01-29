@@ -104,6 +104,7 @@ export class UserService extends PrismaClient {
           name: true,
           email: true,
           type: true,
+          phone_number: true,
           approved_at: true,
           created_at: true,
           updated_at: true,
@@ -111,6 +112,29 @@ export class UserService extends PrismaClient {
           billing_id: true,
         },
       });
+
+      const user_reviews = await this.prisma.review.findMany({
+        where: {
+          user_id: user.id,
+        },
+      });
+
+      const reviews_count = await this.prisma.review.count({
+        where: {
+          user_id: user.id,
+        },
+      });
+
+      // calculate avarage rating
+      let totalRating = 0;
+      let totalReviews = 0;
+      for (const review of user_reviews) {
+        totalRating += review.rating_value;
+        totalReviews++;
+      }
+      const averageRating = totalRating / totalReviews;
+      user['average_rating'] = averageRating;
+      user['reviews_count'] = reviews_count;
 
       // add avatar url to user
       if (user.avatar) {
