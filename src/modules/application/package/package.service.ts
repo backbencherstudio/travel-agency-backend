@@ -48,7 +48,21 @@ export class PackageService extends PrismaClient {
       const where_condition = {};
       if (q) {
         where_condition['OR'] = [
-          { title: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q, mode: 'insensitive' } },
+          {
+            package_destinations: {
+              some: {
+                destination: { name: { contains: q, mode: 'insensitive' } },
+              },
+            },
+          },
+          {
+            package_languages: {
+              some: {
+                language: { name: { contains: q, mode: 'insensitive' } },
+              },
+            },
+          },
         ];
       }
       if (type) {
@@ -134,6 +148,8 @@ export class PackageService extends PrismaClient {
           },
         };
       }
+
+      console.dir(where_condition, { depth: null });
 
       const packages = await this.prisma.package.findMany({
         where: {

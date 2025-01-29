@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from 'src/common/guard/role/role.enum';
@@ -38,6 +46,22 @@ export class NotificationController {
     try {
       const user_id = req.user.userId;
       const notification = await this.notificationService.remove(id, user_id);
+
+      return notification;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Delete all notifications' })
+  @Delete()
+  async removeAll(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const notification = await this.notificationService.removeAll(user_id);
 
       return notification;
     } catch (error) {
