@@ -27,14 +27,18 @@ jobs:
           yarn install
 
       - name: Generate prisma client
-        run: npx prisma generate
+        run: |
+          cd /var/www/backend
+          npx prisma generate
 
       - name: Migrate prisma schema
         run: |
+          cd /var/www/backend
           npx prisma migrate deploy
 
       - name: Build application
         run: |
+          cd /var/www/backend
           yarn build
 
       - name: Deploy to VPS
