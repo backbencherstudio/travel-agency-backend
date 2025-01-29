@@ -12,6 +12,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Pull latest code
+        run: |
+          cd /var/www/backend
+          git fetch --all
+          git reset --hard origin/main
+          git pull origin main
+
       - name: Set DATABASE_URL from GitHub Secrets
         run: echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
 
@@ -32,5 +39,7 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          pm2 stop all || true
+          pm2 stop nestjs-app || true
+          pm2 delete nestjs-app || true
           pm2 start dist/main.js --name "nestjs-app"
+          pm2 save
