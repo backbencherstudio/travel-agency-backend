@@ -12,14 +12,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set environment variables from .env
-        run: |
-          export $(cat .env | xargs)
-        shell: bash
-
       - name: Set DATABASE_URL from GitHub Secrets
         run: echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
-
 
       - name: Install dependencies
         run: |

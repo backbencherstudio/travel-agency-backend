@@ -324,13 +324,36 @@ export class PackageService extends PrismaClient {
     }
   }
 
-  async findAll(user_id?: string) {
+  async findAll(
+    user_id?: string,
+    vendor_id?: string,
+    filters?: {
+      q?: string;
+      type?: string;
+    },
+  ) {
     try {
       const where_condition = {};
       // filter using vendor id if the package is from vendor
       const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type == 'vendor') {
         where_condition['user_id'] = user_id;
+      }
+
+      if (vendor_id) {
+        where_condition['user_id'] = vendor_id;
+      }
+
+      if (filters) {
+        if (filters.q) {
+          where_condition['name'] = {
+            contains: filters.q,
+            mode: 'insensitive',
+          };
+        }
+        if (filters.type) {
+          where_condition['type'] = filters.type;
+        }
       }
 
       const packages = await this.prisma.package.findMany({

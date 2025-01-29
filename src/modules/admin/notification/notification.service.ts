@@ -35,6 +35,7 @@ export class NotificationService extends PrismaClient {
           sender_id: true,
           receiver_id: true,
           entity_id: true,
+          created_at: true,
           sender: {
             select: {
               id: true,
@@ -96,7 +97,7 @@ export class NotificationService extends PrismaClient {
       const notification = await this.prisma.notification.findUnique({
         where: {
           id: id,
-          receiver_id: user_id,
+          // receiver_id: user_id,
         },
       });
 
@@ -116,6 +117,40 @@ export class NotificationService extends PrismaClient {
       return {
         success: true,
         message: 'Notification deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async removeAll(user_id: string) {
+    try {
+      // check if notification exists
+      const notifications = await this.prisma.notification.findMany({
+        where: {
+          OR: [{ receiver_id: user_id }, { receiver_id: null }],
+        },
+      });
+
+      if (notifications.length == 0) {
+        return {
+          success: false,
+          message: 'Notification not found',
+        };
+      }
+
+      await this.prisma.notification.deleteMany({
+        where: {
+          OR: [{ receiver_id: user_id }, { receiver_id: null }],
+        },
+      });
+
+      return {
+        success: true,
+        message: 'All notifications deleted successfully',
       };
     } catch (error) {
       return {

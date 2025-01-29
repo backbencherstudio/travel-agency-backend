@@ -29,6 +29,9 @@ export class PackageService extends PrismaClient {
       free_cancellation,
       destinations,
       languages,
+      cursor,
+      limit = 15,
+      page,
     },
   }: {
     filters: {
@@ -42,13 +45,31 @@ export class PackageService extends PrismaClient {
       free_cancellation?: string[];
       destinations?: string[];
       languages?: string[];
+      cursor?: string;
+      limit?: number;
+      page?: number;
     };
   }) {
     try {
       const where_condition = {};
+      const query_condition = {};
       if (q) {
         where_condition['OR'] = [
-          { title: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q, mode: 'insensitive' } },
+          {
+            package_destinations: {
+              some: {
+                destination: { name: { contains: q, mode: 'insensitive' } },
+              },
+            },
+          },
+          {
+            package_languages: {
+              some: {
+                language: { name: { contains: q, mode: 'insensitive' } },
+              },
+            },
+          },
         ];
       }
       if (type) {
@@ -135,6 +156,27 @@ export class PackageService extends PrismaClient {
         };
       }
 
+      // cursor based pagination
+      if (cursor) {
+        // where_condition['id'] = {
+        //   gt: cursor,
+        // };
+        query_condition['cursor'] = {
+          id: cursor,
+        };
+
+        query_condition['skip'] = 1;
+      }
+
+      // offset based pagination
+      if (page) {
+        query_condition['skip'] = (page - 1) * limit;
+      }
+
+      if (limit) {
+        query_condition['take'] = limit;
+      }
+
       const packages = await this.prisma.package.findMany({
         where: {
           ...where_condition,
@@ -143,6 +185,10 @@ export class PackageService extends PrismaClient {
             not: null,
           },
         },
+        orderBy: {
+          id: 'asc',
+        },
+        ...query_condition,
         select: {
           id: true,
           created_at: true,
@@ -253,8 +299,15 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      const pagination = {
+        current_page: page,
+        total_pages: Math.ceil(packages.length / limit),
+        cursor: cursor,
+      };
+
       return {
         success: true,
+        pagination: pagination,
         data: packages,
       };
     } catch (error) {
