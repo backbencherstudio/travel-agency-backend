@@ -1,18 +1,10 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Delete,
-  UseGuards,
-  Req,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Role } from 'src/common/guard/role/role.enum';
-import { Roles } from 'src/common/guard/role/roles.decorator';
-import { RolesGuard } from 'src/common/guard/role/roles.guard';
-import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { Role } from '../../../common/guard/role/role.enum';
+import { Roles } from '../../../common/guard/role/roles.decorator';
+import { RolesGuard } from '../../../common/guard/role/roles.guard';
+import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { Request } from 'express';
 
 @ApiBearerAuth()
