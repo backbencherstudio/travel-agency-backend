@@ -67,40 +67,61 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a user' })
   @Post('register')
   async create(@Body() data: CreateUserDto) {
-    const name = data.name;
-    const email = data.email;
-    const password = data.password;
-    const type = data.type;
+    try {
+      const name = data.name;
+      const email = data.email;
+      const password = data.password;
+      const type = data.type;
 
-    if (!name) {
-      throw new HttpException('Name not provided', HttpStatus.UNAUTHORIZED);
-    }
-    if (!email) {
-      throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
-    }
-    if (!password) {
-      throw new HttpException('Password not provided', HttpStatus.UNAUTHORIZED);
-    }
+      if (!name) {
+        throw new HttpException('Name not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!email) {
+        throw new HttpException('Email not provided', HttpStatus.UNAUTHORIZED);
+      }
+      if (!password) {
+        throw new HttpException(
+          'Password not provided',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
 
-    return await this.authService.register({
-      name: name,
-      email: email,
-      password: password,
-      type: type,
-    });
+      const response = await this.authService.register({
+        name: name,
+        email: email,
+        password: password,
+        type: type,
+      });
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
   @ApiOperation({ summary: 'Login user' })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Req() req: Request) {
-    const user_id = req.user.id;
-    const user_email = req.user.email;
+    try {
+      const user_id = req.user.id;
+      const user_email = req.user.email;
 
-    return await this.authService.login({
-      userId: user_id,
-      email: user_email,
-    });
+      const response = await this.authService.login({
+        userId: user_id,
+        email: user_email,
+      });
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
   @ApiOperation({ summary: 'Update user' })

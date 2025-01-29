@@ -229,16 +229,12 @@ export class UserRepository {
         );
       }
 
-      if (ArrayHelper.inArray(type, Object.values(Role))) {
+      if (type && ArrayHelper.inArray(type, Object.values(Role))) {
         data['type'] = type;
+
         if (type == Role.VENDOR) {
           data['approved_at'] = DateHelper.now();
         }
-      } else {
-        return {
-          success: false,
-          message: 'Invalid user type',
-        };
       }
 
       const user = await prisma.user.create({

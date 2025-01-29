@@ -230,7 +230,7 @@ export class AuthService extends PrismaClient {
         type: type,
       });
 
-      if (user == null) {
+      if (user == null && user.success == false) {
         return {
           success: false,
           message: 'Failed to create account',
