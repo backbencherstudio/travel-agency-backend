@@ -39,6 +39,7 @@ jobs:
 
       - name: Deploy to VPS
         run: |
+          cd /var/www/backend
           pm2 stop nestjs-app || true
           pm2 delete nestjs-app || true
           pm2 start dist/main.js --name "nestjs-app"
