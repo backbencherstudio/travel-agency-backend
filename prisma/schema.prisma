@@ -721,10 +721,11 @@ model Booking {
 
   invoice_number String? @unique
 
+  approved_at DateTime?
   // booking status
   // available values:
-  // pending, confirmed, canceled
-  status String? @default("pending")
+  // pending, processing, paused, confirmed, cancelled
+  status      String?   @default("pending")
 
   // booking type
   // available values:

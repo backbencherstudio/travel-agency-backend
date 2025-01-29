@@ -40,4 +40,15 @@ export class QueryPackageDto {
   @Type(() => String)
   @IsString({ each: true })
   languages?: string[];
+
+  @IsOptional()
+  limit?: number;
+
+  // cursor based pagination
+  @IsOptional()
+  cursor?: string;
+
+  // offset based pagination
+  @IsOptional()
+  page?: number;
 }

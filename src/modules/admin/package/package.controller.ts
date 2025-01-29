@@ -11,6 +11,7 @@ import {
   Req,
   ParseFilePipe,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { PackageService } from './package.service';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -91,10 +92,16 @@ export class PackageController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
-  async findAll(@Req() req: Request) {
+  async findAll(
+    @Req() req: Request,
+    @Query() query: { q?: string; vendor_id?: string },
+  ) {
     try {
       const user_id = req.user.userId;
-      const packages = await this.packageService.findAll(user_id);
+      const vendor_id = query.vendor_id;
+
+      const packages = await this.packageService.findAll(user_id, vendor_id);
+
       return packages;
     } catch (error) {
       return {

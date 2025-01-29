@@ -35,6 +35,7 @@ export class NotificationService extends PrismaClient {
           sender_id: true,
           receiver_id: true,
           entity_id: true,
+          created_at: true,
           sender: {
             select: {
               id: true,
@@ -130,7 +131,7 @@ export class NotificationService extends PrismaClient {
       // check if notification exists
       const notifications = await this.prisma.notification.findMany({
         where: {
-          receiver_id: user_id,
+          OR: [{ receiver_id: user_id }, { receiver_id: null }],
         },
       });
 
@@ -143,7 +144,7 @@ export class NotificationService extends PrismaClient {
 
       await this.prisma.notification.deleteMany({
         where: {
-          receiver_id: user_id,
+          OR: [{ receiver_id: user_id }, { receiver_id: null }],
         },
       });
 

@@ -317,7 +317,7 @@ export class BlogService extends PrismaClient {
       }
       await this.prisma.blog.update({
         where: { id },
-        data: { approved_at: new Date() },
+        data: { approved_at: DateHelper.now() },
       });
       return {
         success: true,

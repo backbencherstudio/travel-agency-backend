@@ -42,11 +42,48 @@ export class UserController {
 
   @ApiResponse({ description: 'Get all users' })
   @Get()
-  async findAll(@Query() query: { q?: string }) {
+  async findAll(
+    @Query() query: { q?: string; type?: string; approved?: string },
+  ) {
     try {
       const q = query.q;
-      const users = await this.userService.findAll({ q });
+      const type = query.type;
+      const approved = query.approved;
+
+      const users = await this.userService.findAll({ q, type, approved });
       return users;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  // approve user
+  @Roles(Role.ADMIN)
+  @ApiResponse({ description: 'Approve a user' })
+  @Post(':id/approve')
+  async approve(@Param('id') id: string) {
+    try {
+      const user = await this.userService.approve(id);
+      return user;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  // reject user
+  @Roles(Role.ADMIN)
+  @ApiResponse({ description: 'Reject a user' })
+  @Post(':id/reject')
+  async reject(@Param('id') id: string) {
+    try {
+      const user = await this.userService.reject(id);
+      return user;
     } catch (error) {
       return {
         success: false,

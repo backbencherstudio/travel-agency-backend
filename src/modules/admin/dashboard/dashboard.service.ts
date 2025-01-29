@@ -129,6 +129,13 @@ export class DashboardService extends PrismaClient {
         },
       });
 
+      const processingBookings = await this.prisma.booking.count({
+        where: {
+          ...where_condition,
+          status: 'processing',
+        },
+      });
+
       return {
         success: true,
         data: {
@@ -141,6 +148,7 @@ export class DashboardService extends PrismaClient {
           confirmed_bookings: confirmedBookings,
           pending_bookings: pendingBookings,
           cancelled_bookings: cancelledBookings,
+          processing_bookings: processingBookings,
         },
       };
     } catch (error) {
