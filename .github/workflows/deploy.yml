@@ -35,7 +35,7 @@ jobs:
 
       - name: Build application
         run: |
-          yarn run build
+          yarn build
 
       - name: Deploy to VPS
         run: |
@@ -44,3 +44,4 @@ jobs:
           pm2 delete nestjs-app || true
           pm2 start dist/main.js --name "nestjs-app"
           pm2 save
+          pm2 restart nestjs-app
