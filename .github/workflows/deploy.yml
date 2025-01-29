@@ -39,7 +39,7 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          pm2 stop nestjs-app || true
-          pm2 delete nestjs-app || true
-          pm2 start dist/main.js --name "nestjs-app"
-          pm2 save
+          sudo pm2 stop nestjs || true
+          sudo pm2 delete nestjs || true
+          sudo pm2 start dist/main.js --name "nestjs"
+          sudo pm2 save
