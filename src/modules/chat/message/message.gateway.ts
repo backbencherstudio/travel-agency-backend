@@ -53,21 +53,24 @@ export class MessageGateway
 
       const decoded: any = jwt.verify(token, appConfig().jwt.secret);
       // const decoded: any = this.jwtService.verify(token);
-      const userId = decoded.sub;
       // const userId = client.handshake.query.userId as string;
-      if (userId) {
-        this.clients.set(userId, client.id);
-        // console.log(`User ${userId} connected with socket ${client.id}`);
-
-        await ChatRepository.updateUserStatus(userId, 'online');
-        // notify the user that the user is online
-        this.server.to(this.clients.get(userId)).emit('userStatusChange', {
-          user_id: userId,
-          status: 'online',
-        });
-
-        console.log(`User ${userId} connected`);
+      const userId = decoded.sub;
+      if (!userId) {
+        client.disconnect();
+        console.log('Invalid token');
+        return;
       }
+
+      this.clients.set(userId, client.id);
+      // console.log(`User ${userId} connected with socket ${client.id}`);
+      await ChatRepository.updateUserStatus(userId, 'online');
+      // notify the user that the user is online
+      this.server.emit('userStatusChange', {
+        user_id: userId,
+        status: 'online',
+      });
+
+      console.log(`User ${userId} connected`);
     } catch (error) {
       client.disconnect();
       console.error('Error handling connection:', error);
@@ -80,28 +83,37 @@ export class MessageGateway
     )?.[0];
     if (userId) {
       this.clients.delete(userId);
-      console.log(`User ${userId} disconnected`);
-
       await ChatRepository.updateUserStatus(userId, 'offline');
       // notify the user that the user is offline
-      this.server.to(client.id).emit('userStatusChange', {
+      this.server.emit('userStatusChange', {
         user_id: userId,
         status: 'offline',
       });
+
+      console.log(`User ${userId} disconnected`);
     }
   }
 
   @SubscribeMessage('joinRoom')
-  handleRoomJoin(client: Socket, room: string) {
-    client.join(room);
-    client.emit('joinedRoom', room);
+  handleRoomJoin(client: Socket, body: { room_id: string }) {
+    const roomId = body.room_id;
+
+    client.join(roomId); // join the room using user_id
+    client.emit('joinedRoom', { room_id: roomId });
   }
 
   @SubscribeMessage('sendMessage')
-  async listenForMessages(@MessageBody() body: { to: string; data: any }) {
-    this.server
-      // .to(this.clients.get(body.to))
-      .emit('message', { from: body.to, data: body.data });
+  async listenForMessages(
+    client: Socket,
+    @MessageBody() body: { to: string; data: any },
+  ) {
+    const recipientSocketId = this.clients.get(body.to);
+    if (recipientSocketId) {
+      this.server.to(recipientSocketId).emit('message', {
+        from: body.data.sender.id,
+        data: body.data,
+      });
+    }
   }
 
   @SubscribeMessage('updateMessageStatus')
@@ -111,7 +123,7 @@ export class MessageGateway
   ) {
     await ChatRepository.updateMessageStatus(body.message_id, body.status);
     // notify the sender that the message has been sent
-    this.server.to(client.id).emit('messageStatusUpdated', {
+    this.server.emit('messageStatusUpdated', {
       message_id: body.message_id,
       status: body.status,
     });
@@ -119,9 +131,13 @@ export class MessageGateway
 
   @SubscribeMessage('typing')
   handleTyping(client: Socket, @MessageBody() body: { to: string; data: any }) {
-    this.server
-      .to(this.clients.get(body.to))
-      .emit('userTyping', { from: body.to, data: body.data });
+    const recipientSocketId = this.clients.get(body.to);
+    if (recipientSocketId) {
+      this.server.to(recipientSocketId).emit('userTyping', {
+        from: client.id,
+        data: body.data,
+      });
+    }
   }
 
   @SubscribeMessage('stopTyping')
@@ -129,8 +145,12 @@ export class MessageGateway
     client: Socket,
     @MessageBody() body: { to: string; data: any },
   ) {
-    this.server
-      .to(this.clients.get(body.to))
-      .emit('userStoppedTyping', { from: body.to, data: body.data });
+    const recipientSocketId = this.clients.get(body.to);
+    if (recipientSocketId) {
+      this.server.to(recipientSocketId).emit('userStoppedTyping', {
+        from: client.id,
+        data: body.data,
+      });
+    }
   }
 }

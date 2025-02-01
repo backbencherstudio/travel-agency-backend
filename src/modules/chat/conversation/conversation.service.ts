@@ -129,17 +129,17 @@ export class ConversationService extends PrismaClient {
       // trigger socket event
       this.messageGateway.server.to(data.creator_id).emit('conversation', {
         from: data.creator_id,
-        data: data,
+        data: conversation,
       });
       this.messageGateway.server.to(data.participant_id).emit('conversation', {
         from: data.participant_id,
-        data: data,
+        data: conversation,
       });
 
       return {
         success: true,
         message: 'Conversation created successfully',
-        data: data,
+        data: conversation,
       };
     } catch (error) {
       return {
