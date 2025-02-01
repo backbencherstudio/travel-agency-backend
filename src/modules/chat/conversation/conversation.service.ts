@@ -139,7 +139,7 @@ export class ConversationService extends PrismaClient {
       return {
         success: true,
         message: 'Conversation created successfully',
-        data: data,
+        data: conversation,
       };
     } catch (error) {
       return {
