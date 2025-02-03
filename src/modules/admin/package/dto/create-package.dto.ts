@@ -121,6 +121,7 @@ export class CreatePackageDto {
   @ApiProperty({
     description: 'Package images object',
   })
+  // [{ id: '1' }, { id: '2' }]
   package_files?: any;
 
   @ApiProperty()
