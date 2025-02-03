@@ -568,4 +568,22 @@ export class BookingService extends PrismaClient {
       };
     }
   }
+
+  async downloadInvoice(payment_intent_id: string) {
+    try {
+      const invoice =
+        await StripePayment.downloadInvoiceFile(payment_intent_id);
+      return invoice;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async sendInvoiceToEmail(payment_intent_id: string) {
+    const invoice = await StripePayment.sendInvoiceToEmail(payment_intent_id);
+    return invoice;
+  }
 }

@@ -7,6 +7,8 @@ import { ChatRepository } from '../../../common/repository/chat/chat.repository'
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import { DateHelper } from '../../../common/helper/date.helper';
 import { MessageGateway } from './message.gateway';
+import { UserRepository } from '../../../common/repository/user/user.repository';
+import { Role } from 'src/common/guard/role/role.enum';
 
 @Injectable()
 export class MessageService extends PrismaClient {
@@ -108,16 +110,22 @@ export class MessageService extends PrismaClient {
     cursor?: string;
   }) {
     try {
+      const userDetails = await UserRepository.getUserDetails(user_id);
+
+      const where_condition = {
+        AND: [{ id: conversation_id }],
+      };
+
+      if (userDetails.type != Role.ADMIN) {
+        where_condition['OR'] = [
+          { creator_id: user_id },
+          { participant_id: user_id },
+        ];
+      }
+
       const conversation = await this.prisma.conversation.findFirst({
         where: {
-          AND: [
-            {
-              id: conversation_id,
-            },
-            {
-              OR: [{ creator_id: user_id }, { participant_id: user_id }],
-            },
-          ],
+          ...where_condition,
         },
       });
 

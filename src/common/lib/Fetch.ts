@@ -30,7 +30,7 @@ export class Fetch {
    * @param header
    * @returns
    */
-  static async get(url: string, header?: any) {
+  static async get(url: string, header?: any): Promise<any> {
     if (this._adapter == 'axios') {
       return await axios.get(`${this._baseUrl}${url}`, header);
     } else {
@@ -46,7 +46,7 @@ export class Fetch {
    * @param header
    * @returns
    */
-  static async post(url: string, data: any, header?: any) {
+  static async post(url: string, data: any, header?: any): Promise<any> {
     if (this._adapter == 'axios') {
       return await axios.post(`${this._baseUrl}${url}`, data, header);
     } else {
@@ -66,7 +66,7 @@ export class Fetch {
    * @param header
    * @returns
    */
-  static async put(url: string, data: any, header?: any) {
+  static async put(url: string, data: any, header?: any): Promise<any> {
     if (this._adapter == 'axios') {
       return await axios.put(`${this._baseUrl}${url}`, data, header);
     } else {
@@ -86,7 +86,7 @@ export class Fetch {
    * @param header
    * @returns
    */
-  static async patch(url: string, data: any, header?: any) {
+  static async patch(url: string, data: any, header?: any): Promise<any> {
     if (this._adapter == 'axios') {
       return await axios.patch(`${this._baseUrl}${url}`, data, header);
     } else {
@@ -105,7 +105,7 @@ export class Fetch {
    * @param header
    * @returns
    */
-  static async delete(url: string, header?: any) {
+  static async delete(url: string, header?: any): Promise<any> {
     if (this._adapter == 'axios') {
       return await axios.delete(`${this._baseUrl}${url}`, header);
     } else {

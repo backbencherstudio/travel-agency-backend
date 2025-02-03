@@ -9,7 +9,7 @@ services:
       - "4000:4000"
     environment:
       # Required for hot-reloading to work on Windows
-      - CHOKIDAR_USEPOLLING=true 
+      - CHOKIDAR_USEPOLLING=true
       # 1 second polling interval
       - CHOKIDAR_INTERVAL=1000
 
@@ -17,7 +17,7 @@ services:
       # host.docker.internal is the host machine's IP address
       # - DATABASE_URL=postgresql://postgres:root@host.docker.internal/travel 
       # for use the "postgres" "service" name
-      - DATABASE_URL=postgresql://postgres:root@postgres/travel 
+      - DATABASE_URL=postgresql://postgres:root@postgres/travel
 
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -46,6 +46,16 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./dockerfiles/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
 
 volumes:
   postgres_data:
