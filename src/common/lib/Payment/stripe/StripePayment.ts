@@ -1,5 +1,7 @@
 import stripe from 'stripe';
 import appConfig from '../../../../config/app.config';
+import { Fetch } from '../../Fetch';
+import fs from 'fs';
 
 const STRIPE_SECRET_KEY = appConfig().payment.stripe.secret_key;
 const Stripe = new stripe(STRIPE_SECRET_KEY, {
@@ -210,6 +212,40 @@ export class StripePayment {
       reference: 'tax_transaction',
     });
     return taxTransaction;
+  }
+
+  // download invoice using payment intent id
+  static async downloadInvoiceUrl(
+    payment_intent_id: string,
+  ): Promise<string | null> {
+    const invoice = await Stripe.invoices.retrieve(payment_intent_id);
+    // check if the invoice has  areceipt url
+    if (invoice.hosted_invoice_url) {
+      return invoice.hosted_invoice_url;
+    }
+    return null;
+  }
+
+  // download invoice using payment intent id
+  static async downloadInvoiceFile(payment_intent_id: string) {
+    const invoice = await Stripe.invoices.retrieve(payment_intent_id);
+
+    if (invoice.hosted_invoice_url) {
+      const response = await Fetch.get(invoice.hosted_invoice_url, {
+        responseType: 'stream',
+      });
+
+      // save the response to a file
+      return fs.writeFileSync('receipt.pdf', response.data);
+    } else {
+      return null;
+    }
+  }
+
+  // send invoice to email using payment intent id
+  static async sendInvoiceToEmail(payment_intent_id: string) {
+    const invoice = await Stripe.invoices.sendInvoice(payment_intent_id);
+    return invoice;
   }
 
   static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {
