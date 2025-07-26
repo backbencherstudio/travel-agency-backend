@@ -330,6 +330,15 @@ export class PackageService extends PrismaClient {
     filters?: {
       q?: string;
       type?: string;
+      duration?: number;
+      min_price?: number;
+      max_price?: number;
+      min_rating?: number;
+      free_cancellation?: boolean;
+      tag_id?: string;
+      category_id?: string;
+      destination_id?: string;
+      country_id?: string;
     },
   ) {
     try {
@@ -354,9 +363,60 @@ export class PackageService extends PrismaClient {
         if (filters.type) {
           where_condition['type'] = filters.type;
         }
+        if (filters.duration) {
+          where_condition['duration'] = filters.duration;
+        }
+        if (filters.min_price || filters.max_price) {
+          where_condition['price'] = {};
+          if (filters.min_price) {
+            where_condition['price']['gte'] = filters.min_price;
+          }
+          if (filters.max_price) {
+            where_condition['price']['lte'] = filters.max_price;
+          }
+        }
+        if (filters.free_cancellation !== undefined) {
+          where_condition['cancellation_policy'] = {
+            policy: filters.free_cancellation
+              ? 'free_cancellation'
+              : 'non_refundable',
+          };
+        }
+        if (filters.category_id) {
+          where_condition['package_categories'] = {
+            some: {
+              category_id: filters.category_id,
+            },
+          };
+        }
+        if (filters.tag_id) {
+          where_condition['package_tags'] = {
+            some: {
+              tag_id: filters.tag_id,
+            },
+          };
+        }
+        if (filters.destination_id) {
+          where_condition['package_destinations'] = {
+            some: {
+              destination_id: filters.destination_id,
+            },
+          };
+        }
+        if (filters.country_id) {
+          where_condition['package_destinations'] = {
+            some: {
+              destination: {
+                country: {
+                  id: filters.country_id,
+                },
+              },
+            },
+          };
+        }
       }
 
-      const packages = await this.prisma.package.findMany({
+      let packages = await this.prisma.package.findMany({
         where: { ...where_condition },
         select: {
           id: true,
@@ -406,6 +466,13 @@ export class PackageService extends PrismaClient {
             },
           },
           cancellation_policy_id: true,
+          cancellation_policy: {
+            select: {
+              id: true,
+              policy: true,
+              description: true,
+            },
+          },
           package_categories: {
             select: {
               category: {
@@ -416,18 +483,35 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          package_tags: {
+            select: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              type: true,
+            },
+          },
           package_files: {
             select: {
               id: true,
               file: true,
             },
           },
+          reviews: {
+            select: {
+              rating_value: true,
+            },
+          },
         },
       });
 
-      // add file url package_files
+      // Process packages to add computed fields
       if (packages && packages.length > 0) {
         for (const record of packages) {
+          // Add file URLs
           if (record.package_files) {
             for (const file of record.package_files) {
               file['file_url'] = SojebStorage.url(
@@ -435,8 +519,32 @@ export class PackageService extends PrismaClient {
               );
             }
           }
+
+          // Calculate average rating
+          if (record.reviews && record.reviews.length > 0) {
+            const totalRating = record.reviews.reduce(
+              (sum, review) => sum + review.rating_value,
+              0,
+            );
+            record['average_rating'] = totalRating / record.reviews.length;
+            record['review_count'] = record.reviews.length;
+          } else {
+            record['average_rating'] = 0;
+            record['review_count'] = 0;
+          }
+
+          // Remove reviews array as we've processed it
+          delete record.reviews;
+        }
+
+        // Filter by rating if specified
+        if (filters?.min_rating) {
+          packages = packages.filter(
+            (pkg: any) => pkg.average_rating >= filters.min_rating,
+          );
         }
       }
+
       return {
         success: true,
         data: packages,

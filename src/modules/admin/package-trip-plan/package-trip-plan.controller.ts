@@ -87,9 +87,10 @@ export class PackageTripPlanController {
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get all package trip plans' })
   @Get()
-  async findAll() {
+  async findAll(@Param('package_id') package_id: string) {
     try {
-      const package_trip_plans = await this.packageTripPlanService.findAll();
+      const package_trip_plans =
+        await this.packageTripPlanService.findAll(package_id);
       return {
         success: true,
         data: package_trip_plans,
