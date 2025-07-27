@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export interface TripPlan {
   title: string;
@@ -30,17 +31,54 @@ export class CreatePackageDto {
   description: string;
 
   @IsNotEmpty()
-  // @IsNumber()
+  @Transform(({ value }) => parseFloat(value)) // Converts string to number
+  @IsNumber()
   @ApiProperty({
     description: 'Package price',
-    example: 100,
+    example: 150,
   })
   price: number;
 
-  @IsNotEmpty()
-  @IsString()
   @ApiProperty({
-    description: 'Package duration in days',
+    description: 'Price type: general or special_offer',
+    example: 'general',
+    enum: ['general', 'special_offer'],
+    required: false,
+  })
+  price_type?: string;
+
+  @ApiProperty({
+    description: 'Discount percentage (e.g., 10 for 10%)',
+    example: 10,
+    required: false,
+  })
+  @Transform(({ value }) => (value ? parseInt(value) : undefined)) // Converts string to number
+  @IsOptional()
+  @IsNumber()
+  discount_percent?: number;
+
+  @ApiProperty({
+    description: 'Fixed discount amount',
+    example: 15,
+    required: false,
+  })
+  @Transform(({ value }) => (value ? parseInt(value) : undefined)) // Converts string to number
+  @IsOptional()
+  @IsNumber()
+  discount_amount?: number;
+
+  @ApiProperty({
+    description: 'Final price (auto-calculated)',
+    example: 135,
+    required: false,
+  })
+  final_price?: number;
+
+  @IsNotEmpty()
+  @Transform(({ value }) => parseInt(value)) // Converts string to number
+  @IsNumber()
+  @ApiProperty({
+    description: 'Package duration',
     example: 5,
   })
   duration: number;
@@ -62,12 +100,14 @@ export class CreatePackageDto {
   type?: string;
 
   @IsNotEmpty()
-  // @IsNumber()
+  @Transform(({ value }) => parseInt(value)) // Converts string to number
+  @IsNumber()
   @ApiProperty({ example: 1 })
   min_capacity?: number;
 
   @IsNotEmpty()
-  // @IsNumber()
+  @Transform(({ value }) => parseInt(value)) // Converts string to number
+  @IsNumber()
   @ApiProperty({ example: 10 })
   max_capacity: number;
 
@@ -139,4 +179,38 @@ export class CreatePackageDto {
     ],
   })
   languages?: string;
+
+  @ApiProperty({
+    description: 'Package availabilities array with stringified objects',
+    example: [
+      {
+        available_date: '2024-01-15',
+        available_slots: 10,
+        is_available: true,
+      },
+      {
+        available_date: '2024-01-16',
+        available_slots: 8,
+        is_available: true,
+      },
+    ],
+    required: false,
+  })
+  package_availabilities?: string;
+
+  @ApiProperty({
+    description: 'Package places array with stringified objects',
+    example: [
+      {
+        place_id: 'place123',
+        type: 'meeting_point',
+      },
+      {
+        place_id: 'place456',
+        type: 'pickup_point',
+      },
+    ],
+    required: false,
+  })
+  package_places?: string;
 }

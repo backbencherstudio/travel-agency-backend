@@ -19,6 +19,25 @@ export class PackageService extends PrismaClient {
     super();
   }
 
+  private calculateFinalPrice(createPackageDto: CreatePackageDto): number {
+    let finalPrice = createPackageDto.price;
+
+    // Apply percentage discount first
+    if (createPackageDto.discount_percent) {
+      const discountAmount =
+        (createPackageDto.price * createPackageDto.discount_percent) / 100;
+      finalPrice = finalPrice - discountAmount;
+    }
+
+    // Apply fixed discount amount
+    if (createPackageDto.discount_amount) {
+      finalPrice = finalPrice - createPackageDto.discount_amount;
+    }
+
+    // Ensure final price is not negative
+    return Math.max(0, finalPrice);
+  }
+
   async create(
     user_id: string,
     createPackageDto: CreatePackageDto,
@@ -28,44 +47,25 @@ export class PackageService extends PrismaClient {
     },
   ) {
     try {
-      const data: any = {};
-      if (createPackageDto.name) {
-        data.name = createPackageDto.name;
-      }
-      if (createPackageDto.description) {
-        data.description = createPackageDto.description;
-      }
-      if (createPackageDto.price) {
-        data.price = createPackageDto.price;
-      }
-      if (createPackageDto.duration) {
-        data.duration = Number(createPackageDto.duration);
-      }
-      if (createPackageDto.duration_type) {
-        data.duration_type = createPackageDto.duration_type;
-      }
-      if (createPackageDto.type) {
-        data.type = createPackageDto.type;
-      }
-      if (createPackageDto.min_capacity) {
-        data.min_capacity = Number(createPackageDto.min_capacity);
-      }
-      if (createPackageDto.max_capacity) {
-        data.max_capacity = Number(createPackageDto.max_capacity);
-      }
-      if (createPackageDto.cancellation_policy_id) {
-        data.cancellation_policy_id = createPackageDto.cancellation_policy_id;
-      }
-      // add vendor id if the package is from vendor
-      const userDetails = await UserRepository.getUserDetails(user_id);
-      if (userDetails && userDetails.type != 'vendor') {
-        data.approved_at = DateHelper.now();
-      }
+      // Calculate final price
+      const finalPrice = this.calculateFinalPrice(createPackageDto);
 
       const record = await this.prisma.package.create({
         data: {
-          ...data,
           user_id: user_id,
+          name: createPackageDto.name,
+          description: createPackageDto.description,
+          price: createPackageDto.price,
+          price_type: createPackageDto.price_type || 'general',
+          discount_percent: createPackageDto.discount_percent || null,
+          discount_amount: createPackageDto.discount_amount || null,
+          final_price: finalPrice,
+          duration: createPackageDto.duration,
+          duration_type: createPackageDto.duration_type,
+          min_capacity: createPackageDto.min_capacity,
+          max_capacity: createPackageDto.max_capacity,
+          type: createPackageDto.type,
+          cancellation_policy_id: createPackageDto.cancellation_policy_id,
         },
       });
 
@@ -274,6 +274,56 @@ export class PackageService extends PrismaClient {
         });
       }
 
+      // Create package availabilities if provided
+      if (createPackageDto.package_availabilities) {
+        const package_availabilities = JSON.parse(
+          createPackageDto.package_availabilities,
+        );
+        for (const package_availability of package_availabilities) {
+          const availabilityData = {
+            package_id: record.id,
+            available_date: package_availability.available_date
+              ? new Date(package_availability.available_date)
+              : undefined,
+            start_date: package_availability.start_date
+              ? new Date(package_availability.start_date)
+              : undefined,
+            end_date: package_availability.end_date
+              ? new Date(package_availability.end_date)
+              : undefined,
+            available_slots: package_availability.available_slots
+              ? Number(package_availability.available_slots)
+              : undefined,
+            price_override: package_availability.price_override,
+            is_available:
+              package_availability.is_available !== undefined
+                ? package_availability.is_available
+                : true,
+          };
+
+          await this.prisma.packageAvailability.create({
+            data: availabilityData,
+          });
+        }
+      }
+
+      // Create package places if provided
+      if (createPackageDto.package_places) {
+        const package_places = JSON.parse(createPackageDto.package_places);
+        for (const package_place of package_places) {
+          const placeData = {
+            package_id: record.id,
+            place_id: package_place.place_id,
+            type: package_place.type || 'meeting_point',
+          };
+          console.log('package_places', placeData);
+          await this.prisma.packagePlace.create({
+            data: placeData,
+          });
+        }
+      }
+
+      const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type != 'admin') {
         // notify the admin that the package is created
         await NotificationRepository.createNotification({
@@ -317,6 +367,7 @@ export class PackageService extends PrismaClient {
           );
         }
       }
+
       return {
         success: false,
         message: error.message,
@@ -339,6 +390,13 @@ export class PackageService extends PrismaClient {
       category_id?: string;
       destination_id?: string;
       country_id?: string;
+      start_date?: string;
+      end_date?: string;
+      available_date?: string;
+    },
+    pagination?: {
+      page?: number;
+      limit?: number;
     },
   ) {
     try {
@@ -367,12 +425,12 @@ export class PackageService extends PrismaClient {
           where_condition['duration'] = filters.duration;
         }
         if (filters.min_price || filters.max_price) {
-          where_condition['price'] = {};
+          where_condition['final_price'] = {};
           if (filters.min_price) {
-            where_condition['price']['gte'] = filters.min_price;
+            where_condition['final_price']['gte'] = filters.min_price;
           }
           if (filters.max_price) {
-            where_condition['price']['lte'] = filters.max_price;
+            where_condition['final_price']['lte'] = filters.max_price;
           }
         }
         if (filters.free_cancellation !== undefined) {
@@ -414,10 +472,91 @@ export class PackageService extends PrismaClient {
             },
           };
         }
+        if (filters.start_date) {
+          where_condition['package_availabilities'] = {
+            some: {
+              OR: [
+                {
+                  available_date: {
+                    gte: new Date(filters.start_date),
+                  },
+                },
+                {
+                  AND: [
+                    { start_date: { not: null } },
+                    { start_date: { gte: new Date(filters.start_date) } },
+                  ],
+                },
+              ],
+            },
+          };
+        }
+        if (filters.end_date) {
+          where_condition['package_availabilities'] = {
+            some: {
+              OR: [
+                {
+                  available_date: {
+                    lte: new Date(filters.end_date),
+                  },
+                },
+                {
+                  AND: [
+                    { end_date: { not: null } },
+                    { end_date: { lte: new Date(filters.end_date) } },
+                  ],
+                },
+              ],
+            },
+          };
+        }
+        if (filters.available_date) {
+          const targetDate = new Date(filters.available_date);
+          where_condition['package_availabilities'] = {
+            some: {
+              OR: [
+                // Single date packages - exact match
+                {
+                  available_date: {
+                    equals: targetDate,
+                  },
+                },
+                // Date range packages - check if target date falls within range
+                {
+                  AND: [
+                    { start_date: { not: null } },
+                    { end_date: { not: null } },
+                    { start_date: { lte: targetDate } },
+                    { end_date: { gte: targetDate } },
+                  ],
+                },
+                // Single date packages - check if available on or after target date
+                {
+                  AND: [
+                    { available_date: { not: null } },
+                    { available_date: { gte: targetDate } },
+                  ],
+                },
+              ],
+            },
+          };
+        }
       }
+
+      // Calculate pagination
+      const page = pagination?.page || 1;
+      const limit = pagination?.limit || 10;
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination
+      const total = await this.prisma.package.count({
+        where: { ...where_condition },
+      });
 
       let packages = await this.prisma.package.findMany({
         where: { ...where_condition },
+        skip: skip,
+        take: limit,
         select: {
           id: true,
           created_at: true,
@@ -428,6 +567,10 @@ export class PackageService extends PrismaClient {
           name: true,
           description: true,
           price: true,
+          price_type: true,
+          discount_percent: true,
+          discount_amount: true,
+          final_price: true,
           duration: true,
           min_capacity: true,
           max_capacity: true,
@@ -447,6 +590,16 @@ export class PackageService extends PrismaClient {
                   name: true,
                 },
               },
+            },
+          },
+          package_availabilities: {
+            select: {
+              id: true,
+              available_date: true,
+              start_date: true,
+              end_date: true,
+              available_slots: true,
+              is_available: true,
             },
           },
           package_destinations: {
@@ -545,9 +698,22 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(total / limit);
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
+
       return {
         success: true,
         data: packages,
+        pagination: {
+          page: page,
+          limit: limit,
+          total: total,
+          totalPages: totalPages,
+          hasNextPage: hasNextPage,
+          hasPreviousPage: hasPreviousPage,
+        },
       };
     } catch (error) {
       return {
@@ -578,11 +744,25 @@ export class PackageService extends PrismaClient {
           name: true,
           description: true,
           price: true,
+          price_type: true,
+          discount_percent: true,
+          discount_amount: true,
+          final_price: true,
           duration: true,
           duration_type: true,
           min_capacity: true,
           max_capacity: true,
           type: true,
+          package_availabilities: {
+            select: {
+              id: true,
+              available_date: true,
+              start_date: true,
+              end_date: true,
+              available_slots: true,
+              is_available: true,
+            },
+          },
           package_languages: {
             select: {
               language: {
@@ -627,6 +807,18 @@ export class PackageService extends PrismaClient {
           package_categories: {
             select: {
               category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          package_places: {
+            select: {
+              id: true,
+              type: true,
+              place: {
                 select: {
                   id: true,
                   name: true,
@@ -1121,6 +1313,32 @@ export class PackageService extends PrismaClient {
               },
             });
           }
+        }
+      }
+
+      // Update package places if provided
+      if (updatePackageDto.package_places) {
+        const package_places = JSON.parse(updatePackageDto.package_places);
+
+        // Delete existing package places
+        await this.prisma.packagePlace.deleteMany({
+          where: { package_id: record.id },
+        });
+
+        // Create new package places
+        for (const package_place of package_places) {
+          const placeData = {
+            package_id: record.id,
+            place_id: package_place.place_id,
+            type: package_place.type || 'meeting_point',
+            is_default: package_place.is_default !== undefined ? package_place.is_default : false,
+            is_active: package_place.is_active !== undefined ? package_place.is_active : true,
+            sort_order: package_place.sort_order ? Number(package_place.sort_order) : 0,
+          };
+
+          await this.prisma.packagePlace.create({
+            data: placeData,
+          });
         }
       }
 

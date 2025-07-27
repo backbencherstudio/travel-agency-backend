@@ -108,6 +108,11 @@ export class PackageController {
       category_id?: string;
       destination_id?: string;
       country_id?: string;
+      start_date?: string;
+      end_date?: string;
+      available_date?: string;
+      page?: string;
+      limit?: string;
     },
   ) {
     try {
@@ -129,12 +134,21 @@ export class PackageController {
         category_id: query.category_id,
         destination_id: query.destination_id,
         country_id: query.country_id,
+        start_date: query.start_date,
+        end_date: query.end_date,
+        available_date: query.available_date,
+      };
+
+      const pagination = {
+        page: query.page ? parseInt(query.page) : 1,
+        limit: query.limit ? parseInt(query.limit) : 10,
       };
 
       const packages = await this.packageService.findAll(
         user_id,
         vendor_id,
         filters,
+        pagination,
       );
 
       return packages;

@@ -294,12 +294,16 @@ model Package {
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id])
 
-  name          String
-  description   String  @db.Text
-  price         Decimal
+  name             String
+  description      String   @db.Text
+  price            Decimal
+  price_type       String?  @default("general") // "general" or "special_offer"
+  discount_percent Int? // e.g. 10 (for 10%)
+  discount_amount  Decimal? // Fixed discount amount (alternative to %)
+  final_price      Decimal? // Auto-calculated: base_price - discount
   // e.g, 5 days, 4 nights
-  duration      Int?
-  duration_type String? // e.g. days, nights, hours
+  duration         Int?
+  duration_type    String? // e.g. days, nights, hours
 
   // minimum capacity
   min_capacity Int? @default(1)
@@ -319,10 +323,12 @@ model Package {
   booking_items           BookingItem[]
   package_extra_services  PackageExtraService[]
   checkout_items          CheckoutItem[]
-  checkout_extraServices  CheckoutExtraService[]
+  checkout_extra_services CheckoutExtraService[]
   package_destinations    PackageDestination[]
   package_languages       PackageLanguage[]
   package_traveller_types PackageTravellerType[]
+  package_availabilities  PackageAvailability[]
+  package_places          PackagePlace[]
 
   @@map("packages")
 }
@@ -360,6 +366,82 @@ model PackageTravellerType {
 
   @@id([package_id, traveller_type_id])
   @@map("package_traveller_types")
+}
+
+// this table stores package availability information
+model PackageAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // For single day packages: available_date
+  // For multi-day packages: start_date and end_date
+  available_date DateTime? @db.Date
+  start_date     DateTime? @db.Date
+  end_date       DateTime? @db.Date
+
+  // Whether this date/range is available for booking
+  is_available Boolean? @default(true)
+
+  // Available slots/capacity for this date/range
+  available_slots Int? @default(1)
+
+  @@map("package_availabilities")
+}
+
+// this table stores place information
+model Place {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // Place name
+  name        String?
+  // Place address
+  address     String?  @db.Text
+  // Place description
+  description String?  @db.Text
+  // Latitude for map integration
+  latitude    Decimal?
+  // Longitude for map integration
+  longitude   Decimal?
+  // Place type: landmark, hotel, restaurant, station, etc.
+  type        String?
+  // City where place is located
+  city        String?
+  // Country where place is located
+  country     String?
+
+  package_places PackagePlace[]
+
+  @@map("places")
+}
+
+// this table stores package locations (meeting points, pickup points, endpoints)
+model PackagePlace {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  place_id String?
+  place    Place?  @relation(fields: [place_id], references: [id], onDelete: SetNull)
+
+  // Location type: meeting_point, pickup_point, endpoint
+  type String? @default("meeting_point")
+
+  @@map("package_places")
 }
 
 // this table stores package language relationship
