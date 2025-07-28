@@ -99,17 +99,65 @@ export class CreatePackageDto {
   })
   type?: string;
 
-  @IsNotEmpty()
-  @Transform(({ value }) => parseInt(value)) // Converts string to number
+  @ApiProperty({
+    description: 'Minimum number of adults allowed',
+    example: 1,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
   @IsNumber()
-  @ApiProperty({ example: 1 })
-  min_capacity?: number;
+  @IsOptional()
+  min_adults?: number;
 
-  @IsNotEmpty()
-  @Transform(({ value }) => parseInt(value)) // Converts string to number
+  @ApiProperty({
+    description: 'Maximum number of adults allowed',
+    example: 10,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
   @IsNumber()
-  @ApiProperty({ example: 10 })
-  max_capacity: number;
+  @IsOptional()
+  max_adults?: number;
+
+  @ApiProperty({
+    description: 'Minimum number of children allowed',
+    example: 0,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @IsOptional()
+  min_children?: number;
+
+  @ApiProperty({
+    description: 'Maximum number of children allowed',
+    example: 9,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @IsOptional()
+  max_children?: number;
+
+  @ApiProperty({
+    description: 'Minimum number of infants allowed',
+    example: 0,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @IsOptional()
+  min_infants?: number;
+
+  @ApiProperty({
+    description: 'Maximum number of infants allowed',
+    example: 2,
+    required: false,
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @IsOptional()
+  max_infants?: number;
 
   @IsString()
   @ApiProperty()
@@ -142,11 +190,44 @@ export class CreatePackageDto {
   traveller_types?: string;
 
   // @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Trip plans array with stringified objects',
+    example: [
+      {
+        title: 'Day 1 - Arrival',
+        description: 'Meet at the designated location and start the tour',
+        duration: 1,
+        duration_type: 'days',
+        destinations: [
+          { id: 'dest123' },
+          { id: 'dest456' }
+        ]
+      },
+      {
+        title: 'Day 2 - Exploration',
+        description: 'Explore the main attractions and landmarks',
+        duration: 1,
+        duration_type: 'days',
+        destinations: [
+          { id: 'dest789' }
+        ]
+      },
+      {
+        title: 'Half-Day Tour',
+        description: 'Quick city overview',
+        duration: 4,
+        duration_type: 'hours',
+        destinations: [
+          { id: 'dest101' }
+        ]
+      }
+    ],
+  })
   // trip_plans: {
   //   title: string;
   //   description: string;
   //   images?: Express.Multer.File[];
+  //   destinations?: { id: string }[];
   // }[];
   trip_plans: string;
 
@@ -213,4 +294,33 @@ export class CreatePackageDto {
     required: false,
   })
   package_places?: string;
+
+  @ApiProperty({
+    description: 'Package additional information array with stringified objects',
+    example: [
+      {
+        type: 'accessibility',
+        title: 'Wheelchair Access',
+        description: 'Not wheelchair accessible',
+        is_important: true,
+        sort_order: 0,
+      },
+      {
+        type: 'restrictions',
+        title: 'Age Restrictions',
+        description: 'Infants must sit on laps',
+        is_important: false,
+        sort_order: 1,
+      },
+      {
+        type: 'requirements',
+        title: 'Physical Fitness',
+        description: 'Travelers should have a moderate physical fitness level',
+        is_important: false,
+        sort_order: 2,
+      },
+    ],
+    required: false,
+  })
+  package_additional_info?: string;
 }

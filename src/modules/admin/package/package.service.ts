@@ -62,8 +62,12 @@ export class PackageService extends PrismaClient {
           final_price: finalPrice,
           duration: createPackageDto.duration,
           duration_type: createPackageDto.duration_type,
-          min_capacity: createPackageDto.min_capacity,
-          max_capacity: createPackageDto.max_capacity,
+          min_adults: createPackageDto.min_adults,
+          max_adults: createPackageDto.max_adults,
+          min_children: createPackageDto.min_children,
+          max_children: createPackageDto.max_children,
+          min_infants: createPackageDto.min_infants,
+          max_infants: createPackageDto.max_infants,
           type: createPackageDto.type,
           cancellation_policy_id: createPackageDto.cancellation_policy_id,
         },
@@ -89,12 +93,26 @@ export class PackageService extends PrismaClient {
           const trip_plan_data = {
             title: trip_plan.title,
             description: trip_plan.description,
+            duration: trip_plan.duration ? Number(trip_plan.duration) : null,
+            duration_type: trip_plan.duration_type || null,
             package_id: record.id,
           };
           const trip_plan_record = await this.prisma.packageTripPlan.create({
             data: trip_plan_data,
           });
           if (trip_plan_record) {
+            // add trip plan destinations if provided
+            if (trip_plan.destinations && trip_plan.destinations.length > 0) {
+              for (const destination of trip_plan.destinations) {
+                await this.prisma.packageTripPlanDestination.create({
+                  data: {
+                    package_trip_plan_id: trip_plan_record.id,
+                    destination_id: destination.id,
+                  },
+                });
+              }
+            }
+
             // add trip plan images to trip plan
             if (files.trip_plans_images && files.trip_plans_images.length > 0) {
               const trip_plan_images_data = files.trip_plans_images.map(
@@ -316,9 +334,28 @@ export class PackageService extends PrismaClient {
             place_id: package_place.place_id,
             type: package_place.type || 'meeting_point',
           };
-          console.log('package_places', placeData);
+
           await this.prisma.packagePlace.create({
             data: placeData,
+          });
+        }
+      }
+
+      // Create package additional information if provided
+      if (createPackageDto.package_additional_info) {
+        const package_additional_info = JSON.parse(createPackageDto.package_additional_info);
+        for (const additional_info of package_additional_info) {
+          const infoData = {
+            package_id: record.id,
+            type: additional_info.type || 'general',
+            title: additional_info.title,
+            description: additional_info.description,
+            is_important: additional_info.is_important !== undefined ? additional_info.is_important : false,
+            sort_order: additional_info.sort_order ? Number(additional_info.sort_order) : 0,
+          };
+
+          await this.prisma.packageAdditionalInfo.create({
+            data: infoData,
           });
         }
       }
@@ -572,8 +609,12 @@ export class PackageService extends PrismaClient {
           discount_amount: true,
           final_price: true,
           duration: true,
-          min_capacity: true,
-          max_capacity: true,
+          min_adults: true,
+          max_adults: true,
+          min_children: true,
+          max_children: true,
+          min_infants: true,
+          max_infants: true,
           type: true,
           user: {
             select: {
@@ -750,8 +791,12 @@ export class PackageService extends PrismaClient {
           final_price: true,
           duration: true,
           duration_type: true,
-          min_capacity: true,
-          max_capacity: true,
+          min_adults: true,
+          max_adults: true,
+          min_children: true,
+          max_children: true,
+          min_infants: true,
+          max_infants: true,
           type: true,
           package_availabilities: {
             select: {
@@ -787,6 +832,9 @@ export class PackageService extends PrismaClient {
                 select: {
                   id: true,
                   name: true,
+                  latitude: true,
+                  longitude: true,
+                  address: true,
                   country: {
                     select: {
                       id: true,
@@ -826,6 +874,19 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          package_additional_info: {
+            select: {
+              id: true,
+              type: true,
+              title: true,
+              description: true,
+              is_important: true,
+              sort_order: true,
+            },
+            orderBy: {
+              sort_order: 'asc',
+            },
+          },
           package_files: {
             select: {
               id: true,
@@ -837,10 +898,24 @@ export class PackageService extends PrismaClient {
               id: true,
               title: true,
               description: true,
+              duration: true,
+              duration_type: true,
               package_trip_plan_images: {
                 select: {
                   id: true,
                   image: true,
+                },
+              },
+              package_trip_plan_destinations: {
+                select: {
+                  destination: {
+                    select: {
+                      id: true,
+                      name: true,
+                      latitude: true,
+                      longitude: true,
+                    },
+                  },
                 },
               },
             },
@@ -956,11 +1031,23 @@ export class PackageService extends PrismaClient {
       if (updatePackageDto.type) {
         data.type = updatePackageDto.type;
       }
-      if (updatePackageDto.min_capacity) {
-        data.min_capacity = Number(updatePackageDto.min_capacity);
+      if (updatePackageDto.min_adults) {
+        data.min_adults = Number(updatePackageDto.min_adults);
       }
-      if (updatePackageDto.max_capacity) {
-        data.max_capacity = Number(updatePackageDto.max_capacity);
+      if (updatePackageDto.max_adults) {
+        data.max_adults = Number(updatePackageDto.max_adults);
+      }
+      if (updatePackageDto.min_children) {
+        data.min_children = Number(updatePackageDto.min_children);
+      }
+      if (updatePackageDto.max_children) {
+        data.max_children = Number(updatePackageDto.max_children);
+      }
+      if (updatePackageDto.min_infants) {
+        data.min_infants = Number(updatePackageDto.min_infants);
+      }
+      if (updatePackageDto.max_infants) {
+        data.max_infants = Number(updatePackageDto.max_infants);
       }
       if (updatePackageDto.cancellation_policy_id) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
@@ -1062,6 +1149,8 @@ export class PackageService extends PrismaClient {
           const trip_plan_data = {
             title: trip_plan.title,
             description: trip_plan.description,
+            duration: trip_plan.duration ? Number(trip_plan.duration) : null,
+            duration_type: trip_plan.duration_type || null,
             package_id: record.id,
           };
           if (trip_plan.id == null) {
@@ -1069,6 +1158,18 @@ export class PackageService extends PrismaClient {
               data: trip_plan_data,
             });
             if (trip_plan_record) {
+              // add trip plan destinations if provided
+              if (trip_plan.destinations && trip_plan.destinations.length > 0) {
+                for (const destination of trip_plan.destinations) {
+                  await this.prisma.packageTripPlanDestination.create({
+                    data: {
+                      package_trip_plan_id: trip_plan_record.id,
+                      destination_id: destination.id,
+                    },
+                  });
+                }
+              }
+
               // add trip plan images to trip plan
               if (
                 files.trip_plans_images &&
@@ -1338,6 +1439,32 @@ export class PackageService extends PrismaClient {
 
           await this.prisma.packagePlace.create({
             data: placeData,
+          });
+        }
+      }
+
+      // Update package additional information if provided
+      if (updatePackageDto.package_additional_info) {
+        const package_additional_info = JSON.parse(updatePackageDto.package_additional_info);
+
+        // Delete existing additional information
+        await this.prisma.packageAdditionalInfo.deleteMany({
+          where: { package_id: record.id },
+        });
+
+        // Create new additional information
+        for (const additional_info of package_additional_info) {
+          const infoData = {
+            package_id: record.id,
+            type: additional_info.type || 'general',
+            title: additional_info.title,
+            description: additional_info.description,
+            is_important: additional_info.is_important !== undefined ? additional_info.is_important : false,
+            sort_order: additional_info.sort_order ? Number(additional_info.sort_order) : 0,
+          };
+
+          await this.prisma.packageAdditionalInfo.create({
+            data: infoData,
           });
         }
       }

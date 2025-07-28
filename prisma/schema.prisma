@@ -254,11 +254,22 @@ model Destination {
   name        String? // e.g. "Paris"
   description String? @db.Text // e.g. "Paris is the capital of France"
 
+  // Map coordinates
+  latitude  Decimal? // Latitude for map integration
+  longitude Decimal? // Longitude for map integration
+
+  // Address information
+  address  String? @db.Text // Full address of the destination
+  city     String? // City name
+  state    String? // State/Province name
+  zip_code String? // Postal/ZIP code
+
   country_id String?
   country    Country? @relation(fields: [country_id], references: [id])
 
-  destination_images   DestinationImage[]
-  package_destinations PackageDestination[]
+  destination_images             DestinationImage[]
+  package_destinations           PackageDestination[]
+  package_trip_plan_destinations PackageTripPlanDestination[]
 
   @@map("destinations")
 }
@@ -305,10 +316,12 @@ model Package {
   duration         Int?
   duration_type    String? // e.g. days, nights, hours
 
-  // minimum capacity
-  min_capacity Int? @default(1)
-  // person max capacity
-  max_capacity Int? @default(1)
+  min_adults   Int? @default(1)
+  max_adults   Int? @default(10)
+  min_children Int? @default(0)
+  max_children Int? @default(9)
+  min_infants  Int? @default(0)
+  max_infants  Int? @default(2) // Number of infants
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
@@ -329,6 +342,7 @@ model Package {
   package_traveller_types PackageTravellerType[]
   package_availabilities  PackageAvailability[]
   package_places          PackagePlace[]
+  package_additional_info PackageAdditionalInfo[]
 
   @@map("packages")
 }
@@ -444,6 +458,35 @@ model PackagePlace {
   @@map("package_places")
 }
 
+// this table stores package additional information
+model PackageAdditionalInfo {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Information type: accessibility, restrictions, requirements, policies, etc.
+  type String? // e.g. "accessibility", "restrictions", "requirements", "policies"
+
+  // Information title
+  title String? // e.g. "Wheelchair Accessible", "Age Restrictions"
+
+  // Information description
+  description String? @db.Text // e.g. "Not wheelchair accessible"
+
+  // Whether this information is important/warning
+  is_important Boolean? @default(false)
+
+  // Sort order for display
+  sort_order Int? @default(0)
+
+  @@map("package_additional_info")
+}
+
 // this table stores package language relationship
 model PackageLanguage {
   // id         String    @id @default(cuid())
@@ -551,6 +594,10 @@ model PackageTripPlan {
   status     Int?      @default(1) @db.SmallInt
   sort_order Int?      @default(0)
 
+  // e.g, 5 days, 4 nights
+  duration      Int?
+  duration_type String? // e.g. days, nights, hours
+
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
@@ -559,7 +606,8 @@ model PackageTripPlan {
   // trip plan description
   description String? @db.Text
 
-  package_trip_plan_images PackageTripPlanImage[]
+  package_trip_plan_images       PackageTripPlanImage[]
+  package_trip_plan_destinations PackageTripPlanDestination[]
 
   @@map("package_trip_plans")
 }
@@ -580,6 +628,21 @@ model PackageTripPlanImage {
   image_alt String?
 
   @@map("package_trip_plan_images")
+}
+
+// this table stores package trip plan destination
+model PackageTripPlanDestination {
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_trip_plan_id String
+  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id], onDelete: Cascade)
+
+  destination_id String
+  destination    Destination? @relation(fields: [destination_id], references: [id], onDelete: Cascade)
+
+  @@id([package_trip_plan_id, destination_id])
+  @@map("package_trip_plan_destinations")
 }
 
 // this table stores package cancellation policy
