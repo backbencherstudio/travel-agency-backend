@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { CreateBookingDto } from './dto/create-booking.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
@@ -10,26 +9,28 @@ import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
 import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
 import { MessageGateway } from '../../../modules/chat/message/message.gateway';
+import { BookingUtilsService } from '../../../common/services/booking-utils.service';
+import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
 export class BookingService extends PrismaClient {
   constructor(
     private prisma: PrismaService,
     private readonly messageGateway: MessageGateway,
+    private bookingUtils: BookingUtilsService,
   ) {
     super();
   }
 
   async create(
     user_id: string,
-    checkout_id: string,
     createBookingDto: CreateBookingDto,
   ) {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {
         const checkout = await prisma.checkout.findUnique({
           where: {
-            id: checkout_id,
+            id: createBookingDto.checkout_id,
           },
           include: {
             checkout_extra_services: true,
@@ -57,31 +58,8 @@ export class BookingService extends PrismaClient {
         }
 
         const data = {};
-        // user details
-        if (checkout.email) {
-          data['email'] = checkout.email;
-        }
-        if (checkout.phone_number) {
-          data['phone_number'] = checkout.phone_number;
-        }
-        if (checkout.address1) {
-          data['address1'] = checkout.address1;
-        }
-        if (checkout.address2) {
-          data['address2'] = checkout.address2;
-        }
-        if (checkout.city) {
-          data['city'] = checkout.city;
-        }
-        if (checkout.state) {
-          data['state'] = checkout.state;
-        }
-        if (checkout.zip_code) {
-          data['zip_code'] = checkout.zip_code;
-        }
-        if (checkout.country) {
-          data['country'] = checkout.country;
-        }
+        // Copy contact information using shared utils
+        this.bookingUtils.copyContactInfo(checkout, data);
         if (checkout.vendor_id) {
           data['vendor_id'] = checkout.vendor_id;
         }
@@ -89,7 +67,11 @@ export class BookingService extends PrismaClient {
         // create invoice number
         const invoice_number = await BookingRepository.createInvoiceNumber();
         const total_price =
-          await CheckoutRepository.calculateTotalPrice(checkout_id);
+          await CheckoutRepository.calculateTotalPrice(createBookingDto.checkout_id);
+
+        // Calculate traveler counts from booking_travellers
+        const traveler_counts = this.bookingUtils.calculateTravelerCounts(createBookingDto.booking_travellers);
+        const price_info = await this.bookingUtils.calculatePrices(createBookingDto.checkout_id, total_price);
 
         // create booking
         const booking = await prisma.booking.create({
@@ -97,6 +79,12 @@ export class BookingService extends PrismaClient {
             ...data,
             invoice_number: invoice_number,
             total_amount: total_price,
+            discount_amount: price_info.discount_amount,
+            final_price: price_info.final_price,
+            adults_count: traveler_counts.adults_count,
+            children_count: traveler_counts.children_count,
+            infants_count: traveler_counts.infants_count,
+            total_travelers: traveler_counts.total_travelers,
             user_id: user_id,
           },
         });
@@ -113,26 +101,77 @@ export class BookingService extends PrismaClient {
           }
         }
 
-        // create booking-items
+        // create booking-items with enhanced data
         for (const item of checkout.checkout_items) {
           await prisma.bookingItem.create({
             data: {
               booking_id: booking.id,
               package_id: item.package_id,
+              selected_date: item.selected_date,
+              adults_count: item.adults_count,
+              children_count: item.children_count,
+              infants_count: item.infants_count,
+              total_travelers: item.total_travelers,
+              price_per_person: item.price_per_person,
+              total_price: item.total_price,
+              discount_amount: item.discount_amount,
+              final_price: item.final_price,
               start_date: item.start_date,
               end_date: item.end_date,
-              price: item.package.price,
+              included_packages: item.included_packages,
+              excluded_packages: item.excluded_packages,
+              extra_services: item.extra_services,
+              availability_id: item.availability_id,
+              // Legacy fields for backward compatibility
+              quantity: item.total_travelers || 1,
+              price: item.final_price || item.total_price,
             },
           });
         }
 
-        // create booking-travellers
-        for (const traveller of checkout.checkout_travellers) {
+        // Create booking travelers from provided booking_travellers
+        for (const traveller of createBookingDto.booking_travellers) {
           await prisma.bookingTraveller.create({
             data: {
               booking_id: booking.id,
               full_name: traveller.full_name,
               type: traveller.type,
+              age: traveller.age,
+              gender: traveller.gender,
+              first_name: traveller.first_name,
+              last_name: traveller.last_name,
+              email: traveller.email,
+              phone_number: traveller.phone_number,
+              address1: traveller.address1,
+              address2: traveller.address2,
+              city: traveller.city,
+              state: traveller.state,
+              zip_code: traveller.zip_code,
+              country: traveller.country,
+              price_per_person: traveller.price_per_person,
+              discount_amount: traveller.discount_amount,
+              final_price: traveller.final_price,
+            },
+          });
+        }
+
+        // create booking availability records
+        for (const item of checkout.checkout_items) {
+          await prisma.bookingAvailability.create({
+            data: {
+              booking_id: booking.id,
+              package_id: item.package_id,
+              selected_date: item.selected_date,
+              requested_adults: item.adults_count,
+              requested_children: item.children_count,
+              requested_infants: item.infants_count,
+              requested_total: item.total_travelers,
+              is_available: true,
+              available_slots: 999, // Default for successful booking
+              remaining_slots: 999 - (item.total_travelers || 0),
+              price_per_person: item.price_per_person,
+              total_price: item.total_price,
+              validation_message: 'Booking confirmed',
             },
           });
         }
@@ -158,6 +197,10 @@ export class BookingService extends PrismaClient {
           }
         }
 
+        //todo: remove this after testing
+        return {
+          booking: booking,
+        };
         const userDetails = await UserRepository.getUserDetails(user_id);
 
         const currency = 'usd';
@@ -397,8 +440,6 @@ export class BookingService extends PrismaClient {
                   description: true,
                   price: true,
                   duration: true,
-                  min_capacity: true,
-                  max_capacity: true,
                   type: true,
                   user: {
                     select: {

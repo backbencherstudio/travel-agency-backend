@@ -66,7 +66,10 @@ export class CouponService extends PrismaClient {
     }
   }
 
-  async findAll({ q = null, status = null }: { q?: string; status?: number }) {
+  async findAll(
+    { q = null, status = null }: { q?: string; status?: number },
+    pagination?: { page?: number; limit?: number },
+  ) {
     try {
       const whereClause = {};
       if (q) {
@@ -76,8 +79,23 @@ export class CouponService extends PrismaClient {
         whereClause['status'] = Number(status);
       }
 
+      // Pagination parameters
+      const page = pagination?.page || 1;
+      const limit = pagination?.limit || 10;
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination metadata
+      const total = await this.prisma.coupon.count({
+        where: { ...whereClause },
+      });
+
       const coupons = await this.prisma.coupon.findMany({
         where: { ...whereClause },
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
         select: {
           id: true,
           name: true,
@@ -97,9 +115,23 @@ export class CouponService extends PrismaClient {
           updated_at: true,
         },
       });
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(total / limit);
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
+
       return {
         success: true,
         data: coupons,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage,
+          hasPreviousPage,
+        },
       };
     } catch (error) {
       return {

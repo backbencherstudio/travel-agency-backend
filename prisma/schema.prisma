@@ -97,6 +97,8 @@ model User {
   temp_redeems                  TempRedeem[]
   user_payment_methods          UserPaymentMethod[]
   package_cancellation_policies PackageCancellationPolicy[]
+  wish_lists                    WishList[]
+  share                         Share[]
 
   @@map("users")
 }
@@ -321,7 +323,7 @@ model Package {
   min_children Int? @default(0)
   max_children Int? @default(9)
   min_infants  Int? @default(0)
-  max_infants  Int? @default(2) // Number of infants
+  max_infants  Int? @default(2) 
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
@@ -343,6 +345,10 @@ model Package {
   package_availabilities  PackageAvailability[]
   package_places          PackagePlace[]
   package_additional_info PackageAdditionalInfo[]
+  package_opening_hours   PackageOpeningHours[]
+  WishList                WishList[]
+  checkout_availabilities CheckoutAvailability[]
+  booking_availabilities  BookingAvailability[]
 
   @@map("packages")
 }
@@ -395,7 +401,7 @@ model PackageAvailability {
 
   // For single day packages: available_date
   // For multi-day packages: start_date and end_date
-  available_date DateTime? @db.Date
+  available_date DateTime? @default(now())
   start_date     DateTime? @db.Date
   end_date       DateTime? @db.Date
 
@@ -406,6 +412,35 @@ model PackageAvailability {
   available_slots Int? @default(1)
 
   @@map("package_availabilities")
+}
+
+// this table stores package opening hours (daily schedules)
+model PackageOpeningHours {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Day of week: 0=Sunday, 1=Monday, ..., 6=Saturday
+  day_of_week Int?
+
+  // Opening hours
+  start_time String? // e.g., "08:45"
+  end_time   String? // e.g., "17:30"
+
+  // Whether this day is open for bookings
+  is_open Boolean? @default(true)
+
+  // Break time (optional)
+  break_start_time String? // e.g., "12:00"
+  break_end_time   String? // e.g., "13:00"
+
+
+  @@map("package_opening_hours")
 }
 
 // this table stores place information
@@ -754,6 +789,7 @@ model Checkout {
   temp_redeems            TempRedeem[]
   checkout_travellers     CheckoutTraveller[]
   checkout_extra_services CheckoutExtraService[]
+  checkout_availabilities CheckoutAvailability[]
 
   @@map("checkouts")
 }
@@ -770,14 +806,71 @@ model CheckoutItem {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
+  // Selected date for the tour/package
+  selected_date DateTime? @db.Date
+
+  // Traveler counts (for quick reference and validation)
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
+  // Price information
+  price_per_person Decimal? // Price per person for this specific date
+  total_price      Decimal? // Total price for all travelers
+  discount_amount  Decimal? // Any discount applied
+  final_price      Decimal? // Final price after discount
+
+  // Date range for multi-day packages
   start_date DateTime?
   end_date   DateTime?
 
+  // Package details
   included_packages String? @db.Text
   excluded_packages String? @db.Text
   extra_services    String? @db.Text
 
+  // Availability tracking
+  availability_id String? // Reference to PackageAvailability if applicable
+
   @@map("checkout_items")
+}
+
+// this table stores checkout availability validation
+model CheckoutAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Selected date
+  selected_date DateTime? @db.Date
+
+  // Requested traveler counts
+  requested_adults   Int? @default(0)
+  requested_children Int? @default(0)
+  requested_infants  Int? @default(0)
+  requested_total    Int? @default(0)
+
+  // Availability status
+  is_available    Boolean? @default(true)
+  available_slots Int?     @default(0)
+  remaining_slots Int?     @default(0)
+
+  // Price validation
+  price_per_person Decimal?
+  total_price      Decimal?
+
+  // Validation messages
+  validation_message String? @db.Text
+
+  @@map("checkout_availabilities")
 }
 
 // this table stores checkout traveller information
@@ -794,6 +887,9 @@ model CheckoutTraveller {
   // available values:
   // adult, child, infant
   type String? @default("adult")
+
+  // Age information for validation
+  age Int? // Age in years for validation against package constraints
 
   // traveller gender
   // available values:
@@ -813,6 +909,11 @@ model CheckoutTraveller {
   state    String?
   zip_code String?
   country  String?
+
+  // Price information for this specific traveler
+  price_per_person Decimal? // Individual price for this traveler type
+  discount_amount  Decimal? // Any discount for this traveler
+  final_price      Decimal? // Final price for this traveler
 
   @@map("checkout_travellers")
 }
@@ -887,6 +988,16 @@ model Booking {
 
   total_amount Decimal?
 
+  // Discount and final price tracking
+  discount_amount Decimal? // Total discount applied to booking
+  final_price     Decimal? // Final price after all discounts
+
+  // Traveler summary for quick reference
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
   // Payment information
   // e.g. pending, paid, failed
   payment_status           String?
@@ -925,6 +1036,7 @@ model Booking {
   payment_transactions   PaymentTransaction[]
   booking_travellers     BookingTraveller[]
   booking_extra_services BookingExtraService[]
+  booking_availabilities BookingAvailability[]
   reviews                Review[]
 
   @@map("bookings")
@@ -943,9 +1055,34 @@ model BookingItem {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
 
+  // Selected date for the tour/package
+  selected_date DateTime? @db.Date
+
+  // Traveler counts (for quick reference and validation)
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
+  // Price information
+  price_per_person Decimal? // Price per person for this specific date
+  total_price      Decimal? // Total price for all travelers
+  discount_amount  Decimal? // Any discount applied
+  final_price      Decimal? // Final price after discount
+
+  // Date range for multi-day packages
   start_date DateTime?
   end_date   DateTime?
 
+  // Package details
+  included_packages String? @db.Text
+  excluded_packages String? @db.Text
+  extra_services    String? @db.Text
+
+  // Availability tracking
+  availability_id String? // Reference to PackageAvailability if applicable
+
+  // Legacy fields (for backward compatibility)
   quantity Int?     @default(1)
   price    Decimal?
 
@@ -967,6 +1104,9 @@ model BookingTraveller {
   // adult, child, infant
   type String? @default("adult")
 
+  // Age information for validation
+  age Int? // Age in years for validation against package constraints
+
   // traveller gender
   // available values:
   // male, female, other
@@ -985,6 +1125,11 @@ model BookingTraveller {
   state    String?
   zip_code String?
   country  String?
+
+  // Price information for this specific traveler
+  price_per_person Decimal? // Individual price for this traveler type
+  discount_amount  Decimal? // Any discount for this traveler
+  final_price      Decimal? // Final price for this traveler
 
   @@map("booking_travellers")
 }
@@ -1005,6 +1150,43 @@ model BookingExtraService {
   price Decimal?
 
   @@map("booking_extra_services")
+}
+
+// this table stores booking availability validation
+model BookingAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Selected date
+  selected_date DateTime? @db.Date
+
+  // Requested traveler counts
+  requested_adults   Int? @default(0)
+  requested_children Int? @default(0)
+  requested_infants  Int? @default(0)
+  requested_total    Int? @default(0)
+
+  // Availability status
+  is_available    Boolean? @default(true)
+  available_slots Int?     @default(0)
+  remaining_slots Int?     @default(0)
+
+  // Price validation
+  price_per_person Decimal?
+  total_price      Decimal?
+
+  // Validation messages
+  validation_message String? @db.Text
+
+  @@map("booking_availabilities")
 }
 
 // this table stores booking coupons
@@ -1301,6 +1483,75 @@ model Like {
   likeable_id String?
 
   @@map("likes")
+}
+
+// this table stores wish list information
+model WishList {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Optional note from user about this wish list item
+  note String? @db.Text
+
+  @@unique([user_id, package_id])
+  @@map("wish_lists")
+}
+
+// this table stores share information
+model Share {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // shareable_type
+  // available values:
+  // package, blog, destination
+  shareable_type String?
+
+  // shareable_id
+  // e.g. package_id, blog_id, destination_id
+  shareable_id String?
+
+  // share method
+  // available values:
+  // copy_link, email, whatsapp, facebook, twitter, instagram
+  share_method String?
+
+  // recipient information (for email sharing)
+  recipient_email String?
+  recipient_name  String?
+
+  // share message/note
+  message String? @db.Text
+
+  // share link (generated unique link)
+  share_link String? @unique
+
+  // share status
+  // available values:
+  // active, expired, deleted
+  status String? @default("active")
+
+  // expiration date for share link
+  expires_at DateTime?
+
+  // tracking information
+  view_count  Int? @default(0)
+  click_count Int? @default(0)
+
+  @@map("shares")
 }
 
 // this table stores faq information

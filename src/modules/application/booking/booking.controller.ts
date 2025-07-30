@@ -2,11 +2,11 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Param,
   UseGuards,
   Req,
   Query,
+  Body,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -19,21 +19,19 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('booking')
 export class BookingController {
-  constructor(private readonly bookingService: BookingService) {}
+  constructor(private readonly bookingService: BookingService) { }
 
   @ApiOperation({ summary: 'Create booking' })
-  @Post(':checkout_id')
+  @Post()
   async create(
     @Req() req: Request,
-    @Param('checkout_id') checkout_id: string,
     @Body() createBookingDto: CreateBookingDto,
   ) {
     try {
       const user_id = req.user.userId;
       const booking = await this.bookingService.create(
         user_id,
-        checkout_id,
-        createBookingDto,
+        createBookingDto
       );
       return booking;
     } catch (error) {

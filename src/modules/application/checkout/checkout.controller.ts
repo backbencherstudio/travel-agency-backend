@@ -8,6 +8,7 @@ import {
   UseGuards,
   Patch,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -19,7 +20,7 @@ import { UpdateCheckoutDto } from './dto/update-checkout.dto';
 @ApiTags('Checkout')
 @Controller('checkout')
 export class CheckoutController {
-  constructor(private readonly checkoutService: CheckoutService) {}
+  constructor(private readonly checkoutService: CheckoutService) { }
 
   @ApiOperation({ summary: 'Create a new checkout' })
   @UseGuards(JwtAuthGuard)
@@ -120,6 +121,30 @@ export class CheckoutController {
     }
   }
 
+  @ApiOperation({ summary: 'Get all checkouts for user' })
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll(
+    @Req() req: Request,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const checkout = await this.checkoutService.findAll(
+        user_id,
+        parseInt(page),
+        parseInt(limit),
+      );
+      return checkout;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @ApiOperation({ summary: 'Get checkout details' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -128,6 +153,22 @@ export class CheckoutController {
       return checkout;
     } catch (error) {
       throw new Error(error.message);
+    }
+  }
+
+  @ApiOperation({ summary: 'Delete checkout' })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const checkout = await this.checkoutService.remove(id, user_id);
+      return checkout;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
     }
   }
 }

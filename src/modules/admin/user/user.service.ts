@@ -108,8 +108,30 @@ export class UserService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          gender: true,
+          date_of_birth: true,
           avatar: true,
           billing_id: true,
+          packages: {
+            select: {
+              id: true,
+              status: true,
+              name: true,
+              description: true,
+              price: true,
+              price_type: true,
+              final_price: true,
+              duration: true,
+              duration_type: true,
+              type: true,
+              package_files: {
+                select: {
+                  id: true,
+                  file: true,
+                },
+              },
+            },
+          },  
         },
       });
 
@@ -141,6 +163,19 @@ export class UserService extends PrismaClient {
         user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
         );
+      }
+
+      // add package files url to user
+      if (user.packages) {
+        for (const userPackage of user.packages) {
+          if (userPackage.package_files) {
+            for (const file of userPackage.package_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + file.file,
+              );
+            }
+          }
+        }
       }
 
       if (!user) {

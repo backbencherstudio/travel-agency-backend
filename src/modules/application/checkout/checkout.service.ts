@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
   CreateCheckoutDto,
-  IBookingTraveller,
   IExtraService,
   IPaymentMethod,
 } from './dto/create-checkout.dto';
@@ -12,35 +11,79 @@ import { CouponRepository } from 'src/common/repository/coupon/coupon.repository
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
 import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
 import { CheckoutRepository } from 'src/common/repository/checkout/checkout.repository';
+import { BookingUtilsService } from '../../../common/services/booking-utils.service';
 
 @Injectable()
 export class CheckoutService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private bookingUtils: BookingUtilsService,
+  ) {
     super();
   }
 
   async create(user_id: string, createCheckoutDto: CreateCheckoutDto) {
     try {
       const result = await this.prisma.$transaction(async (prisma) => {
-        const existingUserDetails =
-          await UserRepository.getUserDetails(user_id);
+        // Enhanced validation
+        const initialValidationErrors = [];
 
+        // Check if user exists and is active
+        const existingUserDetails = await UserRepository.getUserDetails(user_id);
         if (!existingUserDetails) {
-          return {
-            success: false,
-            message: 'User not found',
-          };
+          initialValidationErrors.push('User not found');
+        } else if (existingUserDetails.status !== 1) {
+          initialValidationErrors.push('User account is not active');
         }
-        const data = {};
+
+        // Validate required fields
         if (!createCheckoutDto.package_id) {
+          initialValidationErrors.push('Package id is required');
+        }
+
+        if (!createCheckoutDto.selected_date) {
+          initialValidationErrors.push('Selected date is required');
+        }
+
+        // Check if we have traveler counts (required for checkout)
+        const hasTravelerCounts = (createCheckoutDto.adults_count || 0) + (createCheckoutDto.children_count || 0) + (createCheckoutDto.infants_count || 0) > 0;
+
+        if (!hasTravelerCounts) {
+          initialValidationErrors.push('At least one traveler is required (adults_count, children_count, or infants_count)');
+        }
+
+        // Return validation errors if any
+        if (initialValidationErrors.length > 0) {
           return {
             success: false,
-            message: 'Package id is required',
+            message: initialValidationErrors.join(', '),
+            errors: initialValidationErrors,
           };
         }
+
+        // Get package data with enhanced validation
         const packageData = await prisma.package.findUnique({
           where: {
             id: createCheckoutDto.package_id,
+          },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            final_price: true,
+            type: true,
+            status: true,
+            approved_at: true,
+            min_adults: true,
+            max_adults: true,
+            min_children: true,
+            max_children: true,
+            min_infants: true,
+            max_infants: true,
+            user_id: true,
+            duration: true,
+            duration_type: true,
           },
         });
 
@@ -51,8 +94,125 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
-        const package_user_id = packageData.user_id;
+        // Validate package status
+        if (packageData.status !== 1) {
+          return {
+            success: false,
+            message: 'Package is not active',
+          };
+        }
 
+        if (!packageData.approved_at) {
+          return {
+            success: false,
+            message: 'Package is not approved',
+          };
+        }
+
+        // Enhanced date validation
+        const selectedDate = new Date(createCheckoutDto.selected_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Check if selected date is in the past
+        if (selectedDate < today) {
+          return {
+            success: false,
+            message: 'Selected date cannot be in the past',
+          };
+        }
+
+        // Check if selected date is too far in the future (optional - 2 years)
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 2);
+        if (selectedDate > maxDate) {
+          return {
+            success: false,
+            message: 'Selected date cannot be more than 2 years in the future',
+          };
+        }
+
+        // Enhanced traveler validation using shared utils
+        const adults_count = createCheckoutDto.adults_count || 0;
+        const children_count = createCheckoutDto.children_count || 0;
+        const infants_count = createCheckoutDto.infants_count || 0;
+        const total_travelers = adults_count + children_count + infants_count;
+
+        // Validate traveler counts against package constraints
+        const validationErrors = [];
+
+        // Check minimum requirements
+        if (adults_count < (packageData.min_adults || 1)) {
+          validationErrors.push(`Minimum ${packageData.min_adults || 1} adult(s) required`);
+        }
+
+        // Check maximum limits
+        if (adults_count > (packageData.max_adults || 10)) {
+          validationErrors.push(`Maximum ${packageData.max_adults || 10} adults allowed`);
+        }
+
+        if (children_count > (packageData.max_children || 9)) {
+          validationErrors.push(`Maximum ${packageData.max_children || 9} children allowed`);
+        }
+
+        if (infants_count > (packageData.max_infants || 2)) {
+          validationErrors.push(`Maximum ${packageData.max_infants || 2} infants allowed`);
+        }
+
+        // Check total travelers limit (max 10 as per UI)
+        if (total_travelers > 10) {
+          validationErrors.push('Maximum 10 travelers total allowed');
+        }
+
+        // For checkout phase, we only work with traveler counts
+        // Detailed traveler information will be collected during booking phase
+
+        // Return validation errors if any
+        if (validationErrors.length > 0) {
+          return {
+            success: false,
+            message: validationErrors.join(', '),
+            errors: validationErrors,
+          };
+        }
+
+        // Check package availability using shared utils
+        const availabilityValidation = await this.bookingUtils.validatePackageAvailability(
+          createCheckoutDto.package_id,
+          createCheckoutDto.selected_date,
+          packageData.type
+        );
+
+        if (!availabilityValidation.is_available) {
+          return {
+            success: false,
+            message: availabilityValidation.validation_message,
+          };
+        }
+
+        // Create availability object for consistency
+        const availability = {
+          id: 'availability-check',
+          available_slots: availabilityValidation.available_slots,
+          is_available: availabilityValidation.is_available,
+        };
+
+        // Check if enough slots are available
+        if (availability.available_slots && availability.available_slots < total_travelers) {
+          return {
+            success: false,
+            message: `Only ${availability.available_slots} slots available for selected date`,
+          };
+        }
+
+        // Calculate prices
+        const price_per_person = packageData.final_price || packageData.price;
+        const total_price = Number(price_per_person) * total_travelers;
+        const discount_amount = createCheckoutDto.discount_amount || 0;
+        const final_price = total_price - discount_amount;
+
+        // Get vendor information
+        const package_user_id = packageData.user_id;
         if (!package_user_id) {
           return {
             success: false,
@@ -60,26 +220,38 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
-        // add vendor id if the package is from vendor
-        const userDetails =
-          await UserRepository.getUserDetails(package_user_id);
-
+        const userDetails = await UserRepository.getUserDetails(package_user_id);
         if (!userDetails) {
           return {
             success: false,
             message: 'Package owner not found',
           };
         }
-        if (userDetails && userDetails.type == 'vendor') {
-          data['vendor_id'] = userDetails.id;
+
+        const checkoutData: any = {
+          user_id: user_id,
+        };
+
+        // Add vendor id if the package is from vendor
+        if (userDetails.type === 'vendor') {
+          checkoutData.vendor_id = userDetails.id;
         }
 
-        // create checkout
+        // Add contact information if provided
+        if (createCheckoutDto.first_name) checkoutData.first_name = createCheckoutDto.first_name;
+        if (createCheckoutDto.last_name) checkoutData.last_name = createCheckoutDto.last_name;
+        if (createCheckoutDto.email) checkoutData.email = createCheckoutDto.email;
+        if (createCheckoutDto.phone_number) checkoutData.phone_number = createCheckoutDto.phone_number;
+        if (createCheckoutDto.address1) checkoutData.address1 = createCheckoutDto.address1;
+        if (createCheckoutDto.address2) checkoutData.address2 = createCheckoutDto.address2;
+        if (createCheckoutDto.city) checkoutData.city = createCheckoutDto.city;
+        if (createCheckoutDto.state) checkoutData.state = createCheckoutDto.state;
+        if (createCheckoutDto.zip_code) checkoutData.zip_code = createCheckoutDto.zip_code;
+        if (createCheckoutDto.country) checkoutData.country = createCheckoutDto.country;
+
+        // Create checkout
         const checkout = await prisma.checkout.create({
-          data: {
-            ...data,
-            user_id: user_id,
-          },
+          data: checkoutData,
         });
 
         if (!checkout) {
@@ -89,6 +261,64 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
+        // Create checkout item with new fields
+        const checkoutItemData: any = {
+          checkout_id: checkout.id,
+          package_id: createCheckoutDto.package_id,
+          selected_date: new Date(createCheckoutDto.selected_date),
+          adults_count,
+          children_count,
+          infants_count,
+          total_travelers,
+          price_per_person,
+          total_price,
+          discount_amount,
+          final_price,
+          availability_id: availability.id,
+        };
+
+        // Add date range for multi-day packages
+        if (createCheckoutDto.start_date) {
+          checkoutItemData.start_date = new Date(createCheckoutDto.start_date);
+        }
+        if (createCheckoutDto.end_date) {
+          checkoutItemData.end_date = new Date(createCheckoutDto.end_date);
+        }
+
+        // Add package details
+        if (createCheckoutDto.included_packages) {
+          checkoutItemData.included_packages = createCheckoutDto.included_packages;
+        }
+        if (createCheckoutDto.excluded_packages) {
+          checkoutItemData.excluded_packages = createCheckoutDto.excluded_packages;
+        }
+        if (createCheckoutDto.extra_services) {
+          checkoutItemData.extra_services = createCheckoutDto.extra_services;
+        }
+
+        // Create checkout item
+        await prisma.checkoutItem.create({
+          data: checkoutItemData,
+        });
+
+        // Create checkout availability record using shared utils (commented until Prisma client is regenerated)
+        // const availabilityData = this.bookingUtils.createAvailabilityData(
+        //   checkout.id,
+        //   createCheckoutDto.package_id,
+        //   new Date(createCheckoutDto.selected_date),
+        //   { adults_count, children_count, infants_count, total_travelers },
+        //   { price_per_person, total_price },
+        //   availabilityValidation
+        // );
+
+        // await prisma.checkoutAvailability.create({
+        //   data: {
+        //     checkout_id: checkout.id,
+        //     ...availabilityData,
+        //   },
+        // });
+
+        // Create extra services if provided
         if (createCheckoutDto.extra_services) {
           let extra_services: IExtraService[];
           if (createCheckoutDto.extra_services instanceof Array) {
@@ -107,52 +337,53 @@ export class CheckoutService extends PrismaClient {
           }
         }
 
-        const checkoutItemData = {};
+        // Note: No detailed traveler information is created during checkout
+        // Traveler details will be collected during booking phase
 
-        if (createCheckoutDto.package_id) {
-          checkoutItemData['package_id'] = createCheckoutDto.package_id;
-        }
-        if (createCheckoutDto.start_date) {
-          checkoutItemData['start_date'] = createCheckoutDto.start_date;
-        }
-        if (createCheckoutDto.end_date) {
-          checkoutItemData['end_date'] = createCheckoutDto.end_date;
-        }
-
-        // create checkout items
-        await prisma.checkoutItem.create({
-          data: {
-            ...checkoutItemData,
-            checkout_id: checkout.id,
-            package_id: createCheckoutDto.package_id,
+        // Return checkout with calculated information
+        const createdCheckout = await prisma.checkout.findUnique({
+          where: { id: checkout.id },
+          include: {
+            checkout_items: {
+              include: {
+                package: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    final_price: true,
+                  },
+                },
+              },
+            },
+            checkout_travellers: true,
+            checkout_extra_services: {
+              include: {
+                extra_service: true,
+              },
+            },
+            // checkout_availabilities: true, // Commented until Prisma client is regenerated
           },
         });
-
-        // create booking-travellers
-        if (createCheckoutDto.booking_travellers) {
-          let booking_travellers: IBookingTraveller[];
-          if (createCheckoutDto.extra_services instanceof Array) {
-            booking_travellers = createCheckoutDto.booking_travellers;
-          } else {
-            booking_travellers = JSON.parse(
-              createCheckoutDto.booking_travellers,
-            );
-          }
-          for (const traveller of booking_travellers) {
-            await prisma.checkoutTraveller.create({
-              data: {
-                checkout_id: checkout.id,
-                full_name: traveller.full_name,
-                type: traveller.type,
-              },
-            });
-          }
-        }
 
         return {
           success: true,
           message: 'Checkout created successfully.',
-          data: checkout,
+          data: {
+            ...createdCheckout,
+            calculated_prices: {
+              price_per_person,
+              total_price,
+              discount_amount,
+              final_price,
+              travelers_summary: {
+                adults: adults_count,
+                children: children_count,
+                infants: infants_count,
+                total: total_travelers,
+              },
+            },
+          },
         };
       });
 
@@ -269,26 +500,8 @@ export class CheckoutService extends PrismaClient {
           };
         }
 
-        // create booking-travellers
-        if (updateCheckoutDto.booking_travellers) {
-          let booking_travellers: IBookingTraveller[];
-          if (updateCheckoutDto.extra_services instanceof Array) {
-            booking_travellers = updateCheckoutDto.booking_travellers;
-          } else {
-            booking_travellers = JSON.parse(
-              updateCheckoutDto.booking_travellers,
-            );
-          }
-          for (const traveller of booking_travellers) {
-            await prisma.checkoutTraveller.create({
-              data: {
-                checkout_id: checkout.id,
-                full_name: traveller.full_name,
-                type: traveller.type,
-              },
-            });
-          }
-        }
+        // Note: No detailed traveler information is updated during checkout
+        // Traveler details will be collected during booking phase
 
         // create user payment methods
         if (updateCheckoutDto.payment_methods) {
@@ -343,6 +556,141 @@ export class CheckoutService extends PrismaClient {
       });
 
       return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async findAll(user_id: string, page: number = 1, limit: number = 10) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const [checkouts, total] = await Promise.all([
+        this.prisma.checkout.findMany({
+          where: {
+            user_id: user_id,
+            deleted_at: null
+          },
+          skip,
+          take: limit,
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            created_at: true,
+            email: true,
+            phone_number: true,
+            address1: true,
+            address2: true,
+            zip_code: true,
+            state: true,
+            city: true,
+            country: true,
+            checkout_travellers: {
+              select: {
+                full_name: true,
+                type: true,
+                age: true,
+              },
+            },
+            checkout_extra_services: {
+              select: {
+                extra_service: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+            checkout_items: {
+              select: {
+                selected_date: true,
+                start_date: true,
+                end_date: true,
+                adults_count: true,
+                children_count: true,
+                infants_count: true,
+                total_travelers: true,
+                price_per_person: true,
+                total_price: true,
+                discount_amount: true,
+                final_price: true,
+                package: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    price: true,
+                    final_price: true,
+                    duration: true,
+                    duration_type: true,
+                    type: true,
+                    package_destinations: {
+                      select: {
+                        destination: {
+                          select: {
+                            id: true,
+                            name: true,
+                            country: {
+                              select: {
+                                id: true,
+                                name: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            temp_redeems: {
+              select: {
+                id: true,
+                coupon: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    amount: true,
+                    amount_type: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        this.prisma.checkout.count({
+          where: {
+            user_id: user_id,
+            deleted_at: null
+          },
+        }),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
+
+      return {
+        success: true,
+        data: {
+          checkouts,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage,
+            hasPreviousPage,
+          },
+        },
+      };
     } catch (error) {
       return {
         success: false,
@@ -594,6 +942,75 @@ export class CheckoutService extends PrismaClient {
         message: removeCoupon.message,
         data: couponPrice,
       };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+
+
+  async remove(id: string, user_id: string) {
+    try {
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Check if checkout exists and belongs to user
+        const checkout = await prisma.checkout.findUnique({
+          where: {
+            id: id,
+          },
+          select: {
+            id: true,
+            user_id: true,
+            status: true,
+          },
+        });
+
+        if (!checkout) {
+          return {
+            success: false,
+            message: 'Checkout not found',
+          };
+        }
+
+        // Verify ownership
+        if (checkout.user_id !== user_id) {
+          return {
+            success: false,
+            message: 'You are not authorized to delete this checkout',
+          };
+        }
+
+        // Check if checkout can be deleted (not already processed)
+        if (checkout.status && checkout.status !== 1) {
+          return {
+            success: false,
+            message: 'Cannot delete checkout that has been processed',
+          };
+        }
+
+        // Soft delete the checkout (set deleted_at)
+        const deletedCheckout = await prisma.checkout.update({
+          where: {
+            id: id,
+          },
+          data: {
+            deleted_at: new Date(),
+          },
+        });
+
+        return {
+          success: true,
+          message: 'Checkout deleted successfully',
+          data: {
+            id: deletedCheckout.id,
+            deleted_at: deletedCheckout.deleted_at,
+          },
+        };
+      });
+
+      return result;
     } catch (error) {
       return {
         success: false,
