@@ -301,22 +301,8 @@ export class CheckoutService extends PrismaClient {
           data: checkoutItemData,
         });
 
-        // Create checkout availability record using shared utils (commented until Prisma client is regenerated)
-        // const availabilityData = this.bookingUtils.createAvailabilityData(
-        //   checkout.id,
-        //   createCheckoutDto.package_id,
-        //   new Date(createCheckoutDto.selected_date),
-        //   { adults_count, children_count, infants_count, total_travelers },
-        //   { price_per_person, total_price },
-        //   availabilityValidation
-        // );
-
-        // await prisma.checkoutAvailability.create({
-        //   data: {
-        //     checkout_id: checkout.id,
-        //     ...availabilityData,
-        //   },
-        // });
+        // Note: Availability validation is done above, no need to create availability records
+        // since we're not using the packageAvailability model
 
         // Create extra services if provided
         if (createCheckoutDto.extra_services) {
@@ -362,7 +348,7 @@ export class CheckoutService extends PrismaClient {
                 extra_service: true,
               },
             },
-            // checkout_availabilities: true, // Commented until Prisma client is regenerated
+
           },
         });
 
@@ -663,6 +649,7 @@ export class CheckoutService extends PrismaClient {
                 },
               },
             },
+
           },
         }),
         this.prisma.checkout.count({
@@ -726,6 +713,7 @@ export class CheckoutService extends PrismaClient {
           },
           checkout_items: {
             select: {
+              selected_date: true,
               start_date: true,
               end_date: true,
               package: {
@@ -769,6 +757,7 @@ export class CheckoutService extends PrismaClient {
               },
             },
           },
+
         },
       });
 

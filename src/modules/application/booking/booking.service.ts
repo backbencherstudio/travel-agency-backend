@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
-import { CheckoutRepository } from '../../../common/repository/checkout/checkout.repository';
+
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
@@ -33,7 +33,11 @@ export class BookingService extends PrismaClient {
             id: createBookingDto.checkout_id,
           },
           include: {
-            checkout_extra_services: true,
+            checkout_extra_services: {
+              include: {
+                extra_service: true,
+              },
+            },
             checkout_items: {
               include: {
                 package: true,
@@ -66,12 +70,42 @@ export class BookingService extends PrismaClient {
 
         // create invoice number
         const invoice_number = await BookingRepository.createInvoiceNumber();
-        const total_price =
-          await CheckoutRepository.calculateTotalPrice(createBookingDto.checkout_id);
+
+        // Calculate total price from checkout items
+        let total_price = 0;
+        for (const item of checkout.checkout_items) {
+          // Use final_price if available, otherwise use total_price
+          const itemPrice = Number(item.final_price || item.total_price || 0);
+          total_price += itemPrice;
+        }
+
+        // Add extra services if any
+        for (const service of checkout.checkout_extra_services) {
+          const servicePrice = Number(service.extra_service.price || 0);
+          total_price += servicePrice;
+        }
+
+        // Validate total price
+        if (!total_price || total_price <= 0) {
+          return {
+            success: false,
+            message: 'Invalid total price. Please check your booking details.',
+          };
+        }
 
         // Calculate traveler counts from booking_travellers
         const traveler_counts = this.bookingUtils.calculateTravelerCounts(createBookingDto.booking_travellers);
         const price_info = await this.bookingUtils.calculatePrices(createBookingDto.checkout_id, total_price);
+
+        // Determine booking type and payment status
+        const booking_type = createBookingDto.booking_type || 'book'; // Default to 'book'
+        const isImmediatePayment = booking_type === 'book';
+
+        // Set initial payment status based on booking type
+        let initialPaymentStatus = 'pending';
+        if (!isImmediatePayment) {
+          initialPaymentStatus = 'reserved';
+        }
 
         // create booking
         const booking = await prisma.booking.create({
@@ -86,6 +120,10 @@ export class BookingService extends PrismaClient {
             infants_count: traveler_counts.infants_count,
             total_travelers: traveler_counts.total_travelers,
             user_id: user_id,
+            type: createBookingDto.type || 'tour', // Keep the original type field for tour/cruise
+            booking_type: booking_type, // Store the booking type in database
+            payment_status: initialPaymentStatus,
+            booking_date_time: new Date(),
           },
         });
 
@@ -197,48 +235,51 @@ export class BookingService extends PrismaClient {
           }
         }
 
-        //todo: remove this after testing
-        return {
-          booking: booking,
-        };
+
         const userDetails = await UserRepository.getUserDetails(user_id);
-
         const currency = 'usd';
-        // calculate tax
-        // const tax_calculation = await StripePayment.calculateTax({
-        //   amount: total_price,
-        //   currency: currency,
-        //   customer_details: {
-        //     address: {
-        //       city: checkout.city,
-        //       country: checkout.country,
-        //       line1: checkout.address1,
-        //       postal_code: checkout.zip_code,
-        //       state: checkout.state,
-        //     },
-        //   },
-        // });
+        let paymentIntent = null;
 
-        // create payment intent
-        const paymentIntent = await StripePayment.createPaymentIntent({
-          amount: total_price,
-          currency: currency,
-          customer_id: userDetails.billing_id,
-          // metadata: {
-          //   tax_calculation: tax_calculation.id,
-          // },
-        });
+        // Handle payment based on booking type
+        if (isImmediatePayment) {
+          // For "book" - create payment intent immediately
+          // Ensure minimum payment amount for Stripe (50 cents minimum)
+          // Stripe requires minimum charge amounts: https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+          const minimumAmount = 50; // 50 cents in smallest currency unit
+          const paymentAmount = Math.max(total_price, minimumAmount);
 
-        // create transaction
-        await prisma.paymentTransaction.create({
-          data: {
-            booking_id: booking.id,
-            reference_number: paymentIntent.id,
-            amount: total_price,
-            currency: 'usd',
-            status: 'pending',
-          },
-        });
+          // create payment intent
+          paymentIntent = await StripePayment.createPaymentIntent({
+            amount: paymentAmount,
+            currency: currency,
+            customer_id: userDetails.billing_id,
+            // metadata: {
+            //   tax_calculation: tax_calculation.id,
+            // },
+          });
+
+          // create transaction
+          await prisma.paymentTransaction.create({
+            data: {
+              booking_id: booking.id,
+              reference_number: paymentIntent.id,
+              amount: paymentAmount,
+              currency: 'usd',
+              status: 'pending',
+            },
+          });
+        } else {
+          // For "reserve" - create a placeholder transaction for tracking
+          await prisma.paymentTransaction.create({
+            data: {
+              booking_id: booking.id,
+              reference_number: `RESERVE-${booking.id}`,
+              amount: total_price,
+              currency: 'usd',
+              status: 'reserved',
+            },
+          });
+        }
         // await TransactionRepository.createTransaction({
         //   booking_id: booking.id,
         //   reference_number: paymentIntent.id,
@@ -274,9 +315,16 @@ export class BookingService extends PrismaClient {
 
         return {
           success: true,
-          message: 'Booking created successfully.',
+          message: isImmediatePayment ? 'Booking created successfully. Please complete payment.' : 'Booking reserved successfully. Payment will be required later.',
           data: {
-            client_secret: paymentIntent.client_secret,
+            booking_id: booking.id,
+            booking_type: booking_type,
+            payment_status: isImmediatePayment ? 'pending' : 'reserved',
+            ...(isImmediatePayment && paymentIntent && {
+              client_secret: paymentIntent.client_secret,
+            }),
+            total_amount: total_price,
+            currency: 'usd',
           },
         };
       });
@@ -357,6 +405,16 @@ export class BookingService extends PrismaClient {
           total_amount: true,
           payment_status: true,
           status: true,
+          type: true,
+          booking_type: true,
+          booking_date_time: true,
+          payment_transactions: {
+            select: {
+              status: true,
+              amount: true,
+              currency: true,
+            },
+          },
           booking_items: {
             select: {
               package: {
@@ -403,6 +461,7 @@ export class BookingService extends PrismaClient {
           vendor_id: true,
           user_id: true,
           type: true,
+          booking_type: true,
           total_amount: true,
           payment_status: true,
           payment_raw_status: true,
@@ -626,5 +685,91 @@ export class BookingService extends PrismaClient {
   async sendInvoiceToEmail(payment_intent_id: string) {
     const invoice = await StripePayment.sendInvoiceToEmail(payment_intent_id);
     return invoice;
+  }
+  /**
+   * Process payment for a reserved booking
+   */
+  async processReservedPayment(booking_id: string, user_id: string) {
+    try {
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Find the reserved booking
+        const booking = await prisma.booking.findUnique({
+          where: {
+            id: booking_id,
+            user_id: user_id,
+            payment_status: 'reserved',
+          },
+          include: {
+            payment_transactions: {
+              where: {
+                status: 'reserved',
+              },
+            },
+          },
+        });
+
+        if (!booking) {
+          return {
+            success: false,
+            message: 'Reserved booking not found or already paid',
+          };
+        }
+
+        const userDetails = await UserRepository.getUserDetails(user_id);
+        const total_price = Number(booking.total_amount);
+        const currency = 'usd';
+
+        // Ensure minimum payment amount for Stripe
+        const minimumAmount = 50;
+        const paymentAmount = Math.max(total_price, minimumAmount);
+
+        // Create payment intent
+        const paymentIntent = await StripePayment.createPaymentIntent({
+          amount: paymentAmount,
+          currency: currency,
+          customer_id: userDetails.billing_id,
+        });
+
+        // Update the existing reserved transaction
+        await prisma.paymentTransaction.update({
+          where: {
+            id: booking.payment_transactions[0].id,
+          },
+          data: {
+            reference_number: paymentIntent.id,
+            status: 'pending',
+          },
+        });
+
+        // Update booking payment status
+        await prisma.booking.update({
+          where: {
+            id: booking_id,
+          },
+          data: {
+            payment_status: 'pending',
+          },
+        });
+
+        return {
+          success: true,
+          message: 'Payment intent created for reserved booking',
+          data: {
+            client_secret: paymentIntent.client_secret,
+            booking_id: booking.id,
+            booking_type: booking.booking_type,
+            total_amount: total_price,
+            currency: 'usd',
+          },
+        };
+      });
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }

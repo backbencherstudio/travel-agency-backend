@@ -51,7 +51,15 @@ export class CreateBookingDto {
     @IsOptional() @IsString() @ApiProperty({ description: 'Additional comments for the booking', required: false })
     comments?: string;
 
-    @IsOptional() @IsString() @ApiProperty({ description: 'Booking type', example: 'tour', required: false })
+    @IsOptional() @IsString() @ApiProperty({
+        description: 'Booking type: "book" for immediate payment, "reserve" for deferred payment',
+        example: 'book',
+        enum: ['book', 'reserve'],
+        required: false
+    })
+    booking_type?: string;
+
+    @IsOptional() @IsString() @ApiProperty({ description: 'Package type: tour, cruise, etc.', example: 'tour', required: false })
     type?: string;
 
     @IsOptional() @Transform(({ value }) => parseFloat(value)) @IsNumber() @ApiProperty({ description: 'Additional discount amount', example: 0, required: false })

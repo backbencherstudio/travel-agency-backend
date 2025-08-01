@@ -323,7 +323,7 @@ model Package {
   min_children Int? @default(0)
   max_children Int? @default(9)
   min_infants  Int? @default(0)
-  max_infants  Int? @default(2) 
+  max_infants  Int? @default(2)
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
@@ -342,7 +342,7 @@ model Package {
   package_destinations    PackageDestination[]
   package_languages       PackageLanguage[]
   package_traveller_types PackageTravellerType[]
-  package_availabilities  PackageAvailability[]
+  // package_availabilities  PackageAvailability[]
   package_places          PackagePlace[]
   package_additional_info PackageAdditionalInfo[]
   package_opening_hours   PackageOpeningHours[]
@@ -389,30 +389,30 @@ model PackageTravellerType {
 }
 
 // this table stores package availability information
-model PackageAvailability {
-  id         String    @id @default(cuid())
-  created_at DateTime  @default(now())
-  updated_at DateTime  @default(now())
-  deleted_at DateTime?
-  status     Int?      @default(1) @db.SmallInt
+// model PackageAvailability {
+//   id         String    @id @default(cuid())
+//   created_at DateTime  @default(now())
+//   updated_at DateTime  @default(now())
+//   deleted_at DateTime?
+//   status     Int?      @default(1) @db.SmallInt
 
-  package_id String
-  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+//   package_id String
+//   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
-  // For single day packages: available_date
-  // For multi-day packages: start_date and end_date
-  available_date DateTime? @default(now())
-  start_date     DateTime? @db.Date
-  end_date       DateTime? @db.Date
+//   // For single day packages: available_date
+//   // For multi-day packages: start_date and end_date
+//   available_date DateTime? @default(now())
+//   start_date     DateTime? @db.Date
+//   end_date       DateTime? @db.Date
 
-  // Whether this date/range is available for booking
-  is_available Boolean? @default(true)
+//   // Whether this date/range is available for booking
+//   is_available Boolean? @default(true)
 
-  // Available slots/capacity for this date/range
-  available_slots Int? @default(1)
+//   // Available slots/capacity for this date/range
+//   available_slots Int? @default(1)
 
-  @@map("package_availabilities")
-}
+//   @@map("package_availabilities")
+// }
 
 // this table stores package opening hours (daily schedules)
 model PackageOpeningHours {
@@ -438,7 +438,6 @@ model PackageOpeningHours {
   // Break time (optional)
   break_start_time String? // e.g., "12:00"
   break_end_time   String? // e.g., "13:00"
-
 
   @@map("package_opening_hours")
 }
@@ -978,6 +977,11 @@ model Booking {
   // tour, cruise
   type String? @default("tour")
 
+  // booking payment type
+  // available values:
+  // book (immediate payment), reserve (deferred payment)
+  booking_type String? @default("book")
+
   user_id String?
   user    User?   @relation("user", fields: [user_id], references: [id])
 
@@ -999,8 +1003,15 @@ model Booking {
   total_travelers Int? @default(0)
 
   // Payment information
-  // e.g. pending, paid, failed
-  payment_status           String?
+  // available values:
+  // pending (payment intent created, waiting for payment)
+  // reserved (booking reserved, payment not yet initiated)
+  // processing (payment is being processed)
+  // succeeded (payment completed successfully)
+  // failed (payment failed)
+  // cancelled (payment/booking cancelled)
+  // refunded (payment refunded)
+  payment_status           String?  @default("pending")
   // raw information from payment provider
   // raw status from payment provider
   payment_raw_status       String?
@@ -1297,7 +1308,15 @@ model PaymentTransaction {
 
   provider         String? // e.g. stripe, paypal, razorpay
   reference_number String? // e.g. stripe payment reference id like payment_intent_id
-  // values: pending succeeded, processing, requires_payment_method
+  // available values:
+  // pending (payment intent created, waiting for payment)
+  // reserved (booking reserved, payment not yet initiated)
+  // processing (payment is being processed)
+  // succeeded (payment completed successfully)
+  // failed (payment failed)
+  // cancelled (payment/booking cancelled)
+  // refunded (payment refunded)
+  // requires_payment_method (payment method required)
   status           String?  @default("pending")
   raw_status       String? // e.g. succeeded, processing, requires_payment_method
   amount           Decimal?

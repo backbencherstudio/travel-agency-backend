@@ -261,23 +261,7 @@ export class CreatePackageDto {
   })
   languages?: string;
 
-  @ApiProperty({
-    description: 'Package availabilities array with stringified objects',
-    example: [
-      {
-        available_date: '2024-01-15',
-        available_slots: 10,
-        is_available: true,
-      },
-      {
-        available_date: '2024-01-16',
-        available_slots: 8,
-        is_available: true,
-      },
-    ],
-    required: false,
-  })
-  package_availabilities?: string;
+
 
   @ApiProperty({
     description: 'Package places array with stringified objects',

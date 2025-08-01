@@ -10,6 +10,7 @@ import { CheckoutModule } from './checkout/checkout.module';
 import { CancellationPolicyModule } from './cancellation-policy/cancellation-policy.module';
 import { LanguageModule } from './language/language.module';
 import { PageModule } from './page/page.module';
+import { CouponModule } from './coupon/coupon.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PageModule } from './page/page.module';
     CancellationPolicyModule,
     LanguageModule,
     PageModule,
+    CouponModule,
   ],
 })
 export class ApplicationModule {}

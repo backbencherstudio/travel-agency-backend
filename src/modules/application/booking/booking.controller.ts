@@ -84,4 +84,19 @@ export class BookingController {
       };
     }
   }
+
+  @ApiOperation({ summary: 'Process payment for reserved booking' })
+  @Post(':id/process-payment')
+  async processReservedPayment(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.processReservedPayment(id, user_id);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }

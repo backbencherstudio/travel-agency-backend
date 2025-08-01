@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CheckoutRepository } from '../repository/checkout/checkout.repository';
+
 
 @Injectable()
 export class BookingUtilsService {
@@ -27,14 +27,12 @@ export class BookingUtilsService {
      * Calculate prices with discounts
      */
     async calculatePrices(checkout_id: string, total_price: number) {
-        const discount_data = await CheckoutRepository.calculateCoupon(checkout_id);
-        const discount_amount = discount_data[0]?.discount_amount || 0;
-        const final_price = total_price - discount_amount;
-
+        // For now, return the total price as final price since discounts are already applied
+        // in the checkout items' final_price field
         return {
             total_price,
-            discount_amount,
-            final_price,
+            discount_amount: 0, // Discounts are already applied in checkout items
+            final_price: total_price,
         };
     }
 
@@ -50,34 +48,24 @@ export class BookingUtilsService {
             };
         }
 
-        const availability = await this.prisma.packageAvailability.findFirst({
-            where: {
-                package_id: package_id,
-                OR: [
-                    {
-                        available_date: new Date(selected_date),
-                        is_available: true,
-                    },
-                    {
-                        start_date: { lte: new Date(selected_date) },
-                        end_date: { gte: new Date(selected_date) },
-                        is_available: true,
-                    },
-                ],
-            },
-        });
+        // For non-tour packages, check if the date is in the future
+        const selectedDate = new Date(selected_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        if (!availability) {
+        if (selectedDate < today) {
             return {
                 is_available: false,
                 available_slots: 0,
-                validation_message: 'Selected date is not available for this package',
+                validation_message: 'Selected date cannot be in the past',
             };
         }
 
+        // For now, assume all future dates are available for non-tour packages
+        // This can be enhanced later with specific availability logic
         return {
             is_available: true,
-            available_slots: availability.available_slots || 0,
+            available_slots: 50, // Default available slots
             validation_message: 'Availability confirmed',
         };
     }
@@ -100,32 +88,7 @@ export class BookingUtilsService {
         return target;
     }
 
-    /**
-     * Create availability record data
-     */
-    createAvailabilityData(
-        entity_id: string,
-        package_id: string,
-        selected_date: Date,
-        traveler_counts: any,
-        price_info: any,
-        validation_result: any
-    ) {
-        return {
-            package_id: package_id,
-            selected_date: selected_date,
-            requested_adults: traveler_counts.adults_count,
-            requested_children: traveler_counts.children_count,
-            requested_infants: traveler_counts.infants_count,
-            requested_total: traveler_counts.total_travelers,
-            is_available: validation_result.is_available,
-            available_slots: validation_result.available_slots,
-            remaining_slots: validation_result.available_slots - traveler_counts.total_travelers,
-            price_per_person: price_info.price_per_person,
-            total_price: price_info.total_price,
-            validation_message: validation_result.validation_message,
-        };
-    }
+
 
     /**
  * Validate traveler ages

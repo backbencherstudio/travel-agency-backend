@@ -47,6 +47,7 @@ export class PackageService extends PrismaClient {
     },
   ) {
     try {
+     
       // Calculate final price
       const finalPrice = this.calculateFinalPrice(createPackageDto);
 
@@ -292,38 +293,7 @@ export class PackageService extends PrismaClient {
         });
       }
 
-      // Create package availabilities if provided
-      if (createPackageDto.package_availabilities) {
-        const package_availabilities = JSON.parse(
-          createPackageDto.package_availabilities,
-        );
-        for (const package_availability of package_availabilities) {
-          const availabilityData = {
-            package_id: record.id,
-            available_date: package_availability.available_date
-              ? new Date(package_availability.available_date)
-              : undefined,
-            start_date: package_availability.start_date
-              ? new Date(package_availability.start_date)
-              : undefined,
-            end_date: package_availability.end_date
-              ? new Date(package_availability.end_date)
-              : undefined,
-            available_slots: package_availability.available_slots
-              ? Number(package_availability.available_slots)
-              : undefined,
-            price_override: package_availability.price_override,
-            is_available:
-              package_availability.is_available !== undefined
-                ? package_availability.is_available
-                : true,
-          };
 
-          await this.prisma.packageAvailability.create({
-            data: availabilityData,
-          });
-        }
-      }
 
       // Create package places if provided
       if (createPackageDto.package_places) {
@@ -418,18 +388,6 @@ export class PackageService extends PrismaClient {
     filters?: {
       q?: string;
       type?: string;
-      duration?: number;
-      min_price?: number;
-      max_price?: number;
-      min_rating?: number;
-      free_cancellation?: boolean;
-      tag_id?: string;
-      category_id?: string;
-      destination_id?: string;
-      country_id?: string;
-      start_date?: string;
-      end_date?: string;
-      available_date?: string;
     },
     pagination?: {
       page?: number;
@@ -458,126 +416,8 @@ export class PackageService extends PrismaClient {
         if (filters.type) {
           where_condition['type'] = filters.type;
         }
-        if (filters.duration) {
-          where_condition['duration'] = filters.duration;
-        }
-        if (filters.min_price || filters.max_price) {
-          where_condition['final_price'] = {};
-          if (filters.min_price) {
-            where_condition['final_price']['gte'] = filters.min_price;
-          }
-          if (filters.max_price) {
-            where_condition['final_price']['lte'] = filters.max_price;
-          }
-        }
-        if (filters.free_cancellation !== undefined) {
-          where_condition['cancellation_policy'] = {
-            policy: filters.free_cancellation
-              ? 'free_cancellation'
-              : 'non_refundable',
-          };
-        }
-        if (filters.category_id) {
-          where_condition['package_categories'] = {
-            some: {
-              category_id: filters.category_id,
-            },
-          };
-        }
-        if (filters.tag_id) {
-          where_condition['package_tags'] = {
-            some: {
-              tag_id: filters.tag_id,
-            },
-          };
-        }
-        if (filters.destination_id) {
-          where_condition['package_destinations'] = {
-            some: {
-              destination_id: filters.destination_id,
-            },
-          };
-        }
-        if (filters.country_id) {
-          where_condition['package_destinations'] = {
-            some: {
-              destination: {
-                country: {
-                  id: filters.country_id,
-                },
-              },
-            },
-          };
-        }
-        if (filters.start_date) {
-          where_condition['package_availabilities'] = {
-            some: {
-              OR: [
-                {
-                  available_date: {
-                    gte: new Date(filters.start_date),
-                  },
-                },
-                {
-                  AND: [
-                    { start_date: { not: null } },
-                    { start_date: { gte: new Date(filters.start_date) } },
-                  ],
-                },
-              ],
-            },
-          };
-        }
-        if (filters.end_date) {
-          where_condition['package_availabilities'] = {
-            some: {
-              OR: [
-                {
-                  available_date: {
-                    lte: new Date(filters.end_date),
-                  },
-                },
-                {
-                  AND: [
-                    { end_date: { not: null } },
-                    { end_date: { lte: new Date(filters.end_date) } },
-                  ],
-                },
-              ],
-            },
-          };
-        }
-        if (filters.available_date) {
-          const targetDate = new Date(filters.available_date);
-          where_condition['package_availabilities'] = {
-            some: {
-              OR: [
-                // Single date packages - exact match
-                {
-                  available_date: {
-                    equals: targetDate,
-                  },
-                },
-                // Date range packages - check if target date falls within range
-                {
-                  AND: [
-                    { start_date: { not: null } },
-                    { end_date: { not: null } },
-                    { start_date: { lte: targetDate } },
-                    { end_date: { gte: targetDate } },
-                  ],
-                },
-                // Single date packages - check if available on or after target date
-                {
-                  AND: [
-                    { available_date: { not: null } },
-                    { available_date: { gte: targetDate } },
-                  ],
-                },
-              ],
-            },
-          };
-        }
+
+
       }
 
       // Calculate pagination
@@ -590,7 +430,7 @@ export class PackageService extends PrismaClient {
         where: { ...where_condition },
       });
 
-      let packages = await this.prisma.package.findMany({
+      const packages = await this.prisma.package.findMany({
         where: { ...where_condition },
         skip: skip,
         take: limit,
@@ -631,16 +471,6 @@ export class PackageService extends PrismaClient {
                   name: true,
                 },
               },
-            },
-          },
-          package_availabilities: {
-            select: {
-              id: true,
-              available_date: true,
-              start_date: true,
-              end_date: true,
-              available_slots: true,
-              is_available: true,
             },
           },
           package_destinations: {
@@ -730,13 +560,6 @@ export class PackageService extends PrismaClient {
           // Remove reviews array as we've processed it
           delete record.reviews;
         }
-
-        // Filter by rating if specified
-        if (filters?.min_rating) {
-          packages = packages.filter(
-            (pkg: any) => pkg.average_rating >= filters.min_rating,
-          );
-        }
       }
 
       // Calculate pagination metadata
@@ -798,16 +621,6 @@ export class PackageService extends PrismaClient {
           min_infants: true,
           max_infants: true,
           type: true,
-          package_availabilities: {
-            select: {
-              id: true,
-              available_date: true,
-              start_date: true,
-              end_date: true,
-              available_slots: true,
-              is_available: true,
-            },
-          },
           package_languages: {
             select: {
               language: {

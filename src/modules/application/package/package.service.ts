@@ -413,109 +413,20 @@ export class PackageService extends PrismaClient {
             },
           };
         }
-        // Date filtering based on package type
-        if (filters.start_date || filters.end_date || filters.available_date) {
-          // For 'tour' type packages, they are always available, so no date filtering needed
-          // For other package types, apply date filtering based on availability
-          const availabilityConditions = [];
 
-          // Add specific date constraints for non-tour packages
-          if (filters.start_date) {
-            availabilityConditions.push(
-              {
-                available_date: {
-                  gte: new Date(filters.start_date),
-                },
-              },
-              {
-                AND: [
-                  { start_date: { not: null } },
-                  { start_date: { gte: new Date(filters.start_date) } },
-                ],
-              }
-            );
-          }
+        // Date filtering based on created_at
+        if (filters.available_date) {
+          const targetDate = new Date(filters.available_date);
+          const startOfDay = new Date(targetDate);
+          startOfDay.setHours(0, 0, 0, 0);
 
-          if (filters.end_date) {
-            availabilityConditions.push(
-              {
-                available_date: {
-                  lte: new Date(filters.end_date),
-                },
-              },
-              {
-                AND: [
-                  { end_date: { not: null } },
-                  { end_date: { lte: new Date(filters.end_date) } },
-                ],
-              }
-            );
-          }
+          const endOfDay = new Date(targetDate);
+          endOfDay.setHours(23, 59, 59, 999);
 
-          if (filters.available_date) {
-            const targetDate = new Date(filters.available_date);
-            availabilityConditions.push(
-              // Single date packages - exact match
-              {
-                available_date: {
-                  equals: targetDate,
-                },
-              },
-              // Date range packages - check if target date falls within range
-              {
-                AND: [
-                  { start_date: { not: null } },
-                  { end_date: { not: null } },
-                  { start_date: { lte: targetDate } },
-                  { end_date: { gte: targetDate } },
-                ],
-              },
-              // Single date packages - check if available on or after target date
-              {
-                AND: [
-                  { available_date: { not: null } },
-                  { available_date: { gte: targetDate } },
-                ],
-              }
-            );
-          }
-
-          // If no specific date filters, just check for any availability
-          if (availabilityConditions.length === 0) {
-            availabilityConditions.push(
-              {
-                available_date: {
-                  not: null,
-                },
-              },
-              {
-                AND: [
-                  { start_date: { not: null } },
-                  { end_date: { not: null } },
-                ],
-              }
-            );
-          }
-
-          // Apply the date filter condition
-          where_condition['OR'] = [
-            // Tour packages are always available
-            { type: 'tour' },
-            // Non-tour packages need to check availability
-            {
-              AND: [
-                { type: { not: 'tour' } },
-                {
-                  package_availabilities: {
-                    some: {
-                      is_available: true,
-                      OR: availabilityConditions,
-                    },
-                  },
-                },
-              ],
-            },
-          ];
+          where_condition['created_at'] = {
+            //gte: startOfDay,
+            lte: endOfDay,
+          };
         }
       }
 
@@ -554,6 +465,7 @@ export class PackageService extends PrismaClient {
           discount_amount: true,
           final_price: true,
           duration: true,
+          duration_type: true,
           min_adults: true,
           max_adults: true,
           min_children: true,
@@ -578,16 +490,15 @@ export class PackageService extends PrismaClient {
               },
             },
           },
-          package_availabilities: {
-            select: {
-              id: true,
-              available_date: true,
-              start_date: true,
-              end_date: true,
-              available_slots: true,
-              is_available: true,
-            },
-          },
+          //   select: {
+          //     id: true,
+          //     available_date: true,
+          //     start_date: true,
+          //     end_date: true,
+          //     available_slots: true,
+          //     is_available: true,
+          //   },
+          // },
           package_destinations: {
             select: {
               destination: {
@@ -743,16 +654,15 @@ export class PackageService extends PrismaClient {
           min_infants: true,
           max_infants: true,
           type: true,
-          package_availabilities: {
-            select: {
-              id: true,
-              available_date: true,
-              start_date: true,
-              end_date: true,
-              available_slots: true,
-              is_available: true,
-            },
-          },
+          //   select: {
+          //     id: true,
+          //     available_date: true,
+          //     start_date: true,
+          //     end_date: true,
+          //     available_slots: true,
+          //     is_available: true,
+          //   },
+          // },
           package_languages: {
             select: {
               language: {
