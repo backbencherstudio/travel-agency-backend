@@ -47,7 +47,7 @@ export class PackageService extends PrismaClient {
     },
   ) {
     try {
-     
+
       // Calculate final price
       const finalPrice = this.calculateFinalPrice(createPackageDto);
 
@@ -330,6 +330,11 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // Create PackageAvailability for package or cruise types
+      if (createPackageDto.type === 'package' || createPackageDto.type === 'cruise') {
+        await this.createPackageAvailability(record.id, createPackageDto);
+      }
+
       const userDetails = await UserRepository.getUserDetails(user_id);
       if (userDetails && userDetails.type != 'admin') {
         // notify the admin that the package is created
@@ -416,8 +421,6 @@ export class PackageService extends PrismaClient {
         if (filters.type) {
           where_condition['type'] = filters.type;
         }
-
-
       }
 
       // Calculate pagination
@@ -522,6 +525,15 @@ export class PackageService extends PrismaClient {
             select: {
               id: true,
               file: true,
+            },
+          },
+          package_availabilities: {
+            select: {
+              id: true,
+              start_date: true,
+              end_date: true,
+              is_available: true,
+              available_slots: true,
             },
           },
           reviews: {
@@ -765,6 +777,15 @@ export class PackageService extends PrismaClient {
                   type: true,
                 },
               },
+            },
+          },
+          package_availabilities: {
+            select: {
+              id: true,
+              start_date: true,
+              end_date: true,
+              is_available: true,
+              available_slots: true,
             },
           },
         },
@@ -1458,6 +1479,48 @@ export class PackageService extends PrismaClient {
         success: false,
         message: error.message,
       };
+    }
+  }
+
+  private async createPackageAvailability(packageId: string, createPackageDto: CreatePackageDto) {
+    try {
+      // Check if package_availability data is provided
+      if (createPackageDto.package_availability) {
+        const availabilityData = JSON.parse(createPackageDto.package_availability);
+
+        for (const availability of availabilityData) {
+          const availabilityRecord = {
+            package_id: packageId,
+            start_date: availability.start_date ? new Date(availability.start_date) : null,
+            end_date: availability.end_date ? new Date(availability.end_date) : null,
+            is_available: availability.is_available !== undefined ? availability.is_available : true,
+            available_slots: availability.available_slots || 10,
+          };
+
+          await this.prisma.packageAvailability.create({
+            data: availabilityRecord,
+          });
+        }
+      } else {
+        // Create default availability if no specific data provided
+        // For packages/cruises, create availability for the next 365 days
+        const today = new Date();
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(today.getFullYear() + 1);
+
+        await this.prisma.packageAvailability.create({
+          data: {
+            package_id: packageId,
+            start_date: today,
+            end_date: oneYearFromNow,
+            is_available: true,
+            available_slots: 999,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error creating package availability:', error);
+      // Don't throw error to avoid breaking package creation
     }
   }
 }

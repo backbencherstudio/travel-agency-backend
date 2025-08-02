@@ -342,7 +342,7 @@ model Package {
   package_destinations    PackageDestination[]
   package_languages       PackageLanguage[]
   package_traveller_types PackageTravellerType[]
-  // package_availabilities  PackageAvailability[]
+  package_availabilities  PackageAvailability[]
   package_places          PackagePlace[]
   package_additional_info PackageAdditionalInfo[]
   package_opening_hours   PackageOpeningHours[]
@@ -389,30 +389,28 @@ model PackageTravellerType {
 }
 
 // this table stores package availability information
-// model PackageAvailability {
-//   id         String    @id @default(cuid())
-//   created_at DateTime  @default(now())
-//   updated_at DateTime  @default(now())
-//   deleted_at DateTime?
-//   status     Int?      @default(1) @db.SmallInt
+model PackageAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
 
-//   package_id String
-//   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
-//   // For single day packages: available_date
-//   // For multi-day packages: start_date and end_date
-//   available_date DateTime? @default(now())
-//   start_date     DateTime? @db.Date
-//   end_date       DateTime? @db.Date
+  // For multi-day packages: start_date and end_date
+  start_date DateTime? @db.Date
+  end_date   DateTime? @db.Date
 
-//   // Whether this date/range is available for booking
-//   is_available Boolean? @default(true)
+  // Whether this date/range is available for booking
+  is_available Boolean? @default(true)
 
-//   // Available slots/capacity for this date/range
-//   available_slots Int? @default(1)
+  // Available slots/capacity for this date/range
+  available_slots Int? @default(1)
 
-//   @@map("package_availabilities")
-// }
+  @@map("package_availabilities")
+}
 
 // this table stores package opening hours (daily schedules)
 model PackageOpeningHours {

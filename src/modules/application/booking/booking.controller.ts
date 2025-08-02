@@ -99,4 +99,32 @@ export class BookingController {
       };
     }
   }
+
+  @ApiOperation({ summary: 'Download invoice' })
+  @Get('invoice/:paymentIntentId/download')
+  async downloadInvoice(@Param('paymentIntentId') paymentIntentId: string) {
+    try {
+      const result = await this.bookingService.downloadInvoice(paymentIntentId);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({ summary: 'Send invoice to email' })
+  @Post('invoice/:paymentIntentId/send-email')
+  async sendInvoiceToEmail(@Param('paymentIntentId') paymentIntentId: string) {
+    try {
+      const result = await this.bookingService.sendInvoiceToEmail(paymentIntentId);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }

@@ -307,4 +307,24 @@ export class CreatePackageDto {
     required: false,
   })
   package_additional_info?: string;
+
+  @ApiProperty({
+    description: 'Package availability array with stringified objects',
+    example: [
+      {
+        start_date: '2025-01-01',
+        end_date: '2025-12-31',
+        is_available: true,
+        available_slots: 50,
+      },
+      {
+        start_date: '2025-06-01',
+        end_date: '2025-08-31',
+        is_available: true,
+        available_slots: 100,
+      },
+    ],
+    required: false,
+  })
+  package_availability?: string;
 }

@@ -428,6 +428,27 @@ export class PackageService extends PrismaClient {
             lte: endOfDay,
           };
         }
+
+        // Filter by availability dates
+        if (filters.start_date || filters.end_date) {
+          where_condition['package_availabilities'] = {
+            some: {
+              is_available: true,
+              ...(filters.start_date && {
+                OR: [
+                  { start_date: { lte: new Date(filters.start_date) } },
+                  { start_date: null }
+                ]
+              }),
+              ...(filters.end_date && {
+                OR: [
+                  { end_date: { gte: new Date(filters.end_date) } },
+                  { end_date: null }
+                ]
+              })
+            }
+          };
+        }
       }
 
       // Calculate pagination
@@ -531,6 +552,15 @@ export class PackageService extends PrismaClient {
                   name: true,
                 },
               },
+            },
+          },
+          package_availabilities: {
+            select: {
+              id: true,
+              start_date: true,
+              end_date: true,
+              is_available: true,
+              available_slots: true,
             },
           },
           package_tags: {
@@ -746,6 +776,15 @@ export class PackageService extends PrismaClient {
             select: {
               id: true,
               file: true,
+            },
+          },
+          package_availabilities: {
+            select: {
+              id: true,
+              start_date: true,
+              end_date: true,
+              is_available: true,
+              available_slots: true,
             },
           },
           package_trip_plans: {

@@ -12,15 +12,30 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { CheckoutService } from './checkout.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
+import { CheckAvailabilityDto } from './dto/check-availability.dto';
+import { CheckoutService } from './checkout.service';
 
 @ApiTags('Checkout')
 @Controller('checkout')
 export class CheckoutController {
   constructor(private readonly checkoutService: CheckoutService) { }
+
+  @ApiOperation({ summary: 'Check package availability' })
+  @Post('check-availability')
+  async checkAvailability(@Body() checkAvailabilityDto: CheckAvailabilityDto) {
+    try {
+      const result = await this.checkoutService.checkAvailability(checkAvailabilityDto);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 
   @ApiOperation({ summary: 'Create a new checkout' })
   @UseGuards(JwtAuthGuard)

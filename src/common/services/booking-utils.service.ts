@@ -37,9 +37,10 @@ export class BookingUtilsService {
     }
 
     /**
-     * Validate package availability
+     * Validate package availability against PackageAvailability records
      */
-    async validatePackageAvailability(package_id: string, selected_date: string, package_type: string) {
+    async validatePackageAvailability(package_id: string, selected_date: string, package_type: string, requested_travelers: number = 1) {
+        // For tour packages, always return available
         if (package_type === 'tour') {
             return {
                 is_available: true,
@@ -48,25 +49,179 @@ export class BookingUtilsService {
             };
         }
 
-        // For non-tour packages, check if the date is in the future
-        const selectedDate = new Date(selected_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // For package and cruise types, check PackageAvailability records
+        if (package_type === 'package' || package_type === 'cruise') {
+            const selectedDate = new Date(selected_date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-        if (selectedDate < today) {
+            // Check if selected date is in the past
+            if (selectedDate < today) {
+                return {
+                    is_available: false,
+                    available_slots: 0,
+                    validation_message: 'Selected date cannot be in the past',
+                };
+            }
+
+            // Find matching PackageAvailability records
+            const availabilityRecords = await this.prisma.packageAvailability.findMany({
+                where: {
+                    package_id: package_id,
+                    status: 1,
+                    deleted_at: null,
+                    is_available: true,
+                    OR: [
+                        // Single date availability
+                        {
+                            start_date: selectedDate,
+                            end_date: null,
+                        },
+                        // Date range availability (selected date falls within range)
+                        {
+                            start_date: { lte: selectedDate },
+                            end_date: { gte: selectedDate },
+                        },
+                        // Date range availability (null start_date means from beginning)
+                        {
+                            start_date: null,
+                            end_date: { gte: selectedDate },
+                        },
+                        // Date range availability (null end_date means until end)
+                        {
+                            start_date: { lte: selectedDate },
+                            end_date: null,
+                        },
+                        // No date constraints (always available)
+                        {
+                            start_date: null,
+                            end_date: null,
+                        },
+                    ],
+                },
+                orderBy: { created_at: 'desc' },
+            });
+
+            if (availabilityRecords.length === 0) {
+                return {
+                    is_available: false,
+                    available_slots: 0,
+                    validation_message: 'No availability found for the selected date',
+                };
+            }
+
+            // Find the most relevant availability record
+            let bestMatch = availabilityRecords[0];
+            let maxSlots = 0;
+
+            for (const record of availabilityRecords) {
+                const slots = record.available_slots || 0;
+                if (slots > maxSlots) {
+                    maxSlots = slots;
+                    bestMatch = record;
+                }
+            }
+
+            // Check if enough slots are available
+            if (bestMatch.available_slots < requested_travelers) {
+                return {
+                    is_available: false,
+                    available_slots: bestMatch.available_slots || 0,
+                    validation_message: `Only ${bestMatch.available_slots} slots available for selected date`,
+                };
+            }
+
             return {
-                is_available: false,
-                available_slots: 0,
-                validation_message: 'Selected date cannot be in the past',
+                is_available: true,
+                available_slots: bestMatch.available_slots || 0,
+                validation_message: 'Availability confirmed',
+                availability_id: bestMatch.id,
             };
         }
 
-        // For now, assume all future dates are available for non-tour packages
-        // This can be enhanced later with specific availability logic
+        // Default fallback for other package types
         return {
             is_available: true,
-            available_slots: 50, // Default available slots
+            available_slots: 50,
             validation_message: 'Availability confirmed',
+        };
+    }
+
+    /**
+     * Reserve slots in PackageAvailability when booking is confirmed
+     */
+    async reservePackageSlots(package_id: string, selected_date: string, package_type: string, reserved_travelers: number) {
+        // Only process for package and cruise types
+        if (package_type !== 'package' && package_type !== 'cruise') {
+            return { success: true, message: 'No slot reservation needed for this package type' };
+        }
+
+        const selectedDate = new Date(selected_date);
+
+        // Find the availability record to update
+        const availabilityRecord = await this.prisma.packageAvailability.findFirst({
+            where: {
+                package_id: package_id,
+                status: 1,
+                deleted_at: null,
+                is_available: true,
+                OR: [
+                    // Single date availability
+                    {
+                        start_date: selectedDate,
+                        end_date: null,
+                    },
+                    // Date range availability (selected date falls within range)
+                    {
+                        start_date: { lte: selectedDate },
+                        end_date: { gte: selectedDate },
+                    },
+                    // Date range availability (null start_date means from beginning)
+                    {
+                        start_date: null,
+                        end_date: { gte: selectedDate },
+                    },
+                    // Date range availability (null end_date means until end)
+                    {
+                        start_date: { lte: selectedDate },
+                        end_date: null,
+                    },
+                    // No date constraints (always available)
+                    {
+                        start_date: null,
+                        end_date: null,
+                    },
+                ],
+            },
+            orderBy: { created_at: 'desc' },
+        });
+
+        if (!availabilityRecord) {
+            return { success: false, message: 'No availability record found to update' };
+        }
+
+        // Check if enough slots are available
+        const currentSlots = availabilityRecord.available_slots || 0;
+        if (currentSlots < reserved_travelers) {
+            return {
+                success: false,
+                message: `Insufficient slots. Available: ${currentSlots}, Requested: ${reserved_travelers}`
+            };
+        }
+
+        // Update the availability record
+        const updatedRecord = await this.prisma.packageAvailability.update({
+            where: { id: availabilityRecord.id },
+            data: {
+                available_slots: currentSlots - reserved_travelers,
+                updated_at: new Date(),
+            },
+        });
+
+        return {
+            success: true,
+            message: `Successfully reserved ${reserved_travelers} slots`,
+            remaining_slots: updatedRecord.available_slots,
         };
     }
 
@@ -88,11 +243,9 @@ export class BookingUtilsService {
         return target;
     }
 
-
-
     /**
- * Validate traveler ages
- */
+     * Validate traveler ages
+     */
     validateTravelerAges(travelers: any[]) {
         const errors = [];
 

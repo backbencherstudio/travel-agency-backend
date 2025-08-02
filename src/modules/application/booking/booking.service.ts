@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
-
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
@@ -13,133 +11,114 @@ import { BookingUtilsService } from '../../../common/services/booking-utils.serv
 import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
-export class BookingService extends PrismaClient {
+export class BookingService {
   constructor(
     private prisma: PrismaService,
     private readonly messageGateway: MessageGateway,
     private bookingUtils: BookingUtilsService,
-  ) {
-    super();
-  }
+  ) { }
 
-  async create(
-    user_id: string,
-    createBookingDto: CreateBookingDto,
-  ) {
+  async create(userId: string, createBookingDto: CreateBookingDto) {
     try {
-      const result = await this.prisma.$transaction(async (prisma) => {
+      return await this.prisma.$transaction(async (prisma) => {
+        // Validate user
+        if (!userId) return { success: false, message: 'User not found' };
+        const user = await UserRepository.getUserDetails(userId);
+        if (!user) return { success: false, message: 'User not found' };
+
+        // Fetch and validate checkout
         const checkout = await prisma.checkout.findUnique({
-          where: {
-            id: createBookingDto.checkout_id,
-          },
+          where: { id: createBookingDto.checkout_id },
           include: {
-            checkout_extra_services: {
-              include: {
-                extra_service: true,
-              },
-            },
-            checkout_items: {
-              include: {
-                package: true,
-              },
-            },
+            checkout_extra_services: { include: { extra_service: true } },
+            checkout_items: { include: { package: true } },
             checkout_travellers: true,
+            temp_redeems: { include: { coupon: true } },
           },
         });
+        if (!checkout) return { success: false, message: 'Checkout not found' };
 
-        if (!checkout) {
-          return {
-            success: false,
-            message: 'Checkout not found',
-          };
-        }
+        // Calculate traveler counts
+        const travelerCounts = this.calculateTravelerCounts(checkout.checkout_travellers);
 
-        if (!user_id) {
-          return {
-            success: false,
-            message: 'User not found',
-          };
-        }
-
-        const data = {};
-        // Copy contact information using shared utils
-        this.bookingUtils.copyContactInfo(checkout, data);
-        if (checkout.vendor_id) {
-          data['vendor_id'] = checkout.vendor_id;
-        }
-
-        // create invoice number
-        const invoice_number = await BookingRepository.createInvoiceNumber();
-
-        // Calculate total price from checkout items
-        let total_price = 0;
+        // Calculate prices
+        let totalPrice = 0;
         for (const item of checkout.checkout_items) {
-          // Use final_price if available, otherwise use total_price
-          const itemPrice = Number(item.final_price || item.total_price || 0);
-          total_price += itemPrice;
+          totalPrice += Number(item.final_price || item.total_price || 0);
         }
-
-        // Add extra services if any
         for (const service of checkout.checkout_extra_services) {
-          const servicePrice = Number(service.extra_service.price || 0);
-          total_price += servicePrice;
+          totalPrice += Number(service.extra_service.price || 0);
         }
+        if (totalPrice <= 0) return { success: false, message: 'Invalid total price' };
 
-        // Validate total price
-        if (!total_price || total_price <= 0) {
-          return {
-            success: false,
-            message: 'Invalid total price. Please check your booking details.',
-          };
+        // Calculate coupon discounts
+        let totalDiscount = 0;
+        const appliedCoupons = [];
+        for (const tempRedeem of checkout.temp_redeems) {
+          const coupon = tempRedeem.coupon;
+          let couponDiscount = 0;
+          if (coupon.amount_type === 'percentage') {
+            couponDiscount = (totalPrice * Number(coupon.amount)) / 100;
+          } else if (coupon.amount_type === 'fixed') {
+            couponDiscount = Math.min(Number(coupon.amount), totalPrice);
+          }
+          totalDiscount += couponDiscount;
+          appliedCoupons.push({
+            id: coupon.id,
+            code: coupon.code,
+            name: coupon.name,
+            amount: coupon.amount,
+            amount_type: coupon.amount_type,
+            discount_amount: couponDiscount,
+          });
         }
+        const finalPrice = Math.max(0, totalPrice - totalDiscount);
 
-        // Calculate traveler counts from booking_travellers
-        const traveler_counts = this.bookingUtils.calculateTravelerCounts(createBookingDto.booking_travellers);
-        const price_info = await this.bookingUtils.calculatePrices(createBookingDto.checkout_id, total_price);
-
-        // Determine booking type and payment status
-        const booking_type = createBookingDto.booking_type || 'book'; // Default to 'book'
-        const isImmediatePayment = booking_type === 'book';
-
-        // Set initial payment status based on booking type
-        let initialPaymentStatus = 'pending';
-        if (!isImmediatePayment) {
-          initialPaymentStatus = 'reserved';
-        }
-
-        // create booking
-        const booking = await prisma.booking.create({
-          data: {
-            ...data,
-            invoice_number: invoice_number,
-            total_amount: total_price,
-            discount_amount: price_info.discount_amount,
-            final_price: price_info.final_price,
-            adults_count: traveler_counts.adults_count,
-            children_count: traveler_counts.children_count,
-            infants_count: traveler_counts.infants_count,
-            total_travelers: traveler_counts.total_travelers,
-            user_id: user_id,
-            type: createBookingDto.type || 'tour', // Keep the original type field for tour/cruise
-            booking_type: booking_type, // Store the booking type in database
-            payment_status: initialPaymentStatus,
-            booking_date_time: new Date(),
-          },
-        });
-
-        // create booking-extra-services
-        if (checkout.checkout_extra_services.length > 0) {
-          for (const extra_service of checkout.checkout_extra_services) {
-            await prisma.bookingExtraService.create({
-              data: {
-                booking_id: booking.id,
-                extra_service_id: extra_service.extra_service_id,
-              },
-            });
+        // Reserve package slots
+        for (const item of checkout.checkout_items) {
+          if (item.package.type === 'package' || item.package.type === 'cruise') {
+            const reservation = await this.bookingUtils.reservePackageSlots(
+              item.package_id,
+              item.selected_date.toISOString().split('T')[0],
+              item.package.type,
+              travelerCounts.total_travelers
+            );
+            if (!reservation.success) return { success: false, message: reservation.message };
           }
         }
 
-        // create booking-items with enhanced data
+        // Create booking
+        const bookingType = createBookingDto.booking_type || 'book';
+        const isImmediatePayment = bookingType === 'book';
+        const bookingData = {
+          user_id: userId,
+          vendor_id: checkout.vendor_id || checkout.checkout_items[0].package.user_id,
+          invoice_number: await BookingRepository.createInvoiceNumber(),
+          total_amount: totalPrice,
+          discount_amount: totalDiscount,
+          final_price: finalPrice,
+          adults_count: travelerCounts.adults_count,
+          children_count: travelerCounts.children_count,
+          infants_count: travelerCounts.infants_count,
+          total_travelers: travelerCounts.total_travelers,
+          type: createBookingDto.type || 'tour',
+          booking_type: bookingType,
+          payment_status: isImmediatePayment ? 'pending' : 'reserved',
+          booking_date_time: new Date(),
+          email: checkout.email,
+          phone_number: checkout.phone_number,
+          address1: checkout.address1,
+          address2: checkout.address2,
+          city: checkout.city,
+          state: checkout.state,
+          zip_code: checkout.zip_code,
+          country: checkout.country,
+          comments: createBookingDto.comments,
+        };
+
+        const booking = await prisma.booking.create({ data: bookingData });
+
+        // Create booking items
         for (const item of checkout.checkout_items) {
           await prisma.bookingItem.create({
             data: {
@@ -160,41 +139,83 @@ export class BookingService extends PrismaClient {
               excluded_packages: item.excluded_packages,
               extra_services: item.extra_services,
               availability_id: item.availability_id,
-              // Legacy fields for backward compatibility
               quantity: item.total_travelers || 1,
               price: item.final_price || item.total_price,
             },
           });
         }
 
-        // Create booking travelers from provided booking_travellers
-        for (const traveller of createBookingDto.booking_travellers) {
-          await prisma.bookingTraveller.create({
+        // Create booking extra services
+        for (const service of checkout.checkout_extra_services) {
+          await prisma.bookingExtraService.create({
             data: {
               booking_id: booking.id,
-              full_name: traveller.full_name,
-              type: traveller.type,
-              age: traveller.age,
-              gender: traveller.gender,
-              first_name: traveller.first_name,
-              last_name: traveller.last_name,
-              email: traveller.email,
-              phone_number: traveller.phone_number,
-              address1: traveller.address1,
-              address2: traveller.address2,
-              city: traveller.city,
-              state: traveller.state,
-              zip_code: traveller.zip_code,
-              country: traveller.country,
-              price_per_person: traveller.price_per_person,
-              discount_amount: traveller.discount_amount,
-              final_price: traveller.final_price,
+              extra_service_id: service.extra_service_id,
+              price: service.extra_service.price,
             },
           });
         }
 
-        // create booking availability records
+        // Create booking travelers
+        for (const traveler of checkout.checkout_travellers) {
+          await prisma.bookingTraveller.create({
+            data: {
+              booking_id: booking.id,
+              full_name: traveler.full_name,
+              type: traveler.type,
+              age: traveler.age,
+              gender: traveler.gender,
+              first_name: traveler.first_name,
+              last_name: traveler.last_name,
+              email: traveler.email,
+              phone_number: traveler.phone_number,
+              address1: traveler.address1,
+              address2: traveler.address2,
+              city: traveler.city,
+              state: traveler.state,
+              zip_code: traveler.zip_code,
+              country: traveler.country,
+              price_per_person: traveler.price_per_person,
+              discount_amount: traveler.discount_amount,
+              final_price: traveler.final_price,
+            },
+          });
+        }
+
+        // Create booking coupons
+        for (const tempRedeem of checkout.temp_redeems) {
+          await prisma.bookingCoupon.create({
+            data: {
+              user_id: userId,
+              booking_id: booking.id,
+              coupon_id: tempRedeem.coupon_id,
+              method: tempRedeem.coupon.method || 'code',
+              code: tempRedeem.coupon.code,
+              amount_type: tempRedeem.coupon.amount_type || 'percentage',
+              amount: tempRedeem.coupon.amount,
+            },
+          });
+        }
+
+        // Create booking availability
         for (const item of checkout.checkout_items) {
+          const packageAvailability = await prisma.packageAvailability.findFirst({
+            where: {
+              package_id: item.package_id,
+              status: 1,
+              deleted_at: null,
+              is_available: true,
+              OR: [
+                { start_date: item.selected_date, end_date: null },
+                { start_date: { lte: item.selected_date }, end_date: { gte: item.selected_date } },
+                { start_date: null, end_date: { gte: item.selected_date } },
+                { start_date: { lte: item.selected_date }, end_date: null },
+                { start_date: null, end_date: null },
+              ],
+            },
+            orderBy: { created_at: 'desc' },
+          });
+
           await prisma.bookingAvailability.create({
             data: {
               booking_id: booking.id,
@@ -205,108 +226,67 @@ export class BookingService extends PrismaClient {
               requested_infants: item.infants_count,
               requested_total: item.total_travelers,
               is_available: true,
-              available_slots: 999, // Default for successful booking
-              remaining_slots: 999 - (item.total_travelers || 0),
+              available_slots: packageAvailability?.available_slots || 0,
+              remaining_slots: (packageAvailability?.available_slots || 0) - (item.total_travelers || 0),
               price_per_person: item.price_per_person,
               total_price: item.total_price,
-              validation_message: 'Booking confirmed',
+              validation_message: 'Booking confirmed with slot reservation',
             },
           });
         }
 
-        // apply coupon
-        if (checkout.user_id) {
-          const temp_redeems = await prisma.tempRedeem.findMany({
-            where: {
-              user_id: checkout.user_id,
-              checkout_id: checkout.id,
-            },
-          });
-
-          if (temp_redeems.length > 0) {
-            for (const redeem of temp_redeems) {
-              await prisma.bookingCoupon.create({
-                data: {
-                  booking_id: booking.id,
-                  coupon_id: redeem.coupon_id,
-                },
-              });
-            }
-          }
-        }
-
-
-        const userDetails = await UserRepository.getUserDetails(user_id);
-        const currency = 'usd';
-        let paymentIntent = null;
-
-        // Handle payment based on booking type
+        // Handle payment
+        const paymentAmount = Math.max(finalPrice, 50);
+        let paymentResult: { success: boolean; data?: any } = { success: true };
         if (isImmediatePayment) {
-          // For "book" - create payment intent immediately
-          // Ensure minimum payment amount for Stripe (50 cents minimum)
-          // Stripe requires minimum charge amounts: https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
-          const minimumAmount = 50; // 50 cents in smallest currency unit
-          const paymentAmount = Math.max(total_price, minimumAmount);
-
-          // create payment intent
-          paymentIntent = await StripePayment.createPaymentIntent({
+          const paymentIntent = await StripePayment.createPaymentIntent({
             amount: paymentAmount,
-            currency: currency,
-            customer_id: userDetails.billing_id,
-            // metadata: {
-            //   tax_calculation: tax_calculation.id,
-            // },
+            currency: 'usd',
+            customer_id: user.billing_id,
           });
 
-          // create transaction
           await prisma.paymentTransaction.create({
             data: {
+              user_id: userId,
               booking_id: booking.id,
               reference_number: paymentIntent.id,
-              amount: paymentAmount,
+              amount: finalPrice,
               currency: 'usd',
               status: 'pending',
+              provider: 'stripe',
             },
           });
+
+          paymentResult = { success: true, data: { client_secret: paymentIntent.client_secret } };
         } else {
-          // For "reserve" - create a placeholder transaction for tracking
           await prisma.paymentTransaction.create({
             data: {
+              user_id: userId,
               booking_id: booking.id,
               reference_number: `RESERVE-${booking.id}`,
-              amount: total_price,
+              amount: finalPrice,
               currency: 'usd',
               status: 'reserved',
+              provider: 'stripe',
             },
           });
         }
-        // await TransactionRepository.createTransaction({
-        //   booking_id: booking.id,
-        //   reference_number: paymentIntent.id,
-        //   amount: total_price,
-        //   currency: 'usd',
-        //   status: 'pending',
-        // });
 
-        // delete checkout
-        await prisma.checkout.delete({
-          where: {
-            id: checkout.id,
-          },
-        });
+        // Delete checkout and send notification
+        await prisma.checkout.delete({ where: { id: createBookingDto.checkout_id } });
 
-        // send notification
+        // Create notification
         await NotificationRepository.createNotification({
-          sender_id: user_id,
+          sender_id: userId,
           receiver_id: booking.vendor_id,
           text: 'New booking created',
           type: 'booking',
           entity_id: booking.id,
         });
 
-        // send message
+        // Send real-time notification
         this.messageGateway.server.emit('notification', {
-          sender_id: user_id,
+          sender_id: userId,
           receiver_id: booking.vendor_id,
           text: 'New booking created',
           type: 'booking',
@@ -315,82 +295,42 @@ export class BookingService extends PrismaClient {
 
         return {
           success: true,
-          message: isImmediatePayment ? 'Booking created successfully. Please complete payment.' : 'Booking reserved successfully. Payment will be required later.',
+          message: bookingType === 'book'
+            ? 'Booking created successfully. Please complete payment.'
+            : 'Booking reserved successfully. Payment will be required later.',
           data: {
             booking_id: booking.id,
-            booking_type: booking_type,
-            payment_status: isImmediatePayment ? 'pending' : 'reserved',
-            ...(isImmediatePayment && paymentIntent && {
-              client_secret: paymentIntent.client_secret,
-            }),
-            total_amount: total_price,
+            booking_type: bookingType,
+            payment_status: bookingData.payment_status,
+            ...(paymentResult.data && { client_secret: paymentResult.data.client_secret }),
+            total_amount: totalPrice,
+            discount_amount: totalDiscount,
+            final_price: finalPrice,
             currency: 'usd',
           },
         };
       });
-
-      return result;
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      return { success: false, message: error.message };
     }
   }
 
-  async findAll({
-    user_id,
-    q,
-    status = null,
-    approve,
-  }: {
-    user_id?: string;
-    q?: string;
-    status?: number;
-    approve?: string;
-  }) {
+  async findAll(params: { user_id?: string; q?: string; status?: number; approve?: string }) {
     try {
-      const where_condition = {};
-      // search using q
-      if (q) {
-        where_condition['OR'] = [
-          { invoice_number: { contains: q, mode: 'insensitive' } },
-          { user: { name: { contains: q, mode: 'insensitive' } } },
-          {
-            booking_items: {
-              some: {
-                package: {
-                  name: {
-                    contains: q,
-                    mode: 'insensitive',
-                  },
-                },
-              },
-            },
-          },
+      const where = { user_id: params.user_id };
+      if (params.q) {
+        where['OR'] = [
+          { invoice_number: { contains: params.q, mode: 'insensitive' } },
+          { user: { name: { contains: params.q, mode: 'insensitive' } } },
+          { booking_items: { some: { package: { name: { contains: params.q, mode: 'insensitive' } } } } },
         ];
       }
+      if (params.status) where['status'] = Number(params.status);
+      if (params.approve) where['approved_at'] = params.approve === 'approved' ? { not: null } : null;
 
-      if (status) {
-        where_condition['status'] = Number(status);
-      }
-
-      if (approve) {
-        if (approve === 'approved') {
-          where_condition['approved_at'] = { not: null };
-        } else {
-          where_condition['approved_at'] = null;
-        }
-      }
-
-      const bookings = await this.booking.findMany({
-        where: {
-          ...where_condition,
-          user_id: user_id,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
+      const bookings = await this.prisma.booking.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
         select: {
           id: true,
           invoice_number: true,
@@ -403,57 +343,41 @@ export class BookingService extends PrismaClient {
           zip_code: true,
           country: true,
           total_amount: true,
+          discount_amount: true,
+          final_price: true,
           payment_status: true,
           status: true,
           type: true,
           booking_type: true,
           booking_date_time: true,
-          payment_transactions: {
-            select: {
-              status: true,
-              amount: true,
-              currency: true,
-            },
-          },
-          booking_items: {
-            select: {
-              package: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-          user: {
+          payment_transactions: { select: { status: true, amount: true, currency: true } },
+          booking_items: { select: { package: { select: { name: true } } } },
+          booking_coupons: {
             select: {
               id: true,
-              name: true,
+              method: true,
+              code: true,
+              amount_type: true,
+              amount: true,
+              coupon: { select: { name: true, amount: true, amount_type: true } },
             },
           },
+          user: { select: { id: true, name: true } },
           created_at: true,
           updated_at: true,
         },
       });
 
-      return {
-        success: true,
-        data: bookings,
-      };
+      return { success: true, data: bookings };
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      return { success: false, message: error.message };
     }
   }
 
-  async findOne(id: string, user_id: string) {
+  async findOne(id: string, userId: string) {
     try {
-      const booking = await this.booking.findUnique({
-        where: {
-          id: id,
-          user_id: user_id,
-        },
+      const booking = await this.prisma.booking.findUnique({
+        where: { id, user_id: userId },
         select: {
           id: true,
           invoice_number: true,
@@ -463,26 +387,21 @@ export class BookingService extends PrismaClient {
           type: true,
           booking_type: true,
           total_amount: true,
+          discount_amount: true,
+          final_price: true,
           payment_status: true,
           payment_raw_status: true,
           paid_amount: true,
           paid_currency: true,
-          first_name: true,
-          last_name: true,
           email: true,
           phone_number: true,
           address1: true,
           address2: true,
           city: true,
           state: true,
-          comments: true,
-          user: {
-            select: {
-              name: true,
-              email: true,
-              avatar: true,
-            },
-          },
+          zip_code: true,
+          country: true,
+          user: { select: { name: true, email: true, avatar: true } },
           booking_items: {
             select: {
               start_date: true,
@@ -500,56 +419,16 @@ export class BookingService extends PrismaClient {
                   price: true,
                   duration: true,
                   type: true,
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      type: true,
-                    },
-                  },
-                  package_languages: {
-                    select: {
-                      language: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
+                  user: { select: { id: true, name: true, type: true } },
+                  package_languages: { select: { language: { select: { id: true, name: true } } } },
                   package_destinations: {
                     select: {
-                      destination: {
-                        select: {
-                          id: true,
-                          name: true,
-                          country: {
-                            select: {
-                              id: true,
-                              name: true,
-                            },
-                          },
-                        },
-                      },
+                      destination: { select: { id: true, name: true, country: { select: { id: true, name: true } } } },
                     },
                   },
                   cancellation_policy_id: true,
-                  package_categories: {
-                    select: {
-                      category: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                  package_files: {
-                    select: {
-                      id: true,
-                      file: true,
-                    },
-                  },
+                  package_categories: { select: { category: { select: { id: true, name: true } } } },
+                  package_files: { select: { id: true, file: true } },
                   reviews: {
                     select: {
                       id: true,
@@ -558,197 +437,115 @@ export class BookingService extends PrismaClient {
                       comment: true,
                       created_at: true,
                       updated_at: true,
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                          avatar: true,
-                        },
-                      },
+                      user: { select: { id: true, name: true, avatar: true } },
                     },
                   },
                 },
               },
             },
           },
-          booking_extra_services: {
-            select: {
-              extra_service: {
-                select: {
-                  name: true,
-                  price: true,
-                },
-              },
-            },
-          },
-          booking_travellers: {
-            select: {
-              full_name: true,
-              type: true,
-            },
-          },
+          booking_extra_services: { select: { extra_service: { select: { name: true, price: true } } } },
+          booking_travellers: { select: { full_name: true, type: true } },
           booking_coupons: {
             select: {
+              id: true,
+              method: true,
+              code: true,
+              amount_type: true,
+              amount: true,
+              created_at: true,
               coupon: {
                 select: {
+                  id: true,
                   name: true,
+                  description: true,
                   amount: true,
                   amount_type: true,
+                  method: true,
+                  code: true,
+                  coupon_type: true,
+                  coupon_ids: true,
+                  starts_at: true,
+                  expires_at: true,
+                  min_type: true,
+                  min_amount: true,
+                  min_quantity: true,
                 },
               },
             },
           },
           payment_transactions: {
-            select: {
-              amount: true,
-              currency: true,
-              paid_amount: true,
-              paid_currency: true,
-              status: true,
-            },
+            select: { amount: true, currency: true, paid_amount: true, paid_currency: true, status: true },
           },
           created_at: true,
           updated_at: true,
         },
       });
 
-      if (!booking) {
-        return {
-          success: false,
-          message: 'Booking information not found',
-        };
-      }
+      if (!booking) return { success: false, message: 'Booking not found' };
 
-      // add avatar url
-      if (booking.user && booking.user.avatar) {
-        booking.user['avatar_url'] = SojebStorage.url(
-          appConfig().storageUrl.avatar + booking.user.avatar,
-        );
+      // Add avatar and image URLs
+      if (booking.user?.avatar) {
+        booking.user['avatar_url'] = SojebStorage.url(appConfig().storageUrl.avatar + booking.user.avatar);
       }
-
-      // add image url to package
-      for (const booking_item of booking.booking_items) {
-        for (const file of booking_item.package.package_files) {
+      for (const bookingItem of booking.booking_items) {
+        for (const file of bookingItem.package.package_files) {
           if (file.file) {
-            file['image_url'] = SojebStorage.url(
-              appConfig().storageUrl.package + file.file,
-            );
+            file['image_url'] = SojebStorage.url(appConfig().storageUrl.package + file.file);
           }
         }
+
+        // Calculate average rating
+        const reviews = bookingItem.package.reviews;
+        const averageRating = reviews.length > 0
+          ? reviews.reduce((sum, review) => sum + review.rating_value, 0) / reviews.length
+          : 0;
+        bookingItem.package['average_rating'] = averageRating;
       }
 
-      for (const items of booking.booking_items) {
-        // calculate avarage rating
-        let totalRating = 0;
-        let totalReviews = 0;
-        for (const review of items.package.reviews) {
-          totalRating += review.rating_value;
-          totalReviews++;
-        }
-        const averageRating = totalRating / totalReviews;
-        items['average_rating'] = averageRating;
-      }
-
-      // reviews count
-      const reviewsCount = await this.prisma.review.count({
-        where: {
-          package_id: booking.booking_items[0].package.id,
-        },
+      // Add reviews count
+      booking['reviews_count'] = await this.prisma.review.count({
+        where: { package_id: booking.booking_items[0]?.package.id },
       });
-      booking['reviews_count'] = reviewsCount;
 
-      return {
-        success: true,
-        data: booking,
-      };
+      return { success: true, data: booking };
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      return { success: false, message: error.message };
     }
   }
 
-  async downloadInvoice(payment_intent_id: string) {
+  async processReservedPayment(bookingId: string, userId: string) {
     try {
-      const invoice =
-        await StripePayment.downloadInvoiceFile(payment_intent_id);
-      return invoice;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  async sendInvoiceToEmail(payment_intent_id: string) {
-    const invoice = await StripePayment.sendInvoiceToEmail(payment_intent_id);
-    return invoice;
-  }
-  /**
-   * Process payment for a reserved booking
-   */
-  async processReservedPayment(booking_id: string, user_id: string) {
-    try {
-      const result = await this.prisma.$transaction(async (prisma) => {
-        // Find the reserved booking
+      return await this.prisma.$transaction(async (prisma) => {
         const booking = await prisma.booking.findUnique({
-          where: {
-            id: booking_id,
-            user_id: user_id,
-            payment_status: 'reserved',
-          },
-          include: {
-            payment_transactions: {
-              where: {
-                status: 'reserved',
-              },
-            },
-          },
+          where: { id: bookingId, user_id: userId, payment_status: 'reserved' },
+          include: { payment_transactions: { where: { status: 'reserved' } } },
         });
+        if (!booking) return { success: false, message: 'Reserved booking not found or already paid' };
 
-        if (!booking) {
-          return {
-            success: false,
-            message: 'Reserved booking not found or already paid',
-          };
-        }
+        const user = await UserRepository.getUserDetails(userId);
+        const finalPrice = Number(booking.final_price || booking.total_amount);
+        const paymentAmount = Math.max(finalPrice, 50);
 
-        const userDetails = await UserRepository.getUserDetails(user_id);
-        const total_price = Number(booking.total_amount);
-        const currency = 'usd';
-
-        // Ensure minimum payment amount for Stripe
-        const minimumAmount = 50;
-        const paymentAmount = Math.max(total_price, minimumAmount);
-
-        // Create payment intent
         const paymentIntent = await StripePayment.createPaymentIntent({
           amount: paymentAmount,
-          currency: currency,
-          customer_id: userDetails.billing_id,
+          currency: 'usd',
+          customer_id: user.billing_id,
         });
 
-        // Update the existing reserved transaction
         await prisma.paymentTransaction.update({
-          where: {
-            id: booking.payment_transactions[0].id,
-          },
+          where: { id: booking.payment_transactions[0].id },
           data: {
             reference_number: paymentIntent.id,
+            amount: finalPrice,
             status: 'pending',
+            provider: 'stripe',
           },
         });
 
-        // Update booking payment status
         await prisma.booking.update({
-          where: {
-            id: booking_id,
-          },
-          data: {
-            payment_status: 'pending',
-          },
+          where: { id: bookingId },
+          data: { payment_status: 'pending' },
         });
 
         return {
@@ -758,18 +555,54 @@ export class BookingService extends PrismaClient {
             client_secret: paymentIntent.client_secret,
             booking_id: booking.id,
             booking_type: booking.booking_type,
-            total_amount: total_price,
+            total_amount: finalPrice,
             currency: 'usd',
           },
         };
       });
-
-      return result;
     } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+      return { success: false, message: error.message };
     }
+  }
+
+  async downloadInvoice(paymentIntentId: string) {
+    try {
+      const invoice = await StripePayment.downloadInvoiceFile(paymentIntentId);
+      return { success: true, data: invoice };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  async sendInvoiceToEmail(paymentIntentId: string) {
+    try {
+      await StripePayment.sendInvoiceToEmail(paymentIntentId);
+      return { success: true, message: 'Invoice sent successfully' };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  private calculateTravelerCounts(checkoutTravellers: any[]) {
+    const counts = { adults_count: 0, children_count: 0, infants_count: 0, total_travelers: 0 };
+    if (!checkoutTravellers || !checkoutTravellers.length) return counts;
+
+    for (const traveler of checkoutTravellers) {
+      counts.total_travelers++;
+      switch (traveler.type?.toLowerCase()) {
+        case 'adult':
+          counts.adults_count++;
+          break;
+        case 'child':
+          counts.children_count++;
+          break;
+        case 'infant':
+          counts.infants_count++;
+          break;
+        default:
+          counts.adults_count++;
+      }
+    }
+    return counts;
   }
 }

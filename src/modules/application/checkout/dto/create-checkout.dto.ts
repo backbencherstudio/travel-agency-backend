@@ -19,6 +19,19 @@ export interface IBookingTraveller {
   country?: string;
 }
 
+export interface ICheckoutTraveller {
+  full_name: string;
+  type: string;
+  age?: number;
+  gender?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  address1?: string;
+  address2?: string;
+  email?: string;
+}
+
 export interface IPaymentMethod {
   id?: string;
   number?: string;
@@ -218,4 +231,21 @@ export class CreateCheckoutDto {
     required: false,
   })
   country?: string;
+
+  @IsOptional()
+  @ApiProperty({
+    description: 'Checkout travelers information',
+    required: false,
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        full_name: { type: 'string' },
+        type: { type: 'string' },
+        age: { type: 'number' },
+        email: { type: 'string' },
+      },
+    },
+  })
+  checkout_travellers?: ICheckoutTraveller[];
 }
