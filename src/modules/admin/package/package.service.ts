@@ -649,6 +649,12 @@ export class PackageService extends PrismaClient {
               rating_value: true,
               comment: true,
               user_id: true,
+              review_files: {
+                select: {
+                  id: true,
+                  file: true,
+                },
+              },
             },
           },
           package_destinations: {
@@ -805,6 +811,19 @@ export class PackageService extends PrismaClient {
             file['file_url'] = SojebStorage.url(
               appConfig().storageUrl.package + file.file,
             );
+          }
+        }
+      }
+
+      // add file url review_files
+      if (record && record.reviews && record.reviews.length > 0) {
+        for (const review of record.reviews) {
+          if (review.review_files) {
+            for (const file of review.review_files) {
+              file['review_file_url'] = SojebStorage.url(
+                appConfig().storageUrl.review + file.file,
+              );
+            }
           }
         }
       }

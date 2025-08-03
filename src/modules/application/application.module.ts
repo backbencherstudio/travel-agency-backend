@@ -11,6 +11,7 @@ import { CancellationPolicyModule } from './cancellation-policy/cancellation-pol
 import { LanguageModule } from './language/language.module';
 import { PageModule } from './page/page.module';
 import { CouponModule } from './coupon/coupon.module';
+import { WishListModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CouponModule } from './coupon/coupon.module';
     LanguageModule,
     PageModule,
     CouponModule,
+    WishListModule,
   ],
 })
 export class ApplicationModule {}

@@ -116,6 +116,7 @@ export class BookingService extends PrismaClient {
           vendor_id: true,
           user_id: true,
           type: true,
+          booking_type: true,
           total_amount: true,
           payment_status: true,
           payment_raw_status: true,

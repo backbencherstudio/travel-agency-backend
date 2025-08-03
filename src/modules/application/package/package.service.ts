@@ -709,6 +709,12 @@ export class PackageService extends PrismaClient {
               rating_value: true,
               comment: true,
               user_id: true,
+              review_files: {
+                select: {
+                  id: true,
+                  file: true,
+                },
+              },
             },
           },
           package_destinations: {
@@ -869,6 +875,18 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      if (record && record.reviews.length > 0) {
+        for (const review of record.reviews) {
+          if (review.review_files) {
+            for (const file of review.review_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.review + file.file,
+              );
+            }
+          }
+        }
+      }
+
       // add image url package_trip_plans
       if (record && record.package_trip_plans.length > 0) {
         for (const trip_plan of record.package_trip_plans) {
@@ -901,11 +919,12 @@ export class PackageService extends PrismaClient {
     package_id: string,
     user_id: string,
     createReviewDto: CreateReviewDto,
+    review_files: Express.Multer.File[],
   ) {
     try {
       const data = {};
       if (createReviewDto.rating_value) {
-        data['rating_value'] = createReviewDto.rating_value;
+        data['rating_value'] = Number(createReviewDto.rating_value);
       }
       if (createReviewDto.comment) {
         data['comment'] = createReviewDto.comment;
@@ -935,13 +954,26 @@ export class PackageService extends PrismaClient {
           message: 'You have already reviewed this package',
         };
       }
-      await this.prisma.review.create({
+      const createdReview = await this.prisma.review.create({
         data: {
           ...data,
           package_id: package_id,
           user_id: user_id,
         },
       });
+
+      // add review files to review
+      if (review_files && review_files.length > 0) {
+        const review_files_data = review_files.map((file) => ({
+          file: file.filename,
+          file_alt: file.originalname,
+          review_id: createdReview.id,
+          type: file.mimetype,
+        }));
+        await this.prisma.reviewFile.createMany({
+          data: review_files_data,
+        });
+      }
 
       // notify the user that the package is reviewed
       await NotificationRepository.createNotification({

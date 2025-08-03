@@ -8,7 +8,9 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,11 +18,14 @@ import { PackageService } from './package.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UpdateReviewDto } from 'src/modules/admin/reviews/dto/update-review.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import appConfig from 'src/config/app.config';
+import { diskStorage } from 'multer';
 
 @ApiTags('Package')
 @Controller('package')
 export class PackageController {
-  constructor(private readonly packageService: PackageService) {}
+  constructor(private readonly packageService: PackageService) { }
 
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
@@ -140,10 +145,26 @@ export class PackageController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add review to package' })
   @Post(':id/review')
+  @UseInterceptors(
+    FilesInterceptor('review_files', 10, {
+      storage: diskStorage({
+        destination:
+          appConfig().storageUrl.rootUrl + appConfig().storageUrl.review,
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${file.originalname}`);
+        },
+      }),
+    }),
+  )
   async createReview(
     @Req() req: Request,
     @Param('id') id: string,
     @Body() createReviewDto: CreateReviewDto,
+    @UploadedFiles() review_files: Express.Multer.File[],
   ) {
     try {
       const user_id = req.user.userId;
@@ -151,6 +172,7 @@ export class PackageController {
         id,
         user_id,
         createReviewDto,
+        review_files,
       );
       return review;
     } catch (error) {

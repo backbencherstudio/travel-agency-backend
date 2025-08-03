@@ -1343,9 +1343,30 @@ model Review {
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   rating_value Float?
-  comment      String? @db.Text
+  comment      String?      @db.Text
+  review_files ReviewFile[]
 
   @@map("reviews")
+}
+
+model ReviewFile {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  review_id String?
+  review    Review? @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  file     String?
+  file_alt String?
+
+  // metadata
+  type String? // e.g. image, video
+
+  @@map("review_files")
 }
 
 enum MessageStatus {
