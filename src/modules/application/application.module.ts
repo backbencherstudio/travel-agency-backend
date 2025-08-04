@@ -12,6 +12,7 @@ import { LanguageModule } from './language/language.module';
 import { PageModule } from './page/page.module';
 import { CouponModule } from './coupon/coupon.module';
 import { WishListModule } from './wishlist/wishlist.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { WishListModule } from './wishlist/wishlist.module';
     PageModule,
     CouponModule,
     WishListModule,
+    DashboardModule,
   ],
 })
 export class ApplicationModule {}

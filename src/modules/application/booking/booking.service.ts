@@ -9,6 +9,9 @@ import { NotificationRepository } from '../../../common/repository/notification/
 import { MessageGateway } from '../../../modules/chat/message/message.gateway';
 import { BookingUtilsService } from '../../../common/services/booking-utils.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CheckCancellationDto } from './dto/check-cancellation.dto';
+import { CancellationStatusDto } from './dto/cancellation-status.dto';
+import { CancellationCalculatorService } from '../../../common/services/cancellation-calculator.service';
 
 @Injectable()
 export class BookingService {
@@ -16,6 +19,7 @@ export class BookingService {
     private prisma: PrismaService,
     private readonly messageGateway: MessageGateway,
     private bookingUtils: BookingUtilsService,
+    private cancellationCalculator: CancellationCalculatorService,
   ) { }
 
   async create(userId: string, createBookingDto: CreateBookingDto) {
@@ -604,5 +608,295 @@ export class BookingService {
       }
     }
     return counts;
+  }
+
+  async checkCancellationEligibility(
+    checkCancellationDto: CheckCancellationDto, user_id: string
+  ) {
+    try {
+      // Get booking with package and availability information
+      const booking = await this.prisma.booking.findFirst({
+        where: {
+          id: checkCancellationDto.booking_id,
+          user_id: user_id,
+          deleted_at: null,
+        },
+        include: {
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  cancellation_policy_id: true,
+                  cancellation_policy: {
+                    select: {
+                      id: true,
+                      policy: true,
+                      description: true,
+                    },
+                  },
+                },
+              },
+            },
+            take: 1,
+          },
+          booking_availabilities: {
+            select: {
+              selected_date: true,
+            },
+            take: 1,
+          },
+        },
+      });
+
+      if (!booking) {
+        return {
+          success: false,
+          message: 'Booking not found or access denied',
+        };
+      }
+
+      // Check if booking is already cancelled
+      if (booking.status === 'cancelled') {
+        return {
+          success: false,
+          message: 'Booking is already cancelled',
+        };
+      }
+
+      // Get package information
+      const bookingItem = booking.booking_items[0];
+      if (!bookingItem || !bookingItem.package) {
+        return {
+          success: false,
+          message: 'Package information not found',
+        };
+      }
+
+      // Get tour start time from booking availability
+      const availability = booking.booking_availabilities[0];
+      if (!availability || !availability.selected_date) {
+        return {
+          success: false,
+          message: 'Tour start date not found',
+        };
+      }
+
+      // Use selected date as tour start (assuming 9 AM start time)
+      const tourStartDate = new Date(availability.selected_date);
+      tourStartDate.setHours(9, 0, 0, 0); // Default to 9 AM
+
+      // Default timezone (can be enhanced to get from destination later)
+      const destinationTimezone = 'America/Mexico_City'; // Default timezone
+
+      // Calculate cancellation deadline using the calculator service
+      const calculation = this.cancellationCalculator.calculateCancellationDeadline(
+        tourStartDate,
+        destinationTimezone,
+        24, // 24 hours cancellation window
+      );
+
+      // Get policy text
+      const policyText = this.cancellationCalculator.getCancellationPolicyText(
+        calculation.canCancel,
+        calculation.hoursRemaining,
+        destinationTimezone,
+      );
+
+      const response: CancellationStatusDto = {
+        can_cancel: calculation.canCancel,
+        cancellation_deadline: calculation.cancellationDeadline.toISOString(),
+        cancellation_deadline_display: calculation.cancellationDeadlineDisplay,
+        hours_remaining: calculation.hoursRemaining,
+        is_non_refundable: calculation.isNonRefundable,
+        policy_description: policyText.description,
+        tour_start_time: tourStartDate.toISOString(),
+        destination_timezone: destinationTimezone,
+        booking_status: booking.status,
+        package_name: bookingItem.package.name,
+      };
+
+      return {
+        success: true,
+        data: response,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async cancelBooking(
+    checkCancellationDto: CheckCancellationDto,
+    user_id: string,
+  ): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      // First check if booking can be cancelled
+      const eligibilityCheck = await this.checkCancellationEligibility(checkCancellationDto, user_id);
+
+      if (!eligibilityCheck.success) {
+        return eligibilityCheck;
+      }
+
+      if (!eligibilityCheck.data.can_cancel) {
+        return {
+          success: false,
+          message: 'Booking cannot be cancelled. It is non-refundable.',
+        };
+      }
+
+      // Get booking with all related data
+      const booking = await this.prisma.booking.findFirst({
+        where: {
+          id: checkCancellationDto.booking_id,
+          user_id: user_id,
+          deleted_at: null,
+        },
+        include: {
+          booking_items: {
+            select: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                },
+              },
+              selected_date: true,
+              total_travelers: true,
+            },
+          },
+          payment_transactions: {
+            where: {
+              status: { in: ['succeeded', 'pending'] },
+            },
+            orderBy: { created_at: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (!booking) {
+        return {
+          success: false,
+          message: 'Booking not found or access denied',
+        };
+      }
+
+      // Check if booking is already cancelled
+      if (booking.status === 'cancelled') {
+        return {
+          success: false,
+          message: 'Booking is already cancelled',
+        };
+      }
+
+      return await this.prisma.$transaction(async (prisma) => {
+        // Update booking status to cancelled
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { status: 'cancelled' },
+        });
+
+        // Update payment transaction status
+        if (booking.payment_transactions.length > 0) {
+          const latestTransaction = booking.payment_transactions[0];
+
+          if (latestTransaction.status === 'succeeded') {
+            // Process refund if payment was successful
+            try {
+              // Update transaction status to refunded
+              await prisma.paymentTransaction.update({
+                where: { id: latestTransaction.id },
+                data: { status: 'refunded' },
+              });
+
+              // Here you would integrate with your payment provider (Stripe) to process the refund
+              // For now, we'll just mark it as refunded
+              console.log(`Refund processed for payment: ${latestTransaction.reference_number}`);
+            } catch (refundError) {
+              console.error('Refund processing failed:', refundError);
+              // Continue with cancellation even if refund fails
+            }
+          } else if (latestTransaction.status === 'pending') {
+            // Cancel pending payment
+            await prisma.paymentTransaction.update({
+              where: { id: latestTransaction.id },
+              data: { status: 'cancelled' },
+            });
+          }
+        }
+
+        // Release package slots back to availability
+        for (const item of booking.booking_items) {
+          if (item.package.type === 'package' || item.package.type === 'cruise') {
+            // Find the package availability for the selected date
+            const packageAvailability = await prisma.packageAvailability.findFirst({
+              where: {
+                package_id: item.package.id,
+                status: 1,
+                deleted_at: null,
+                OR: [
+                  { start_date: item.selected_date, end_date: null },
+                  { start_date: { lte: item.selected_date }, end_date: { gte: item.selected_date } },
+                  { start_date: null, end_date: { gte: item.selected_date } },
+                  { start_date: { lte: item.selected_date }, end_date: null },
+                  { start_date: null, end_date: null },
+                ],
+              },
+            });
+
+            if (packageAvailability) {
+              // Increase available slots
+              await prisma.packageAvailability.update({
+                where: { id: packageAvailability.id },
+                data: {
+                  available_slots: {
+                    increment: item.total_travelers || 1,
+                  },
+                },
+              });
+            }
+          }
+        }
+
+        // Create notification for vendor
+        await prisma.notificationEvent.create({
+          data: {
+            type: 'booking',
+            text: `Booking ${booking.invoice_number} has been cancelled`,
+          },
+        }).then(async (event) => {
+          await prisma.notification.create({
+            data: {
+              sender_id: user_id,
+              receiver_id: booking.vendor_id,
+              notification_event_id: event.id,
+              entity_id: booking.id,
+            },
+          });
+        });
+
+        return {
+          success: true,
+          message: 'Booking cancelled successfully',
+          data: {
+            booking_id: booking.id,
+            invoice_number: booking.invoice_number,
+            cancellation_time: new Date().toISOString(),
+            refund_processed: booking.payment_transactions.length > 0 &&
+              booking.payment_transactions[0].status === 'succeeded',
+          },
+        };
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 }

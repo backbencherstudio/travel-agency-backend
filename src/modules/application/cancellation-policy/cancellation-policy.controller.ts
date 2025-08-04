@@ -7,7 +7,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 export class CancellationPolicyController {
   constructor(
     private readonly cancellationPolicyService: CancellationPolicyService,
-  ) {}
+  ) { }
 
   @ApiOperation({ summary: 'Get cancellation policy' })
   @Get()
@@ -22,4 +22,5 @@ export class CancellationPolicyController {
       };
     }
   }
+
 }

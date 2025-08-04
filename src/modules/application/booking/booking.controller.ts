@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CheckCancellationDto } from './dto/check-cancellation.dto';
 
 @ApiBearerAuth()
 @ApiTags('Booking')
@@ -119,6 +120,42 @@ export class BookingController {
   async sendInvoiceToEmail(@Param('paymentIntentId') paymentIntentId: string) {
     try {
       const result = await this.bookingService.sendInvoiceToEmail(paymentIntentId);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Check cancellation eligibility',
+    description: 'Check if a user can cancel their booking based on booking_id'
+  })
+  @Post('check-cancellation-eligibility')
+  async checkCancellationEligibility(@Body() checkCancellationDto: CheckCancellationDto, @Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.checkCancellationEligibility(checkCancellationDto, user_id);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Cancel booking',
+    description: 'Cancel a booking if it meets the cancellation criteria (24 hours before tour start)'
+  })
+  @Post('cancel-booking')
+  async cancelBooking(@Body() checkCancellationDto: CheckCancellationDto, @Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.cancelBooking(checkCancellationDto, user_id);
       return result;
     } catch (error) {
       return {
