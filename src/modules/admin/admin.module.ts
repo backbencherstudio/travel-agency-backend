@@ -21,6 +21,7 @@ import { BookingModule } from './booking/booking.module';
 import { NotificationModule } from './notification/notification.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PlaceModule } from './place/place.module';
+import { LegalDocumentModule } from './legal-document/legal-document.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PlaceModule } from './place/place.module';
     NotificationModule,
     DashboardModule,
     PlaceModule,
+    LegalDocumentModule,
   ],
 })
 export class AdminModule {}

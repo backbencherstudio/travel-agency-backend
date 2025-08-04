@@ -70,6 +70,7 @@ export default () => ({
     // chat
     attachment: '/attachment/',
     review: '/review/',
+    legalDocuments: '/legal-documents/',
   },
 
   defaultUser: {

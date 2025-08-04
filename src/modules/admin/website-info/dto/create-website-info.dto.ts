@@ -60,4 +60,11 @@ export class CreateWebsiteInfoDto {
     description: 'The cancellation policy of the website',
   })
   cancellation_policy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'The privacy policy of the website',
+  })
+  privacy_policy?: string;
 }

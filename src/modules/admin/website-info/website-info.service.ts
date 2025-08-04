@@ -38,6 +38,9 @@ export class WebsiteInfoService extends PrismaClient {
       if (createWebsiteInfoDto.cancellation_policy) {
         data.cancellation_policy = createWebsiteInfoDto.cancellation_policy;
       }
+      if (createWebsiteInfoDto.privacy_policy) {
+        data.privacy_policy = createWebsiteInfoDto.privacy_policy;
+      }
       if (files && files.logo) {
         // delete old logo from storage
         const logo = await this.prisma.websiteInfo.findFirst();

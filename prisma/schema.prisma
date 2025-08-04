@@ -98,7 +98,9 @@ model User {
   user_payment_methods          UserPaymentMethod[]
   package_cancellation_policies PackageCancellationPolicy[]
   wish_lists                    WishList[]
-  share                         Share[]
+  shares                        Share[]
+  legal_documents               LegalDocument[]
+  jumio_verifications           JumioVerification[]
 
   @@map("users")
 }
@@ -1730,6 +1732,7 @@ model WebsiteInfo {
   favicon             String?
   copyright           String?
   cancellation_policy String? @db.Text
+  privacy_policy      String? @db.Text
 
   @@map("website_infos")
 }
@@ -1746,6 +1749,133 @@ model Setting {
 
   @@map("settings")
 }
+
+// ==================== LEGAL DOCUMENTS SECTION ====================
+
+// this table stores user legal documents
+model LegalDocument {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Document type (simplified from LegalDocumentType)
+  // available values: passport, drivers_license, national_id, visa, other
+  document_type       String?
+  // Document title/name
+  title               String?
+  // Document description/notes
+  description         String?   @db.Text
+  // Document verification status
+  // available values: pending, approved, rejected, expired
+  verification_status String?   @default("pending")
+  // Document expiration date
+  expires_at          DateTime?
+  // Admin notes for verification
+  admin_notes         String?   @db.Text
+  // Date when document was verified
+  verified_at         DateTime?
+  // User who verified the document (admin)
+  verified_by         String?
+  // Document verification score (0-100)
+  verification_score  Int?
+  // Whether document is currently active
+  is_active           Boolean?  @default(true)
+
+  // Jumio verification related fields
+  jumio_verification_id String?
+  jumio_verification    JumioVerification? @relation(fields: [jumio_verification_id], references: [id])
+
+  legal_document_files LegalDocumentFile[]
+
+  @@map("legal_documents")
+}
+
+model LegalDocumentFile {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  legal_document_id String?
+  legal_document    LegalDocument? @relation(fields: [legal_document_id], references: [id], onDelete: Cascade)
+
+  file     String?
+  file_alt String?
+
+  // metadata
+  type String? // e.g. passport, visa, driver's license, national id, other
+
+  @@map("legal_document_files")
+}
+
+// ==================== JUMIO VERIFICATION PROCESS ====================
+
+// this table stores Jumio verification sessions
+model JumioVerification {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Jumio API reference
+  jumio_reference_id String?   @unique
+  // Verification type
+  // available values: id_verification, face_verification, document_verification
+  verification_type  String?
+  // Verification status from Jumio
+  // available values: pending, approved, denied, error, expired
+  jumio_status       String?   @default("pending")
+  // Jumio verification result
+  jumio_result       String?   @db.Text // JSON response from Jumio
+  // QR code URL for mobile verification
+  qr_code_url        String?
+  // QR code data for web verification
+  qr_code_data       String?
+  // Verification session expiry
+  session_expires_at DateTime?
+  // Whether verification was completed
+  is_completed       Boolean?  @default(false)
+  // Completion timestamp
+  completed_at       DateTime?
+  // Verification score (0-100)
+  verification_score Int?
+  // Admin notes
+  admin_notes        String?   @db.Text
+  // Whether verification was manually reviewed
+  manually_reviewed  Boolean?  @default(false)
+  // Manual review timestamp
+  reviewed_at        DateTime?
+  // User who reviewed the verification (admin)
+  reviewed_by        String?
+  // Attempt number (simplified from JumioVerificationAttempt)
+  attempt_number     Int?      @default(1)
+  // IP address of the attempt
+  ip_address         String?
+  // User agent of the attempt
+  user_agent         String?
+  // Device information
+  device_info        String?   @db.Text // JSON object with device details
+  // Error message if failed
+  error_message      String?   @db.Text
+
+  // Related legal documents
+  legal_documents LegalDocument[]
+
+  @@map("jumio_verifications")
+}
+
+// ==================== END LEGAL DOCUMENTS & JUMIO VERIFICATION ====================
 
 // this table stores example
 // model Note {
