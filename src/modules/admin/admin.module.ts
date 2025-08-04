@@ -22,6 +22,7 @@ import { NotificationModule } from './notification/notification.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PlaceModule } from './place/place.module';
 import { LegalDocumentModule } from './legal-document/legal-document.module';
+import { JumioVerificationModule } from './jumio-verification/jumio-verification.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { LegalDocumentModule } from './legal-document/legal-document.module';
     DashboardModule,
     PlaceModule,
     LegalDocumentModule,
+    JumioVerificationModule,
   ],
 })
 export class AdminModule {}

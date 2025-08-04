@@ -55,6 +55,13 @@ export default () => ({
     },
   },
 
+  jumio: {
+    api_token: process.env.JUMIO_API_TOKEN,
+    api_secret: process.env.JUMIO_API_SECRET,
+    base_url: process.env.JUMIO_BASE_URL || 'https://netverify.com/api/v4',
+    callback_url: process.env.JUMIO_CALLBACK_URL,
+  },
+
   /**
    * Storage directory
    */

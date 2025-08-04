@@ -1817,7 +1817,7 @@ model LegalDocumentFile {
 
 // ==================== JUMIO VERIFICATION PROCESS ====================
 
-// this table stores Jumio verification sessions
+// this table stores Jumio Netverify API v4 verification sessions
 model JumioVerification {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
@@ -1828,46 +1828,54 @@ model JumioVerification {
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  // Jumio API reference
-  jumio_reference_id String?   @unique
+  // Jumio API fields
+  jumio_reference_id   String? @unique // Jumio's unique reference ID
+  jumio_scan_reference String? // Jumio scan reference
+
   // Verification type
-  // available values: id_verification, face_verification, document_verification
-  verification_type  String?
-  // Verification status from Jumio
-  // available values: pending, approved, denied, error, expired
-  jumio_status       String?   @default("pending")
-  // Jumio verification result
-  jumio_result       String?   @db.Text // JSON response from Jumio
-  // QR code URL for mobile verification
-  qr_code_url        String?
-  // QR code data for web verification
-  qr_code_data       String?
-  // Verification session expiry
-  session_expires_at DateTime?
-  // Whether verification was completed
-  is_completed       Boolean?  @default(false)
-  // Completion timestamp
-  completed_at       DateTime?
-  // Verification score (0-100)
-  verification_score Int?
-  // Admin notes
-  admin_notes        String?   @db.Text
-  // Whether verification was manually reviewed
-  manually_reviewed  Boolean?  @default(false)
-  // Manual review timestamp
-  reviewed_at        DateTime?
-  // User who reviewed the verification (admin)
-  reviewed_by        String?
-  // Attempt number (simplified from JumioVerificationAttempt)
-  attempt_number     Int?      @default(1)
-  // IP address of the attempt
-  ip_address         String?
-  // User agent of the attempt
-  user_agent         String?
-  // Device information
-  device_info        String?   @db.Text // JSON object with device details
-  // Error message if failed
-  error_message      String?   @db.Text
+  // available values: IDENTITY_VERIFICATION, FACE_VERIFICATION, DOCUMENT_VERIFICATION
+  verification_type String?
+
+  // Jumio verification status
+  // available values: PENDING, APPROVED_VERIFIED, DENIED_FRAUD, DENIED_UNSUPPORTED_ID_TYPE, DENIED_UNSUPPORTED_ID_COUNTRY, ERROR_NOT_READABLE_ID, NO_ID_UPLOADED
+  jumio_status String? @default("PENDING")
+
+  // Jumio API response fields
+  jumio_result String? @db.Text // Full Jumio API response as JSON
+
+  // Document information from Jumio
+  document_type    String? // ID_CARD, PASSPORT, DRIVERS_LICENSE, etc.
+  document_country String? // Country code of the document
+  document_number  String? // Document number
+
+  // Personal information from Jumio
+  first_name    String?
+  last_name     String?
+  date_of_birth DateTime?
+  nationality   String?
+
+  // Verification details
+  verification_score      Int? // Jumio's confidence score (0-100)
+  verification_confidence String? // HIGH, MEDIUM, LOW
+
+  // Timestamps
+  jumio_created_at   DateTime? // When Jumio created the verification
+  jumio_updated_at   DateTime? // When Jumio last updated the verification
+  jumio_completed_at DateTime? // When Jumio completed the verification
+
+  // Session management
+  session_expires_at DateTime? // When the session expires
+  is_completed       Boolean?  @default(false) // Whether verification was completed
+
+  // Admin management
+  admin_notes       String?   @db.Text
+  manually_reviewed Boolean?  @default(false)
+  reviewed_at       DateTime?
+  reviewed_by       String?
+
+  // Error handling
+  error_message    String? @db.Text
+  jumio_error_code String? // Jumio error code if any
 
   // Related legal documents
   legal_documents LegalDocument[]
