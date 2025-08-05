@@ -794,6 +794,13 @@ export class PackageService extends PrismaClient {
               available_slots: true,
             },
           },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
 

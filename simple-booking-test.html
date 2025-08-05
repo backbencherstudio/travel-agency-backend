@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Booking Test</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+      }
+      .success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .loading {
+        color: #007bff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Simple Booking Test</h1>
+
+    <div class="form-group">
+      <label for="checkoutId">Checkout ID:</label>
+      <input type="text" id="checkoutId" placeholder="Enter checkout ID" />
+    </div>
+
+    <div class="form-group">
+      <label for="bookingType">Booking Type:</label>
+      <select id="bookingType">
+        <option value="book">Book Now (Immediate Payment)</option>
+        <option value="reserve">Reserve (Pay Later)</option>
+      </select>
+    </div>
+
+    <button onclick="createBooking()">Create Booking</button>
+
+    <div id="result"></div>
+
+    <!-- Payment Section (Auto-shows for immediate payment) -->
+    <div id="paymentSection" style="display: none">
+      <hr style="margin: 30px 0" />
+      <h2>Complete Payment</h2>
+
+      <div class="form-group">
+        <label>Card Details:</label>
+        <div
+          id="card-element"
+          style="
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+          "
+        ></div>
+        <div
+          id="card-errors"
+          style="color: #dc3545; font-size: 14px; margin-top: 5px"
+        ></div>
+      </div>
+
+      <button onclick="completePayment()" style="background: #28a745">
+        Complete Payment
+      </button>
+
+      <div id="paymentResult"></div>
+    </div>
+
+    <script>
+      // Global variables to store booking data
+      let currentClientSecret = null;
+      let currentBookingId = null;
+      let stripe = null;
+      let cardElement = null;
+
+      async function createBooking() {
+        const resultDiv = document.getElementById('result');
+        const paymentSection = document.getElementById('paymentSection');
+        const checkoutId = document.getElementById('checkoutId').value;
+        const bookingType = document.getElementById('bookingType').value;
+
+        if (!checkoutId) {
+          resultDiv.className = 'result error';
+          resultDiv.textContent = 'Please enter a checkout ID';
+          return;
+        }
+
+        resultDiv.className = 'result loading';
+        resultDiv.textContent = 'Creating booking...';
+
+        try {
+          const response = await fetch('http://localhost:4000/api/booking', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization:
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwic3ViIjoiY21kcGVteDkyMDAwMHdzZHNjcWhxeG0wOCIsImlhdCI6MTc1NDM2MjA1OCwiZXhwIjoxNzU0NDQ4NDU4fQ.FNuhOFuo1M28D_SBeL3kN1GKQ5JOzrnJswnrM7xn0D4',
+            },
+            body: JSON.stringify({
+              checkout_id: checkoutId,
+              booking_type: bookingType,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            resultDiv.className = 'result success';
+            resultDiv.textContent = `✅ Booking created successfully!\n\n${JSON.stringify(result, null, 2)}`;
+
+            // Store booking data for payment
+            currentBookingId = result.data.booking_id;
+
+            // Show payment section if immediate payment is required
+            if (bookingType === 'book' && result.data.client_secret) {
+              currentClientSecret = result.data.client_secret;
+              paymentSection.style.display = 'block';
+              paymentSection.scrollIntoView({ behavior: 'smooth' });
+              // Initialize Stripe Elements
+              initializeStripeElements();
+            } else if (bookingType === 'reserve') {
+              resultDiv.textContent +=
+                '\n\n💡 Booking reserved! Payment will be required later.';
+            }
+          } else {
+            resultDiv.className = 'result error';
+            resultDiv.textContent = `❌ Booking failed: ${result.message}\n\n${JSON.stringify(result, null, 2)}`;
+          }
+        } catch (error) {
+          resultDiv.className = 'result error';
+          resultDiv.textContent = `❌ Error: ${error.message}`;
+        }
+      }
+
+      function initializeStripeElements() {
+        // Initialize Stripe
+        stripe = Stripe(
+          'pk_test_51RgIDjGbZdiSzPj89wef1vxHaK0jRa4fAUcYFU1KT1mhNBvhgmfwmUWLwaLuV8YEqpae9XdgIwi3cAwHaQ0bxniz00QSaaPJgY',
+        );
+
+        // Create card element
+        const elements = stripe.elements();
+        cardElement = elements.create('card', {
+          style: {
+            base: {
+              fontSize: '16px',
+              color: '#424770',
+              '::placeholder': {
+                color: '#aab7c4',
+              },
+            },
+            invalid: {
+              color: '#9e2146',
+            },
+          },
+        });
+
+        // Mount the card element
+        cardElement.mount('#card-element');
+
+        // Handle real-time validation errors
+        cardElement.on('change', function (event) {
+          const displayError = document.getElementById('card-errors');
+          if (event.error) {
+            displayError.textContent = event.error.message;
+          } else {
+            displayError.textContent = '';
+          }
+        });
+      }
+
+      async function completePayment() {
+        const paymentResultDiv = document.getElementById('paymentResult');
+
+        if (!currentClientSecret) {
+          paymentResultDiv.className = 'result error';
+          paymentResultDiv.textContent =
+            'No client secret available. Please create a booking first.';
+          return;
+        }
+
+        if (!stripe || !cardElement) {
+          paymentResultDiv.className = 'result error';
+          paymentResultDiv.textContent =
+            'Stripe Elements not initialized. Please try again.';
+          return;
+        }
+
+        paymentResultDiv.className = 'result loading';
+        paymentResultDiv.textContent = 'Processing payment...';
+
+        try {
+          const { error, paymentIntent } = await stripe.confirmCardPayment(
+            currentClientSecret,
+            {
+              payment_method: {
+                card: cardElement,
+                billing_details: {
+                  name: 'Test User',
+                  email: 'test@example.com',
+                },
+              },
+            },
+          );
+
+          if (error) {
+            paymentResultDiv.className = 'result error';
+            paymentResultDiv.textContent = `❌ Payment failed: ${error.message}`;
+          } else if (paymentIntent.status === 'succeeded') {
+            paymentResultDiv.className = 'result success';
+            paymentResultDiv.textContent = `✅ Payment successful!\n\nBooking ID: ${currentBookingId}\nPayment Intent: ${paymentIntent.id}\nStatus: ${paymentIntent.status}`;
+          } else {
+            paymentResultDiv.className = 'result error';
+            paymentResultDiv.textContent = `❌ Payment status: ${paymentIntent.status}`;
+          }
+        } catch (error) {
+          paymentResultDiv.className = 'result error';
+          paymentResultDiv.textContent = `❌ Error: ${error.message}`;
+        }
+      }
+
+      // Load test data when page loads
+      document.addEventListener('DOMContentLoaded', function () {
+        // No need to auto-fill since we're using Stripe Elements
+      });
+    </script>
+  </body>
+</html>

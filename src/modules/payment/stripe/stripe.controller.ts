@@ -2,10 +2,16 @@ import { Controller, Post, Req, Headers } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
+import { CommissionIntegrationService } from '../../admin/sales-commission/commission-integration.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Controller('payment/stripe')
 export class StripeController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(
+    private readonly stripeService: StripeService,
+    private readonly commissionIntegrationService: CommissionIntegrationService,
+    private readonly prisma: PrismaService,
+  ) { }
 
   @Post('webhook')
   async handleWebhook(
@@ -36,6 +42,21 @@ export class StripeController {
             paid_currency: paymentIntent.currency,
             raw_status: paymentIntent.status,
           });
+
+          // Get booking ID from transaction and calculate commissions
+          try {
+            const transaction = await this.prisma.paymentTransaction.findFirst({
+              where: { reference_number: paymentIntent.id },
+              include: { booking: true }
+            });
+
+            if (transaction?.booking_id) {
+              // Automatically calculate commissions for successful payment
+              await this.commissionIntegrationService.calculateCommissionsForBooking(transaction.booking_id);
+            }
+          } catch (error) {
+            console.error('Error calculating commissions:', error);
+          }
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;

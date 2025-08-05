@@ -203,15 +203,10 @@ export class CheckoutService extends PrismaClient {
         // Create checkout
         const checkoutData = {
           user_id,
-          vendor_id: user.type === 'vendor' ? user.id : packageData.user_id,
-          email: createCheckoutDto.email,
-          phone_number: createCheckoutDto.phone_number,
-          address1: createCheckoutDto.address1,
-          address2: createCheckoutDto.address2,
-          city: createCheckoutDto.city,
-          state: createCheckoutDto.state,
-          zip_code: createCheckoutDto.zip_code,
-          country: createCheckoutDto.country,
+          vendor_id: packageData.user_id,
+          email: user.email,
+          phone_number: user.phone_number,
+          address1: user.address,
         };
 
         const checkout = await prisma.checkout.create({ data: checkoutData });

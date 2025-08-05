@@ -131,6 +131,13 @@ export class LegalDocumentService {
                         sort_order: true
                     }
                 },
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                }
             },
             orderBy: {
                 created_at: 'desc'
