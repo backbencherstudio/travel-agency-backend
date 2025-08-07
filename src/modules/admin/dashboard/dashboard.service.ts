@@ -9,7 +9,7 @@ export class DashboardService extends PrismaClient {
   constructor(private readonly prisma: PrismaService) {
     super();
   }
-  async findAll(user_id: string) {
+  async getAdminData(user_id: string) {
     try {
       const where_condition = {};
       // filter using vendor id if the package is from vendor
@@ -149,6 +149,98 @@ export class DashboardService extends PrismaClient {
           pending_bookings: pendingBookings,
           cancelled_bookings: cancelledBookings,
           processing_bookings: processingBookings,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async getVendorData(user_id: string, page: number = 1, limit: number = 10) {
+    try {
+      // Total Packages
+      const totalPackages = await this.prisma.package.count({
+        where: { user_id: user_id, deleted_at: null },
+      });
+
+      // Total Bookings
+      const totalBookings = await this.prisma.booking.count({
+        where: { vendor_id: user_id, deleted_at: null },
+      });
+
+      // Pending Bookings
+      const pendingBookings = await this.prisma.booking.count({
+        where: {
+          vendor_id: user_id,
+          payment_status: 'pending',
+          deleted_at: null,
+        },
+      });
+
+      // Total Earnings
+      const totalEarnings = await this.prisma.booking.aggregate({
+        where: {
+          vendor_id: user_id,
+          payment_status: 'succeeded',
+          deleted_at: null,
+        },
+        _sum: {
+          total_amount: true,
+        },
+      });
+
+      // Calculate pagination
+      const skip = (page - 1) * limit;
+      const totalBookingsData = await this.prisma.booking.findMany({
+        where: {
+          vendor_id: user_id,
+          deleted_at: null,
+        },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          invoice_number: true,
+          total_amount: true,
+          created_at: true,
+          status: true,
+          payment_status: true,
+          user: { select: { name: true, avatar: true } },
+          booking_items: { select: { package: { select: { name: true } } } },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      // Adding avatar URL for customer
+      for (const booking of totalBookingsData) {
+        if (booking.user && booking.user.avatar) {
+          booking.user['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + booking.user.avatar,
+          );
+        }
+      }
+
+      const totalPages = Math.ceil(totalBookings / limit);
+
+      return {
+        success: true,
+        data: {
+          totalPackages,
+          totalBookings,
+          pendingBookings,
+          totalEarnings: totalEarnings._sum.total_amount || 0,
+          recentBookings: totalBookingsData,
+          pagination: {
+            page,
+            limit,
+            total: totalBookings,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
+          },
         },
       };
     } catch (error) {

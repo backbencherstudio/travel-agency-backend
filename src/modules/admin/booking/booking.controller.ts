@@ -28,30 +28,38 @@ export class BookingController {
 
   @ApiOperation({ summary: 'Get all bookings' })
   @Get()
-  async findAll(
-    @Req() req: Request,
-    @Query() query: { q?: string; status?: number; approve?: string },
-  ) {
-    try {
-      const user_id = req.user.userId;
-      const q = query.q;
-      const status = query.status;
-      const approve = query.approve;
-      const bookings = await this.bookingService.findAll({
-        user_id,
-        q,
-        status,
-        approve,
-      });
+  @Get()
+async findAll(
+  @Req() req: Request,
+  @Query() query: {
+    q?: string;
+    status?: string;
+    approve?: string;
+    page?: number;
+    limit?: number;
+  },
+) {
+  try {
+    const user_id = req.user.userId;
+    const { q, status, approve, page = 1, limit = 10 } = query;
 
-      return bookings;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+    const bookings = await this.bookingService.findAll({
+      user_id,
+      q,
+      status,
+      approve,
+      page: Number(page),
+      limit: Number(limit),
+    });
+
+    return bookings;
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message,
+    };
   }
+}
 
   @ApiOperation({ summary: 'Get booking by id' })
   @Get(':id')

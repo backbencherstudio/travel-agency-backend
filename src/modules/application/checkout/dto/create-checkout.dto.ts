@@ -248,4 +248,13 @@ export class CreateCheckoutDto {
     },
   })
   checkout_travellers?: ICheckoutTraveller[];
+
+  // Pickup Point Information
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'ID of the selected pickup point',
+    required: false,
+  })
+  place_id?: string;
 }

@@ -15,7 +15,22 @@ import { Request } from 'express';
 export class PaymentTransactionController {
   constructor(
     private readonly paymentTransactionService: PaymentTransactionService,
-  ) {}
+  ) { }
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Get payment dashboard data' })
+  async getDashboard(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const data = await this.paymentTransactionService.getPaymentDashboard(user_id);
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 
   @ApiOperation({ summary: 'Get all packages' })
   @Get()

@@ -17,22 +17,26 @@ export class BookingService extends PrismaClient {
     q,
     status = null,
     approve,
+    page = 1,
+    limit = 10,
   }: {
     user_id?: string;
     q?: string;
-    status?: number;
+    status?: string;
     approve?: string;
+    page?: number;
+    limit?: number;
   }) {
     try {
-      const where_condition = {};
-      // filter using vendor id if the package is from vendor
+      const where_condition: any = {};
+
       if (user_id) {
         const userDetails = await UserRepository.getUserDetails(user_id);
-        if (userDetails && userDetails.type == 'vendor') {
+        if (userDetails && userDetails.type === 'vendor') {
           where_condition['vendor_id'] = user_id;
         }
       }
-      // search using q
+
       if (q) {
         where_condition['OR'] = [
           { invoice_number: { contains: q, mode: 'insensitive' } },
@@ -41,62 +45,87 @@ export class BookingService extends PrismaClient {
       }
 
       if (status) {
-        where_condition['status'] = Number(status);
+        where_condition['status'] = status;
       }
 
       if (approve) {
-        if (approve === 'approved') {
-          where_condition['approved_at'] = { not: null };
-        } else {
-          where_condition['approved_at'] = null;
-        }
+        where_condition['approved_at'] =
+          approve === 'approved' ? { not: null } : null;
       }
 
-      const bookings = await this.prisma.booking.findMany({
-        where: {
-          ...where_condition,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        select: {
-          id: true,
-          invoice_number: true,
-          email: true,
-          phone_number: true,
-          address1: true,
-          address2: true,
-          city: true,
-          state: true,
-          zip_code: true,
-          country: true,
-          total_amount: true,
-          status: true,
-          payment_status: true,
-          booking_items: {
-            select: {
-              package: {
-                select: {
-                  name: true,
+      const skip = (page - 1) * limit;
+
+      const [bookings, total] = await this.prisma.$transaction([
+        this.prisma.booking.findMany({
+          where: where_condition,
+          orderBy: {
+            created_at: 'desc',
+          },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            invoice_number: true,
+            email: true,
+            phone_number: true,
+            address1: true,
+            address2: true,
+            city: true,
+            state: true,
+            zip_code: true,
+            country: true,
+            total_amount: true,
+            status: true,
+            payment_status: true,
+            booking_items: {
+              select: {
+                package: {
+                  select: {
+                    name: true,
+                  },
                 },
               },
             },
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
             },
+            created_at: true,
+            updated_at: true,
           },
-          created_at: true,
-          updated_at: true,
-        },
+        }),
+        this.prisma.booking.count({
+          where: where_condition,
+        }),
+      ]);
+
+      // add avatar url
+      bookings.forEach((booking) => {
+        if (booking.user && booking.user.avatar) {
+          booking.user['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + booking.user.avatar,
+          );
+        }
       });
+
+      const totalPages = Math.ceil(total / limit);
 
       return {
         success: true,
         data: bookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       };
+      
     } catch (error) {
       return {
         success: false,

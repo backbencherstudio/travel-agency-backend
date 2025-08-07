@@ -109,6 +109,7 @@ export class BookingService {
           booking_type: bookingType,
           payment_status: isImmediatePayment ? 'pending' : 'reserved',
           booking_date_time: new Date(),
+          place_id: checkout.place_id || null,
           email: checkout.email,
           phone_number: checkout.phone_number,
           address1: checkout.address1,
@@ -480,6 +481,18 @@ export class BookingService {
           },
           payment_transactions: {
             select: { amount: true, currency: true, paid_amount: true, paid_currency: true, status: true },
+          },
+          place_point: {
+            select: {
+              place: {
+                select: {
+                  name: true,
+                  type: true,
+                  latitude: true,
+                  longitude: true
+                }
+              }
+            }
           },
           created_at: true,
           updated_at: true,

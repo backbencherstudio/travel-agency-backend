@@ -45,4 +45,5 @@ export class CreateBookingDto {
 
     @IsOptional() @ApiProperty({ description: 'Extra services (JSON string or array)', required: false })
     extra_services?: any;
+
 }

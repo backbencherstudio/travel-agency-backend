@@ -635,8 +635,13 @@ model PackagePlace {
   place_id String?
   place    Place?  @relation(fields: [place_id], references: [id], onDelete: SetNull)
 
-  // Location type: meeting_point, pickup_point, endpoint
-  type String? @default("meeting_point")
+  // Location type: meeting_point, pickup_point, endpoint, drop_off_point
+  type      String? @default("meeting_point")
+  meet_time String?
+
+  // Related checkouts and bookings that selected this pickup point
+  checkouts Checkout[]
+  bookings  Booking[]
 
   @@map("package_places")
 }
@@ -922,6 +927,10 @@ model Checkout {
   vendor_id String?
   vendor    User?   @relation("vendor", fields: [vendor_id], references: [id], onDelete: Cascade)
 
+  // Pickup Point Information
+  place_id    String?
+  place_point PackagePlace? @relation(fields: [place_id], references: [id], onDelete: SetNull)
+
   // hardcoded contact information
   first_name   String?
   last_name    String?
@@ -1176,6 +1185,10 @@ model Booking {
 
   payment_provider_charge_type String?  @default("percentage") // e.g. fixed, percentage
   payment_provider_charge      Decimal? // e.g. stripe payment provider charge
+
+  // Pickup Point Information
+  place_id    String?
+  place_point PackagePlace? @relation(fields: [place_id], references: [id], onDelete: SetNull)
 
   // hardcoded contact information
   first_name   String?

@@ -70,8 +70,6 @@ export class PageService extends PrismaClient {
           description: true,
           price: true,
           duration: true,
-          min_capacity: true,
-          max_capacity: true,
           type: true,
           package_categories: {
             select: {
@@ -213,10 +211,25 @@ export class PageService extends PrismaClient {
           id: true,
           rating_value: true,
           comment: true,
-          user_id: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            }
+          }
         },
       });
 
+      if (reviews && reviews.length > 0) {
+        for (const record of reviews) {
+          if (record.user && record.user.avatar) {
+            record.user['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + record.user.avatar,
+            );
+          }
+        }
+      }
       const blogs = await this.prisma.blog.findMany({
         where: {
           status: 1,

@@ -78,6 +78,7 @@ export class PackageController {
       tag_id?: string;
       category_id?: string;
       destination_id?: string;
+      destination: string;
       country_id?: string;
       start_date?: string;
       end_date?: string;
@@ -101,6 +102,7 @@ export class PackageController {
         tag_id: query.tag_id,
         category_id: query.category_id,
         destination_id: query.destination_id,
+        destination: query.destination,
         country_id: query.country_id,
         start_date: query.start_date,
         end_date: query.end_date,

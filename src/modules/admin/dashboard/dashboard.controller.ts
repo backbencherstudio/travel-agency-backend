@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '../../../common/guard/role/role.enum';
@@ -17,10 +17,10 @@ export class DashboardController {
 
   @ApiOperation({ summary: 'Get dashboard data' })
   @Get()
-  async findAll(@Req() req: Request) {
+  async getAdminData(@Req() req: Request) {
     try {
       const user_id = req.user.userId;
-      const dashboard = await this.dashboardService.findAll(user_id);
+      const dashboard = await this.dashboardService.getAdminData(user_id);
       return dashboard;
     } catch (error) {
       return {
@@ -28,5 +28,17 @@ export class DashboardController {
         message: error.message,
       };
     }
+  }
+
+  @ApiOperation({ summary: 'Get vendor dashboard data' })
+  @Get('vendor')
+  async getVendorData(
+    @Req() req: any,  // Getting user data from request
+    @Query() query: { page?: number; limit?: number }  // Pagination for recent bookings
+  ) {
+    const user_id = req.user.userId;
+    const { page = 1, limit = 10 } = query;
+    const data = await this.dashboardService.getVendorData(user_id, page, limit);
+    return data;
   }
 }

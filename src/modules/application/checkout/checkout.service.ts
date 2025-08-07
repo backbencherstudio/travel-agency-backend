@@ -200,6 +200,22 @@ export class CheckoutService extends PrismaClient {
         const discountAmount = createCheckoutDto.discount_amount || 0;
         const finalPrice = Math.max(0, totalPrice - discountAmount);
 
+        // Validate pickup point if provided
+        if (createCheckoutDto.place_id) {
+          const pickupPoint = await prisma.packagePlace.findUnique({
+            where: { id: createCheckoutDto.place_id },
+            select: { id: true, type: true }
+          });
+
+          if (!pickupPoint) {
+            return { success: false, message: 'Selected pickup point not found' };
+          }
+
+          if (pickupPoint.type !== 'pickup_point') {
+            return { success: false, message: 'Selected location is not a pickup point' };
+          }
+        }
+
         // Create checkout
         const checkoutData = {
           user_id,
@@ -207,6 +223,7 @@ export class CheckoutService extends PrismaClient {
           email: user.email,
           phone_number: user.phone_number,
           address1: user.address,
+          place_id: createCheckoutDto.place_id || null,
         };
 
         const checkout = await prisma.checkout.create({ data: checkoutData });
@@ -498,6 +515,18 @@ export class CheckoutService extends PrismaClient {
           temp_redeems: {
             select: { id: true, coupon: { select: { id: true, code: true, name: true, amount: true, amount_type: true } } },
           },
+          place_point: {
+            select: {
+              place: {
+                select: {
+                  name: true,
+                  type: true,
+                  latitude: true,
+                  longitude: true
+                }
+              }
+            }
+          }
         },
       });
 

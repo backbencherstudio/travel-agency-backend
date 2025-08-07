@@ -330,6 +330,7 @@ export class PackageService extends PrismaClient {
       tag_id?: string;
       category_id?: string;
       destination_id?: string;
+      destination: string;
       country_id?: string;
       start_date?: string;
       end_date?: string;
@@ -395,10 +396,20 @@ export class PackageService extends PrismaClient {
             },
           };
         }
-        if (filters.destination_id) {
+        if (filters.destination_id || filters.destination) {
           where_condition['package_destinations'] = {
             some: {
-              destination_id: filters.destination_id,
+              ...(filters.destination_id && {
+                destination_id: filters.destination_id,
+              }),
+              ...(filters.destination && {
+                destination: {
+                  name: {
+                    contains: filters.destination,
+                    mode: 'insensitive',
+                  },
+                },
+              }),
             },
           };
         }
