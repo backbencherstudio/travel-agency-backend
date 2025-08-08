@@ -47,18 +47,22 @@ export class BookingController {
   @Get()
   async findAll(
     @Req() req: Request,
-    @Query() query: { q?: string; status?: number; approve?: string },
+    @Query() query: { q?: string; status?: number; approve?: string, page?: number, limit?: number },
   ) {
     try {
       const user_id = req.user.userId;
       const q = query.q;
       const status = query.status;
       const approve = query.approve;
+      const page = Number(query.page) || 1;
+      const limit = Number(query.limit) || 10;
       const bookings = await this.bookingService.findAll({
         user_id,
         q,
         status,
         approve,
+        page,
+        limit,
       });
 
       return bookings;

@@ -320,9 +320,19 @@ export class BookingService {
     }
   }
 
-  async findAll(params: { user_id?: string; q?: string; status?: number; approve?: string }) {
+  async findAll(params: {
+    user_id?: string;
+    q?: string;
+    status?: number;
+    approve?: string;
+    page?: number;  // Add page parameter
+    limit?: number; // Add limit parameter
+  }) {
     try {
+      const { page = 1, limit = 10 } = params; // Set default values for page and limit
+
       const where = { user_id: params.user_id };
+
       if (params.q) {
         where['OR'] = [
           { invoice_number: { contains: params.q, mode: 'insensitive' } },
@@ -333,9 +343,20 @@ export class BookingService {
       if (params.status) where['status'] = Number(params.status);
       if (params.approve) where['approved_at'] = params.approve === 'approved' ? { not: null } : null;
 
+      // Calculate skip value for pagination
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination
+      const total = await this.prisma.booking.count({
+        where,
+      });
+
+      // Fetch bookings with pagination applied
       const bookings = await this.prisma.booking.findMany({
         where,
         orderBy: { created_at: 'desc' },
+        skip,   // Apply skip for pagination
+        take: limit,  // Apply limit for pagination
         select: {
           id: true,
           invoice_number: true,
@@ -373,11 +394,25 @@ export class BookingService {
         },
       });
 
-      return { success: true, data: bookings };
+      const totalPages = Math.ceil(total / limit); // Calculate total pages
+
+      return {
+        success: true,
+        data: bookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      };
     } catch (error) {
       return { success: false, message: error.message };
     }
   }
+
 
   async findOne(id: string, userId: string) {
     try {
@@ -821,15 +856,33 @@ export class BookingService {
           if (latestTransaction.status === 'succeeded') {
             // Process refund if payment was successful
             try {
+              // Call Stripe to process the refund
+              const refund = await StripePayment.createRefund({
+                payment_intent_id: latestTransaction.reference_number,
+              });
+              // payment_status: 'refunded'
+              await prisma.booking.update({
+                where: { id: booking.id },
+                data: { payment_status: 'refunded' },
+              });
+              // update payment calculation
+              const commissionCalculation = await prisma.commissionCalculation.findFirst({
+                where: { booking_id: booking.id },  // Use booking_id as condition
+              });
+
+              if (commissionCalculation) {
+                // Update commission status to 'refunded'
+                await prisma.commissionCalculation.update({
+                  where: { id: commissionCalculation.id },  // Use the unique id of the commission calculation
+                  data: { commission_status: 'refunded' },
+                });
+              }
               // Update transaction status to refunded
               await prisma.paymentTransaction.update({
                 where: { id: latestTransaction.id },
                 data: { status: 'refunded' },
               });
-
-              // Here you would integrate with your payment provider (Stripe) to process the refund
-              // For now, we'll just mark it as refunded
-              console.log(`Refund processed for payment: ${latestTransaction.reference_number}`);
+              console.log(`Refund processed for payment: ${latestTransaction.reference_number}, refund id: ${refund.id}`);
             } catch (refundError) {
               console.error('Refund processing failed:', refundError);
               // Continue with cancellation even if refund fails
