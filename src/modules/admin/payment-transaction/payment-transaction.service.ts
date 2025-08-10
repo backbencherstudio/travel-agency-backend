@@ -71,6 +71,7 @@ export class PaymentTransactionService extends PrismaClient {
           select: {
             id: true,
             invoice_number: true,
+            status: true,
             user: {
               select: {
                 id: true,
@@ -86,6 +87,7 @@ export class PaymentTransactionService extends PrismaClient {
     const history = paymentTransactions.map((tx) => ({
       booking_id: `#${tx.booking?.invoice_number || tx.booking?.id}`,
       traveler_name: tx.booking?.user?.name || 'Unknown',
+      status: tx.booking?.status || 'Unknown',
       avatar_url: tx.booking?.user?.avatar
         ? SojebStorage.url(appConfig().storageUrl.avatar + tx.booking.user.avatar)
         : null,

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BookingRepository } from '../../../common/repository/booking/booking.repository';
-import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
+
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
@@ -12,19 +12,23 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CheckCancellationDto } from './dto/check-cancellation.dto';
 import { CancellationStatusDto } from './dto/cancellation-status.dto';
 import { CancellationCalculatorService } from '../../../common/services/cancellation-calculator.service';
+import { UnifiedPaymentService } from '../../payment/unified-payment.service';
+import { PaymentMethodType } from '../checkout/dto/payment-method.dto';
 
 @Injectable()
 export class BookingService {
   constructor(
     private prisma: PrismaService,
-    private readonly messageGateway: MessageGateway,
     private bookingUtils: BookingUtilsService,
+    private messageGateway: MessageGateway,
     private cancellationCalculator: CancellationCalculatorService,
+    private unifiedPaymentService: UnifiedPaymentService,
   ) { }
 
   async create(userId: string, createBookingDto: CreateBookingDto) {
     try {
-      return await this.prisma.$transaction(async (prisma) => {
+      // First, create the booking within a transaction
+      const bookingResult = await this.prisma.$transaction(async (prisma) => {
         // Validate user
         if (!userId) return { success: false, message: 'User not found' };
         const user = await UserRepository.getUserDetails(userId);
@@ -78,6 +82,11 @@ export class BookingService {
         }
         const finalPrice = Math.max(0, totalPrice - totalDiscount);
 
+        // Validate final price
+        if (finalPrice <= 0) {
+          return { success: false, message: 'Invalid final price. Please check your booking details.' };
+        }
+
         // Reserve package slots
         for (const item of checkout.checkout_items) {
           if (item.package.type === 'package' || item.package.type === 'cruise') {
@@ -94,6 +103,8 @@ export class BookingService {
         // Create booking
         const bookingType = createBookingDto.booking_type || 'book';
         const isImmediatePayment = bookingType === 'book';
+        const paymentMethod = createBookingDto.payment_method || { type: PaymentMethodType.STRIPE, data: { amount: finalPrice, currency: 'usd' } };
+
         const bookingData = {
           user_id: userId,
           vendor_id: checkout.vendor_id || checkout.checkout_items[0].package.user_id,
@@ -240,30 +251,8 @@ export class BookingService {
           });
         }
 
-        // Handle payment
-        const paymentAmount = Math.max(finalPrice, 50);
-        let paymentResult: { success: boolean; data?: any } = { success: true };
-        if (isImmediatePayment) {
-          const paymentIntent = await StripePayment.createPaymentIntent({
-            amount: paymentAmount,
-            currency: 'usd',
-            customer_id: user.billing_id,
-          });
-
-          await prisma.paymentTransaction.create({
-            data: {
-              user_id: userId,
-              booking_id: booking.id,
-              reference_number: paymentIntent.id,
-              amount: finalPrice,
-              currency: 'usd',
-              status: 'pending',
-              provider: 'stripe',
-            },
-          });
-
-          paymentResult = { success: true, data: { client_secret: paymentIntent.client_secret } };
-        } else {
+        // Handle reserved payment (non-immediate)
+        if (!isImmediatePayment) {
           await prisma.paymentTransaction.create({
             data: {
               user_id: userId,
@@ -272,49 +261,92 @@ export class BookingService {
               amount: finalPrice,
               currency: 'usd',
               status: 'reserved',
-              provider: 'stripe',
+              provider: paymentMethod.type,
             },
           });
         }
 
-        // Delete checkout and send notification
+        // Delete checkout
         await prisma.checkout.delete({ where: { id: createBookingDto.checkout_id } });
 
-        // Create notification
-        await NotificationRepository.createNotification({
-          sender_id: userId,
-          receiver_id: booking.vendor_id,
-          text: 'New booking created',
-          type: 'booking',
-          entity_id: booking.id,
-        });
-
-        // Send real-time notification
-        this.messageGateway.server.emit('notification', {
-          sender_id: userId,
-          receiver_id: booking.vendor_id,
-          text: 'New booking created',
-          type: 'booking',
-          entity_id: booking.id,
-        });
-
+        // Return booking data for payment processing
         return {
           success: true,
-          message: bookingType === 'book'
-            ? 'Booking created successfully. Please complete payment.'
-            : 'Booking reserved successfully. Payment will be required later.',
-          data: {
-            booking_id: booking.id,
-            booking_type: bookingType,
-            payment_status: bookingData.payment_status,
-            ...(paymentResult.data && { client_secret: paymentResult.data.client_secret }),
-            total_amount: totalPrice,
-            discount_amount: totalDiscount,
-            final_price: finalPrice,
-            currency: 'usd',
-          },
+          booking,
+          bookingType,
+          paymentMethod,
+          finalPrice,
+          totalPrice,
+          totalDiscount,
+          isImmediatePayment,
         };
       });
+
+      if (!bookingResult.success) {
+        return bookingResult;
+      }
+
+      const { booking, bookingType, paymentMethod, finalPrice, totalPrice, totalDiscount, isImmediatePayment } = bookingResult;
+
+      // Handle immediate payment outside the transaction
+      let paymentResult: { success: boolean; data?: any } = { success: true };
+      if (isImmediatePayment) {
+        // Ensure minimum payment amount for Stripe (50 cents for USD)
+        const minimumAmount = 0.50; // $0.50 minimum for USD
+        const paymentAmount = Math.max(finalPrice, minimumAmount);
+
+        // Use UnifiedPaymentService for all payment methods
+        paymentResult = await this.unifiedPaymentService.processPayment(userId, {
+          booking_id: booking.id,
+          payment_method: {
+            type: paymentMethod.type,
+            data: {
+              amount: paymentAmount,
+              currency: 'usd',
+            },
+          },
+        });
+
+        if (!paymentResult.success) {
+          return { success: false, message: paymentResult['message'] || 'Payment failed' };
+        }
+      }
+
+      // Create notification
+      await NotificationRepository.createNotification({
+        sender_id: userId,
+        receiver_id: booking.vendor_id,
+        text: 'New booking created',
+        type: 'booking',
+        entity_id: booking.id,
+      });
+
+      // Send real-time notification
+      this.messageGateway.server.emit('notification', {
+        sender_id: userId,
+        receiver_id: booking.vendor_id,
+        text: 'New booking created',
+        type: 'booking',
+        entity_id: booking.id,
+      });
+
+      return {
+        success: true,
+        message: bookingType === 'book'
+          ? 'Booking created successfully. Please complete payment.'
+          : 'Booking reserved successfully. Payment will be required later.',
+        data: {
+          booking_id: booking.id,
+          booking_type: bookingType,
+          payment_status: booking.payment_status,
+          payment_method: paymentMethod.type,
+          ...(paymentResult.data && { client_secret: paymentResult.data.client_secret }),
+          total_amount: totalPrice,
+          discount_amount: totalDiscount,
+          final_price: finalPrice,
+          currency: 'usd',
+        },
+      };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -575,15 +607,26 @@ export class BookingService {
         });
         if (!booking) return { success: false, message: 'Reserved booking not found or already paid' };
 
-        const user = await UserRepository.getUserDetails(userId);
         const finalPrice = Number(booking.final_price || booking.total_amount);
         const paymentAmount = Math.max(finalPrice, 50);
 
-        const paymentIntent = await StripePayment.createPaymentIntent({
-          amount: paymentAmount,
-          currency: 'usd',
-          customer_id: user.billing_id,
+        // Use UnifiedPaymentService for consistent payment processing
+        const paymentResult = await this.unifiedPaymentService.processPayment(userId, {
+          booking_id: booking.id,
+          payment_method: {
+            type: PaymentMethodType.STRIPE,
+            data: {
+              amount: paymentAmount,
+              currency: 'usd',
+            },
+          },
         });
+
+        if (!paymentResult.success) {
+          return { success: false, message: paymentResult['message'] || 'Payment failed' };
+        }
+
+        const paymentIntent = paymentResult.data;
 
         await prisma.paymentTransaction.update({
           where: { id: booking.payment_transactions[0].id },
@@ -619,6 +662,8 @@ export class BookingService {
 
   async downloadInvoice(paymentIntentId: string) {
     try {
+      // Import StripePayment only for specific utility functions
+      const { StripePayment } = await import('../../../common/lib/Payment/stripe/StripePayment');
       const invoice = await StripePayment.downloadInvoiceFile(paymentIntentId);
       return { success: true, data: invoice };
     } catch (error) {
@@ -628,6 +673,8 @@ export class BookingService {
 
   async sendInvoiceToEmail(paymentIntentId: string) {
     try {
+      // Import StripePayment only for specific utility functions
+      const { StripePayment } = await import('../../../common/lib/Payment/stripe/StripePayment');
       await StripePayment.sendInvoiceToEmail(paymentIntentId);
       return { success: true, message: 'Invoice sent successfully' };
     } catch (error) {
@@ -857,6 +904,7 @@ export class BookingService {
             // Process refund if payment was successful
             try {
               // Call Stripe to process the refund
+              const { StripePayment } = await import('../../../common/lib/Payment/stripe/StripePayment');
               const refund = await StripePayment.createRefund({
                 payment_intent_id: latestTransaction.reference_number,
               });

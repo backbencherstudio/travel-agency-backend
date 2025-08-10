@@ -30,6 +30,7 @@ export class BookingController {
   ) {
     try {
       const user_id = req.user.userId;
+
       const booking = await this.bookingService.create(
         user_id,
         createBookingDto

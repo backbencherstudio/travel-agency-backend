@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travel Agency Chatbot Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+
+      .chat-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .chat-header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .chat-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+      }
+
+      .chat-messages {
+        height: 400px;
+        overflow-y: auto;
+        padding: 20px;
+        background: #fafafa;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .message.user {
+        justify-content: flex-end;
+      }
+
+      .message.bot {
+        justify-content: flex-start;
+      }
+
+      .message-content {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-wrap: break-word;
+      }
+
+      .message.user .message-content {
+        background: #007bff;
+        color: white;
+      }
+
+      .message.bot .message-content {
+        background: white;
+        color: #333;
+        border: 1px solid #e0e0e0;
+      }
+
+      .quick-replies {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .quick-reply-btn {
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      .quick-reply-btn:hover {
+        background: #e0e0e0;
+        border-color: #ccc;
+      }
+
+      .chat-input {
+        display: flex;
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .chat-input input {
+        flex: 1;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        outline: none;
+        font-size: 16px;
+      }
+
+      .chat-input input:focus {
+        border-color: #007bff;
+      }
+
+      .chat-input button {
+        margin-left: 10px;
+        padding: 12px 24px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.2s;
+      }
+
+      .chat-input button:hover {
+        background: #0056b3;
+      }
+
+      .chat-input button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .typing-indicator {
+        display: none;
+        padding: 12px 16px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 18px;
+        color: #666;
+        font-style: italic;
+      }
+
+      .connection-status {
+        text-align: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .status-connected {
+        color: #28a745;
+      }
+
+      .status-disconnected {
+        color: #dc3545;
+      }
+
+      .status-connecting {
+        color: #ffc107;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">
+        <h1>🤖 Travel Assistant</h1>
+        <p>Your AI travel companion</p>
+      </div>
+
+      <div class="connection-status" id="connectionStatus">
+        <span class="status-connecting">Connecting...</span>
+      </div>
+
+      <!-- Token Input Section -->
+      <div class="token-section" id="tokenSection" style="display: none">
+        <div class="token-input-container">
+          <h3>🔐 Authentication Required</h3>
+          <p>Please enter your JWT token to connect to the chatbot:</p>
+          <input
+            type="text"
+            id="tokenInput"
+            placeholder="Enter your JWT token here..."
+            style="
+              width: 100%;
+              padding: 10px;
+              margin: 10px 0;
+              border: 1px solid #ddd;
+              border-radius: 5px;
+            "
+          />
+          <button
+            onclick="connectWithToken()"
+            style="
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 5px;
+              cursor: pointer;
+            "
+          >
+            Connect
+          </button>
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            <strong>Note:</strong> You need a valid JWT token to test the
+            chatbot. <br />You can get one by logging into your application or
+            using the auth endpoint.
+          </p>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will be added here -->
+      </div>
+
+      <div class="chat-input">
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="Type your message here..."
+          onkeypress="handleKeyPress(event)"
+        />
+        <button id="sendButton" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <script>
+      let socket;
+      let currentConversationId = null;
+      let isConnected = false;
+
+      // Initialize connection
+      function initializeConnection() {
+        // Try to get token from localStorage or use a default one
+        let token = localStorage.getItem('chatbot_token');
+
+        if (!token) {
+          // Show token input if no token is available
+          showTokenInput();
+          return;
+        }
+
+        connectWithToken(token);
+      }
+
+      function showTokenInput() {
+        document.getElementById('tokenSection').style.display = 'block';
+        document.getElementById('chatMessages').style.display = 'none';
+        document.getElementById('connectionStatus').innerHTML =
+          '<span class="status-disconnected">Authentication Required</span>';
+      }
+
+      function connectWithToken(token = null) {
+        const tokenToUse = token || document.getElementById('tokenInput').value;
+
+        if (!tokenToUse) {
+          alert('Please enter a valid JWT token');
+          return;
+        }
+
+        // Store token in localStorage
+        localStorage.setItem('chatbot_token', tokenToUse);
+
+        // Hide token input
+        document.getElementById('tokenSection').style.display = 'none';
+        document.getElementById('chatMessages').style.display = 'block';
+
+        socket = io('http://localhost:4000/chatbot', {
+          auth: {
+            token: tokenToUse,
+          },
+        });
+
+        socket.on('connect', () => {
+          console.log('Connected to chatbot');
+          isConnected = true;
+          updateConnectionStatus('Connected', 'status-connected');
+          startConversation();
+        });
+
+        socket.on('disconnect', () => {
+          console.log('Disconnected from chatbot');
+          isConnected = false;
+          updateConnectionStatus('Disconnected', 'status-disconnected');
+        });
+
+        socket.on('connect_error', (error) => {
+          console.error('Connection error:', error);
+          if (
+            error.message.includes('jwt expired') ||
+            error.message.includes('invalid token')
+          ) {
+            // Token expired or invalid
+            localStorage.removeItem('chatbot_token');
+            updateConnectionStatus(
+              'Token Expired - Please Reconnect',
+              'status-disconnected',
+            );
+            showTokenInput();
+            addBotMessage(
+              '🔐 Your session has expired. Please enter a new token to continue.',
+              ['Reconnect'],
+            );
+          } else {
+            updateConnectionStatus('Connection Failed', 'status-disconnected');
+            addBotMessage(
+              '❌ Failed to connect to chatbot. Please check your connection and try again.',
+              ['Retry', 'Help'],
+            );
+          }
+        });
+
+        socket.on('chatbot_response', (response) => {
+          console.log('Bot response:', response);
+          addBotMessage(response.message, response.quickReplies);
+          currentConversationId = response.conversationId;
+        });
+
+        socket.on('error', (error) => {
+          console.error('Chatbot error:', error);
+          if (error.message && error.message.includes('jwt expired')) {
+            localStorage.removeItem('chatbot_token');
+            showTokenInput();
+            addBotMessage(
+              '🔐 Your session has expired. Please enter a new token to continue.',
+              ['Reconnect'],
+            );
+          } else {
+            addBotMessage('Sorry, I encountered an error. Please try again.', [
+              'Start over',
+              'Help',
+            ]);
+          }
+        });
+      }
+
+      function updateConnectionStatus(message, className) {
+        const statusElement = document.getElementById('connectionStatus');
+        statusElement.innerHTML = `<span class="${className}">${message}</span>`;
+      }
+
+      function startConversation() {
+        if (socket && isConnected) {
+          socket.emit('chatbot_start_conversation');
+        }
+      }
+
+      function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+
+        if (!message || !isConnected) return;
+
+        addUserMessage(message);
+        input.value = '';
+
+        if (socket) {
+          socket.emit('chatbot_message', {
+            message: message,
+            conversationId: currentConversationId,
+          });
+        }
+      }
+
+      function sendQuickReply(reply) {
+        if (!isConnected) return;
+
+        addUserMessage(reply);
+
+        if (socket && currentConversationId) {
+          socket.emit('chatbot_quick_reply', {
+            reply: reply,
+            conversationId: currentConversationId,
+          });
+        }
+      }
+
+      function addUserMessage(message) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user';
+        messageDiv.innerHTML = `
+                <div class="message-content">${escapeHtml(message)}</div>
+            `;
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      function addBotMessage(message, quickReplies = []) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot';
+
+        let quickRepliesHtml = '';
+        if (quickReplies && quickReplies.length > 0) {
+          quickRepliesHtml = `
+                    <div class="quick-replies">
+                        ${quickReplies
+                          .map(
+                            (reply) =>
+                              `<button class="quick-reply-btn" onclick="sendQuickReply('${escapeHtml(reply)}')">${escapeHtml(reply)}</button>`,
+                          )
+                          .join('')}
+                    </div>
+                `;
+        }
+
+        messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${message.replace(/\n/g, '<br>')}
+                    ${quickRepliesHtml}
+                </div>
+            `;
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+          sendMessage();
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Initialize when page loads
+      document.addEventListener('DOMContentLoaded', function () {
+        initializeConnection();
+      });
+    </script>
+  </body>
+</html>

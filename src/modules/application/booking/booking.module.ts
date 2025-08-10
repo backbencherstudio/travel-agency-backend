@@ -5,10 +5,12 @@ import { BookingUtilsService } from '../../../common/services/booking-utils.serv
 import { PrismaModule } from '../../../prisma/prisma.module';
 import { MessageGateway } from '../../chat/message/message.gateway';
 import { CancellationCalculatorService } from '../../../common/services/cancellation-calculator.service';
+import { PaymentModule } from '../../payment/payment.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PaymentModule],
   controllers: [BookingController],
   providers: [BookingService, BookingUtilsService, MessageGateway, CancellationCalculatorService],
+  exports: [BookingService],
 })
 export class BookingModule { }

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
 import { Transform } from 'class-transformer';
+import type { PaymentMethodDto } from '../../checkout/dto/payment-method.dto';
 
 export interface IBookingTraveller {
     full_name: string;
@@ -46,4 +47,10 @@ export class CreateBookingDto {
     @IsOptional() @ApiProperty({ description: 'Extra services (JSON string or array)', required: false })
     extra_services?: any;
 
+    @IsOptional() @ApiProperty({
+        description: 'Payment method details (type and data)',
+        required: false,
+        type: () => Object // Use Object for Swagger, actual type is PaymentMethodDto
+    })
+    payment_method?: PaymentMethodDto;
 }

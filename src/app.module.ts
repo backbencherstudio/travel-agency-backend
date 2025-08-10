@@ -26,6 +26,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig],
+      envFilePath: '.env',
     }),
     BullModule.forRoot({
       connection: {

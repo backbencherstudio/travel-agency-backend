@@ -2049,6 +2049,41 @@ model JumioVerification {
 
 // ==================== END LEGAL DOCUMENTS & JUMIO VERIFICATION ====================
 
+// ==================== CHATBOT SECTION ====================
+
+model ChatbotContext {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  userId            String
+  conversationId    String
+  lastIntent        String?
+  userPreferences   String?  @db.Text // JSON string
+  bookingInProgress Boolean? @default(false)
+  currentStep       String?
+
+  @@unique([userId, conversationId])
+  @@map("chatbot_contexts")
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  conversation_id String
+  sender_id       String
+  message         String   @db.Text
+  message_type    String?  @default("text")
+  is_bot          Boolean? @default(false)
+  metadata        String?  @db.Text // JSON string for additional data
+
+  @@map("chat_messages")
+}
+
+// ==================== END CHATBOT SECTION ====================
+
 // this table stores example
 // model Note {
 //   id                String  @id @default(cuid())
