@@ -14,6 +14,151 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==================== SALES COMMISSION SECTION ====================
+
+// this table stores commission rates
+model CommissionRate {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  name        String?
+  description String? @db.Text
+
+  // Commission type: percentage, fixed, tiered
+  commission_type String? @default("percentage")
+
+  // Commission rate value (percentage or fixed amount)
+  rate Decimal?
+
+  // Minimum amount required for commission
+  min_amount Decimal?
+
+  // Maximum commission amount cap
+  max_commission_amount Decimal?
+
+  // Tiered rates as JSON for complex commission structures
+  tiered_rates String? @db.Text
+
+  // Applicable user type: vendor, affiliate, agent, etc.
+  applicable_user_type String? @default("vendor")
+
+  // Specific user, package, or category this rate applies to
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id])
+
+  category_id String?
+  category    Category? @relation(fields: [category_id], references: [id])
+
+  // Rate status
+  is_active Boolean? @default(true)
+
+  // Effective date range
+  effective_from  DateTime?
+  effective_until DateTime?
+
+  // Related commission calculations
+  commission_calculations CommissionCalculation[]
+
+  @@map("commission_rates")
+}
+
+// this table stores commission calculations
+model CommissionCalculation {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  // Related entities
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  recipient_user_id String?
+  recipient_user    User?   @relation("commission_recipient", fields: [recipient_user_id], references: [id])
+
+  commission_rate_id String?
+  commission_rate    CommissionRate? @relation(fields: [commission_rate_id], references: [id])
+
+  // Calculation details
+  base_amount           Decimal? // Original booking amount
+  commission_rate_value Decimal? // Rate used for calculation
+  commission_amount     Decimal? // Calculated commission amount
+  commission_type       String? // percentage, fixed, tiered
+
+  // Commission status: pending, approved, disputed, paid, cancelled
+  commission_status String? @default("pending")
+
+  // Commission period
+  commission_period_start DateTime?
+  commission_period_end   DateTime?
+
+  // Approval details
+  approved_at DateTime?
+  approved_by String?
+
+  // Dispute details
+  disputed_at    DateTime?
+  dispute_reason String?   @db.Text
+
+  // Admin notes
+  admin_notes String? @db.Text
+
+  // User notes
+  notes String? @db.Text
+
+  // Payment details
+  paid_at        DateTime?
+  paid_amount    Decimal?
+  payment_method String?
+
+  // Related commission payments
+  commission_payments CommissionPayment[]
+
+  @@map("commission_calculations")
+}
+
+// this table stores commission payments
+model CommissionPayment {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  commission_calculation_id String?
+  commission_calculation    CommissionCalculation? @relation(fields: [commission_calculation_id], references: [id])
+
+  // Payment details
+  payment_amount   Decimal?
+  payment_currency String?  @default("USD")
+  payment_method   String? // bank_transfer, paypal, stripe, etc.
+  payment_status   String?  @default("pending") // pending, processing, completed, failed
+
+  // Payment reference
+  payment_reference String?
+  transaction_id    String?
+
+  // Payment date
+  paid_at DateTime?
+
+  // Scheduled payment date
+  scheduled_at DateTime?
+
+  // Notes
+  notes  String? @db.Text
+  User   User?   @relation("commission_payments_made", fields: [userId], references: [id])
+  userId String?
+
+  @@map("commission_payments")
+}
+
+// ==================== END SALES COMMISSION SECTION ====================
+
 // this table stores user account information
 model Account {
   id                  String  @id @default(cuid())
@@ -97,6 +242,13 @@ model User {
   temp_redeems                  TempRedeem[]
   user_payment_methods          UserPaymentMethod[]
   package_cancellation_policies PackageCancellationPolicy[]
+  wish_lists                    WishList[]
+  shares                        Share[]
+  legal_documents               LegalDocument[]
+  jumio_verifications           JumioVerification[]
+  commission_rates              CommissionRate[]
+  commission_calculations       CommissionCalculation[]     @relation("commission_recipient")
+  commission_payments           CommissionPayment[]         @relation("commission_payments_made")
 
   @@map("users")
 }
@@ -254,11 +406,22 @@ model Destination {
   name        String? // e.g. "Paris"
   description String? @db.Text // e.g. "Paris is the capital of France"
 
+  // Map coordinates
+  latitude  Decimal? // Latitude for map integration
+  longitude Decimal? // Longitude for map integration
+
+  // Address information
+  address  String? @db.Text // Full address of the destination
+  city     String? // City name
+  state    String? // State/Province name
+  zip_code String? // Postal/ZIP code
+
   country_id String?
   country    Country? @relation(fields: [country_id], references: [id])
 
-  destination_images   DestinationImage[]
-  package_destinations PackageDestination[]
+  destination_images             DestinationImage[]
+  package_destinations           PackageDestination[]
+  package_trip_plan_destinations PackageTripPlanDestination[]
 
   @@map("destinations")
 }
@@ -294,17 +457,23 @@ model Package {
   user_id String?
   user    User?   @relation(fields: [user_id], references: [id])
 
-  name          String
-  description   String  @db.Text
-  price         Decimal
+  name             String
+  description      String   @db.Text
+  price            Decimal
+  price_type       String?  @default("general") // "general" or "special_offer"
+  discount_percent Int? // e.g. 10 (for 10%)
+  discount_amount  Decimal? // Fixed discount amount (alternative to %)
+  final_price      Decimal? // Auto-calculated: base_price - discount
   // e.g, 5 days, 4 nights
-  duration      Int?
-  duration_type String? // e.g. days, nights, hours
+  duration         Int?
+  duration_type    String? // e.g. days, nights, hours
 
-  // minimum capacity
-  min_capacity Int? @default(1)
-  // person max capacity
-  max_capacity Int? @default(1)
+  min_adults   Int? @default(1)
+  max_adults   Int? @default(10)
+  min_children Int? @default(0)
+  max_children Int? @default(9)
+  min_infants  Int? @default(0)
+  max_infants  Int? @default(2)
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
@@ -319,10 +488,18 @@ model Package {
   booking_items           BookingItem[]
   package_extra_services  PackageExtraService[]
   checkout_items          CheckoutItem[]
-  checkout_extraServices  CheckoutExtraService[]
+  checkout_extra_services CheckoutExtraService[]
   package_destinations    PackageDestination[]
   package_languages       PackageLanguage[]
   package_traveller_types PackageTravellerType[]
+  package_availabilities  PackageAvailability[]
+  package_places          PackagePlace[]
+  package_additional_info PackageAdditionalInfo[]
+  package_opening_hours   PackageOpeningHours[]
+  wishList                WishList[]
+  checkout_availabilities CheckoutAvailability[]
+  booking_availabilities  BookingAvailability[]
+  commission_rates        CommissionRate[]
 
   @@map("packages")
 }
@@ -360,6 +537,142 @@ model PackageTravellerType {
 
   @@id([package_id, traveller_type_id])
   @@map("package_traveller_types")
+}
+
+// this table stores package availability information
+model PackageAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // For multi-day packages: start_date and end_date
+  start_date DateTime? @db.Date
+  end_date   DateTime? @db.Date
+
+  // Whether this date/range is available for booking
+  is_available Boolean? @default(true)
+
+  // Available slots/capacity for this date/range
+  available_slots Int? @default(1)
+
+  @@map("package_availabilities")
+}
+
+// this table stores package opening hours (daily schedules)
+model PackageOpeningHours {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Day of week: 0=Sunday, 1=Monday, ..., 6=Saturday
+  day_of_week Int?
+
+  // Opening hours
+  start_time String? // e.g., "08:45"
+  end_time   String? // e.g., "17:30"
+
+  // Whether this day is open for bookings
+  is_open Boolean? @default(true)
+
+  // Break time (optional)
+  break_start_time String? // e.g., "12:00"
+  break_end_time   String? // e.g., "13:00"
+
+  @@map("package_opening_hours")
+}
+
+// this table stores place information
+model Place {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // Place name
+  name        String?
+  // Place address
+  address     String?  @db.Text
+  // Place description
+  description String?  @db.Text
+  // Latitude for map integration
+  latitude    Decimal?
+  // Longitude for map integration
+  longitude   Decimal?
+  // Place type: landmark, hotel, restaurant, station, etc.
+  type        String?
+  // City where place is located
+  city        String?
+  // Country where place is located
+  country     String?
+
+  package_places PackagePlace[]
+
+  @@map("places")
+}
+
+// this table stores package locations (meeting points, pickup points, endpoints)
+model PackagePlace {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  place_id String?
+  place    Place?  @relation(fields: [place_id], references: [id], onDelete: SetNull)
+
+  // Location type: meeting_point, pickup_point, endpoint, drop_off_point
+  type      String? @default("meeting_point")
+  meet_time String?
+
+  // Related checkouts and bookings that selected this pickup point
+  checkouts Checkout[]
+  bookings  Booking[]
+
+  @@map("package_places")
+}
+
+// this table stores package additional information
+model PackageAdditionalInfo {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  package_id String
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Information type: accessibility, restrictions, requirements, policies, etc.
+  type String? // e.g. "accessibility", "restrictions", "requirements", "policies"
+
+  // Information title
+  title String? // e.g. "Wheelchair Accessible", "Age Restrictions"
+
+  // Information description
+  description String? @db.Text // e.g. "Not wheelchair accessible"
+
+  // Whether this information is important/warning
+  is_important Boolean? @default(false)
+
+  // Sort order for display
+  sort_order Int? @default(0)
+
+  @@map("package_additional_info")
 }
 
 // this table stores package language relationship
@@ -407,6 +720,7 @@ model Category {
   parent_id String?
 
   package_categories PackageCategory[]
+  commission_rates   CommissionRate[]
 
   @@map("categories")
 }
@@ -469,6 +783,10 @@ model PackageTripPlan {
   status     Int?      @default(1) @db.SmallInt
   sort_order Int?      @default(0)
 
+  // e.g, 5 days, 4 nights
+  duration      Int?
+  duration_type String? // e.g. days, nights, hours
+
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
@@ -477,7 +795,8 @@ model PackageTripPlan {
   // trip plan description
   description String? @db.Text
 
-  package_trip_plan_images PackageTripPlanImage[]
+  package_trip_plan_images       PackageTripPlanImage[]
+  package_trip_plan_destinations PackageTripPlanDestination[]
 
   @@map("package_trip_plans")
 }
@@ -498,6 +817,21 @@ model PackageTripPlanImage {
   image_alt String?
 
   @@map("package_trip_plan_images")
+}
+
+// this table stores package trip plan destination
+model PackageTripPlanDestination {
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  package_trip_plan_id String
+  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id], onDelete: Cascade)
+
+  destination_id String
+  destination    Destination? @relation(fields: [destination_id], references: [id], onDelete: Cascade)
+
+  @@id([package_trip_plan_id, destination_id])
+  @@map("package_trip_plan_destinations")
 }
 
 // this table stores package cancellation policy
@@ -593,6 +927,10 @@ model Checkout {
   vendor_id String?
   vendor    User?   @relation("vendor", fields: [vendor_id], references: [id], onDelete: Cascade)
 
+  // Pickup Point Information
+  place_id    String?
+  place_point PackagePlace? @relation(fields: [place_id], references: [id], onDelete: SetNull)
+
   // hardcoded contact information
   first_name   String?
   last_name    String?
@@ -609,6 +947,7 @@ model Checkout {
   temp_redeems            TempRedeem[]
   checkout_travellers     CheckoutTraveller[]
   checkout_extra_services CheckoutExtraService[]
+  checkout_availabilities CheckoutAvailability[]
 
   @@map("checkouts")
 }
@@ -625,14 +964,71 @@ model CheckoutItem {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
+  // Selected date for the tour/package
+  selected_date DateTime? @db.Date
+
+  // Traveler counts (for quick reference and validation)
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
+  // Price information
+  price_per_person Decimal? // Price per person for this specific date
+  total_price      Decimal? // Total price for all travelers
+  discount_amount  Decimal? // Any discount applied
+  final_price      Decimal? // Final price after discount
+
+  // Date range for multi-day packages
   start_date DateTime?
   end_date   DateTime?
 
+  // Package details
   included_packages String? @db.Text
   excluded_packages String? @db.Text
   extra_services    String? @db.Text
 
+  // Availability tracking
+  availability_id String? // Reference to PackageAvailability if applicable
+
   @@map("checkout_items")
+}
+
+// this table stores checkout availability validation
+model CheckoutAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Selected date
+  selected_date DateTime? @db.Date
+
+  // Requested traveler counts
+  requested_adults   Int? @default(0)
+  requested_children Int? @default(0)
+  requested_infants  Int? @default(0)
+  requested_total    Int? @default(0)
+
+  // Availability status
+  is_available    Boolean? @default(true)
+  available_slots Int?     @default(0)
+  remaining_slots Int?     @default(0)
+
+  // Price validation
+  price_per_person Decimal?
+  total_price      Decimal?
+
+  // Validation messages
+  validation_message String? @db.Text
+
+  @@map("checkout_availabilities")
 }
 
 // this table stores checkout traveller information
@@ -649,6 +1045,9 @@ model CheckoutTraveller {
   // available values:
   // adult, child, infant
   type String? @default("adult")
+
+  // Age information for validation
+  age Int? // Age in years for validation against package constraints
 
   // traveller gender
   // available values:
@@ -668,6 +1067,11 @@ model CheckoutTraveller {
   state    String?
   zip_code String?
   country  String?
+
+  // Price information for this specific traveler
+  price_per_person Decimal? // Individual price for this traveler type
+  discount_amount  Decimal? // Any discount for this traveler
+  final_price      Decimal? // Final price for this traveler
 
   @@map("checkout_travellers")
 }
@@ -732,6 +1136,11 @@ model Booking {
   // tour, cruise
   type String? @default("tour")
 
+  // booking payment type
+  // available values:
+  // book (immediate payment), reserve (deferred payment)
+  booking_type String? @default("book")
+
   user_id String?
   user    User?   @relation("user", fields: [user_id], references: [id])
 
@@ -742,9 +1151,26 @@ model Booking {
 
   total_amount Decimal?
 
+  // Discount and final price tracking
+  discount_amount Decimal? // Total discount applied to booking
+  final_price     Decimal? // Final price after all discounts
+
+  // Traveler summary for quick reference
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
   // Payment information
-  // e.g. pending, paid, failed
-  payment_status           String?
+  // available values:
+  // pending (payment intent created, waiting for payment)
+  // reserved (booking reserved, payment not yet initiated)
+  // processing (payment is being processed)
+  // succeeded (payment completed successfully)
+  // failed (payment failed)
+  // cancelled (payment/booking cancelled)
+  // refunded (payment refunded)
+  payment_status           String?  @default("pending")
   // raw information from payment provider
   // raw status from payment provider
   payment_raw_status       String?
@@ -759,6 +1185,10 @@ model Booking {
 
   payment_provider_charge_type String?  @default("percentage") // e.g. fixed, percentage
   payment_provider_charge      Decimal? // e.g. stripe payment provider charge
+
+  // Pickup Point Information
+  place_id    String?
+  place_point PackagePlace? @relation(fields: [place_id], references: [id], onDelete: SetNull)
 
   // hardcoded contact information
   first_name   String?
@@ -775,12 +1205,14 @@ model Booking {
 
   comments String? @db.Text
 
-  booking_items          BookingItem[]
-  booking_coupons        BookingCoupon[]
-  payment_transactions   PaymentTransaction[]
-  booking_travellers     BookingTraveller[]
-  booking_extra_services BookingExtraService[]
-  reviews                Review[]
+  booking_items           BookingItem[]
+  booking_coupons         BookingCoupon[]
+  payment_transactions    PaymentTransaction[]
+  booking_travellers      BookingTraveller[]
+  booking_extra_services  BookingExtraService[]
+  booking_availabilities  BookingAvailability[]
+  commission_calculations CommissionCalculation[]
+  reviews                 Review[]
 
   @@map("bookings")
 }
@@ -798,9 +1230,34 @@ model BookingItem {
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id])
 
+  // Selected date for the tour/package
+  selected_date DateTime? @db.Date
+
+  // Traveler counts (for quick reference and validation)
+  adults_count    Int? @default(0)
+  children_count  Int? @default(0)
+  infants_count   Int? @default(0)
+  total_travelers Int? @default(0)
+
+  // Price information
+  price_per_person Decimal? // Price per person for this specific date
+  total_price      Decimal? // Total price for all travelers
+  discount_amount  Decimal? // Any discount applied
+  final_price      Decimal? // Final price after discount
+
+  // Date range for multi-day packages
   start_date DateTime?
   end_date   DateTime?
 
+  // Package details
+  included_packages String? @db.Text
+  excluded_packages String? @db.Text
+  extra_services    String? @db.Text
+
+  // Availability tracking
+  availability_id String? // Reference to PackageAvailability if applicable
+
+  // Legacy fields (for backward compatibility)
   quantity Int?     @default(1)
   price    Decimal?
 
@@ -822,6 +1279,9 @@ model BookingTraveller {
   // adult, child, infant
   type String? @default("adult")
 
+  // Age information for validation
+  age Int? // Age in years for validation against package constraints
+
   // traveller gender
   // available values:
   // male, female, other
@@ -840,6 +1300,11 @@ model BookingTraveller {
   state    String?
   zip_code String?
   country  String?
+
+  // Price information for this specific traveler
+  price_per_person Decimal? // Individual price for this traveler type
+  discount_amount  Decimal? // Any discount for this traveler
+  final_price      Decimal? // Final price for this traveler
 
   @@map("booking_travellers")
 }
@@ -860,6 +1325,43 @@ model BookingExtraService {
   price Decimal?
 
   @@map("booking_extra_services")
+}
+
+// this table stores booking availability validation
+model BookingAvailability {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Selected date
+  selected_date DateTime? @db.Date
+
+  // Requested traveler counts
+  requested_adults   Int? @default(0)
+  requested_children Int? @default(0)
+  requested_infants  Int? @default(0)
+  requested_total    Int? @default(0)
+
+  // Availability status
+  is_available    Boolean? @default(true)
+  available_slots Int?     @default(0)
+  remaining_slots Int?     @default(0)
+
+  // Price validation
+  price_per_person Decimal?
+  total_price      Decimal?
+
+  // Validation messages
+  validation_message String? @db.Text
+
+  @@map("booking_availabilities")
 }
 
 // this table stores booking coupons
@@ -970,7 +1472,15 @@ model PaymentTransaction {
 
   provider         String? // e.g. stripe, paypal, razorpay
   reference_number String? // e.g. stripe payment reference id like payment_intent_id
-  // values: pending succeeded, processing, requires_payment_method
+  // available values:
+  // pending (payment intent created, waiting for payment)
+  // reserved (booking reserved, payment not yet initiated)
+  // processing (payment is being processed)
+  // succeeded (payment completed successfully)
+  // failed (payment failed)
+  // cancelled (payment/booking cancelled)
+  // refunded (payment refunded)
+  // requires_payment_method (payment method required)
   status           String?  @default("pending")
   raw_status       String? // e.g. succeeded, processing, requires_payment_method
   amount           Decimal?
@@ -999,9 +1509,30 @@ model Review {
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
 
   rating_value Float?
-  comment      String? @db.Text
+  comment      String?      @db.Text
+  review_files ReviewFile[]
 
   @@map("reviews")
+}
+
+model ReviewFile {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  review_id String?
+  review    Review? @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  file     String?
+  file_alt String?
+
+  // metadata
+  type String? // e.g. image, video
+
+  @@map("review_files")
 }
 
 enum MessageStatus {
@@ -1158,6 +1689,75 @@ model Like {
   @@map("likes")
 }
 
+// this table stores wish list information
+model WishList {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  package_id String?
+  package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Optional note from user about this wish list item
+  note String? @db.Text
+
+  @@unique([user_id, package_id])
+  @@map("wish_lists")
+}
+
+// this table stores share information
+model Share {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // shareable_type
+  // available values:
+  // package, blog, destination
+  shareable_type String?
+
+  // shareable_id
+  // e.g. package_id, blog_id, destination_id
+  shareable_id String?
+
+  // share method
+  // available values:
+  // copy_link, email, whatsapp, facebook, twitter, instagram
+  share_method String?
+
+  // recipient information (for email sharing)
+  recipient_email String?
+  recipient_name  String?
+
+  // share message/note
+  message String? @db.Text
+
+  // share link (generated unique link)
+  share_link String? @unique
+
+  // share status
+  // available values:
+  // active, expired, deleted
+  status String? @default("active")
+
+  // expiration date for share link
+  expires_at DateTime?
+
+  // tracking information
+  view_count  Int? @default(0)
+  click_count Int? @default(0)
+
+  @@map("shares")
+}
+
 // this table stores faq information
 model Faq {
   id         String    @id @default(cuid())
@@ -1296,6 +1896,7 @@ model WebsiteInfo {
   favicon             String?
   copyright           String?
   cancellation_policy String? @db.Text
+  privacy_policy      String? @db.Text
 
   @@map("website_infos")
 }
@@ -1312,6 +1913,176 @@ model Setting {
 
   @@map("settings")
 }
+
+// ==================== LEGAL DOCUMENTS SECTION ====================
+
+// this table stores user legal documents
+model LegalDocument {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Document type (simplified from LegalDocumentType)
+  // available values: passport, drivers_license, national_id, visa, other
+  document_type       String?
+  // Document title/name
+  title               String?
+  // Document description/notes
+  description         String?   @db.Text
+  // Document verification status
+  // available values: pending, approved, rejected, expired
+  verification_status String?   @default("pending")
+  // Document expiration date
+  expires_at          DateTime?
+  // Admin notes for verification
+  admin_notes         String?   @db.Text
+  // Date when document was verified
+  verified_at         DateTime?
+  // User who verified the document (admin)
+  verified_by         String?
+  // Document verification score (0-100)
+  verification_score  Int?
+  // Whether document is currently active
+  is_active           Boolean?  @default(true)
+
+  // Jumio verification related fields
+  jumio_verification_id String?
+  jumio_verification    JumioVerification? @relation(fields: [jumio_verification_id], references: [id])
+
+  legal_document_files LegalDocumentFile[]
+
+  @@map("legal_documents")
+}
+
+model LegalDocumentFile {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+  sort_order Int?      @default(0)
+
+  legal_document_id String?
+  legal_document    LegalDocument? @relation(fields: [legal_document_id], references: [id], onDelete: Cascade)
+
+  file     String?
+  file_alt String?
+
+  // metadata
+  type String? // e.g. passport, visa, driver's license, national id, other
+
+  @@map("legal_document_files")
+}
+
+// ==================== JUMIO VERIFICATION PROCESS ====================
+
+// this table stores Jumio Netverify API v4 verification sessions
+model JumioVerification {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Jumio API fields
+  jumio_reference_id   String? @unique // Jumio's unique reference ID
+  jumio_scan_reference String? // Jumio scan reference
+
+  // Verification type
+  // available values: IDENTITY_VERIFICATION, FACE_VERIFICATION, DOCUMENT_VERIFICATION
+  verification_type String?
+
+  // Jumio verification status
+  // available values: PENDING, APPROVED_VERIFIED, DENIED_FRAUD, DENIED_UNSUPPORTED_ID_TYPE, DENIED_UNSUPPORTED_ID_COUNTRY, ERROR_NOT_READABLE_ID, NO_ID_UPLOADED
+  jumio_status String? @default("PENDING")
+
+  // Jumio API response fields
+  jumio_result String? @db.Text // Full Jumio API response as JSON
+
+  // Document information from Jumio
+  document_type    String? // ID_CARD, PASSPORT, DRIVERS_LICENSE, etc.
+  document_country String? // Country code of the document
+  document_number  String? // Document number
+
+  // Personal information from Jumio
+  first_name    String?
+  last_name     String?
+  date_of_birth DateTime?
+  nationality   String?
+
+  // Verification details
+  verification_score      Int? // Jumio's confidence score (0-100)
+  verification_confidence String? // HIGH, MEDIUM, LOW
+
+  // Timestamps
+  jumio_created_at   DateTime? // When Jumio created the verification
+  jumio_updated_at   DateTime? // When Jumio last updated the verification
+  jumio_completed_at DateTime? // When Jumio completed the verification
+
+  // Session management
+  session_expires_at DateTime? // When the session expires
+  is_completed       Boolean?  @default(false) // Whether verification was completed
+
+  // Admin management
+  admin_notes       String?   @db.Text
+  manually_reviewed Boolean?  @default(false)
+  reviewed_at       DateTime?
+  reviewed_by       String?
+
+  // Error handling
+  error_message    String? @db.Text
+  jumio_error_code String? // Jumio error code if any
+
+  // Related legal documents
+  legal_documents LegalDocument[]
+
+  @@map("jumio_verifications")
+}
+
+// ==================== END LEGAL DOCUMENTS & JUMIO VERIFICATION ====================
+
+// ==================== CHATBOT SECTION ====================
+
+model ChatbotContext {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  userId            String
+  conversationId    String
+  lastIntent        String?
+  userPreferences   String?  @db.Text // JSON string
+  bookingInProgress Boolean? @default(false)
+  currentStep       String?
+
+  @@unique([userId, conversationId])
+  @@map("chatbot_contexts")
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  conversation_id String
+  sender_id       String
+  message         String   @db.Text
+  message_type    String?  @default("text")
+  is_bot          Boolean? @default(false)
+  metadata        String?  @db.Text // JSON string for additional data
+
+  @@map("chat_messages")
+}
+
+// ==================== END CHATBOT SECTION ====================
 
 // this table stores example
 // model Note {

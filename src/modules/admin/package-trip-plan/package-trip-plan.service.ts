@@ -77,9 +77,12 @@ export class PackageTripPlanService extends PrismaClient {
     }
   }
 
-  async findAll() {
+  async findAll(package_id: string) {
     try {
       const package_trip_plans = await this.prisma.packageTripPlan.findMany({
+        where: {
+          package_id: package_id,
+        },
         select: {
           id: true,
           title: true,

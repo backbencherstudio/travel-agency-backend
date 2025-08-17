@@ -41,49 +41,70 @@ export class UserService extends PrismaClient {
     q,
     type,
     approved,
+    page = 1,
+    limit = 10,
   }: {
     q?: string;
     type?: string;
     approved?: string;
+    page?: number;
+    limit?: number;
   }) {
     try {
-      const where_condition = {};
+      const where_condition: any = {};
+  
       if (q) {
         where_condition['OR'] = [
           { name: { contains: q, mode: 'insensitive' } },
           { email: { contains: q, mode: 'insensitive' } },
         ];
       }
-
+  
       if (type) {
         where_condition['type'] = type;
       }
-
+  
       if (approved) {
         where_condition['approved_at'] =
-          approved == 'approved' ? { not: null } : { equals: null };
+          approved === 'approved' ? { not: null } : { equals: null };
       }
-
-      const users = await this.prisma.user.findMany({
-        where: {
-          ...where_condition,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone_number: true,
-          address: true,
-          type: true,
-          approved_at: true,
-          created_at: true,
-          updated_at: true,
-        },
-      });
-
+  
+      const skip = (page - 1) * limit;
+  
+      const [users, total] = await this.$transaction([
+        this.prisma.user.findMany({
+          where: where_condition,
+          skip,
+          take: limit,
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone_number: true,
+            address: true,
+            type: true,
+            approved_at: true,
+            created_at: true,
+            updated_at: true,
+          },
+        }),
+        this.prisma.user.count({ where: where_condition }),
+      ]);
+  
+      const totalPages = Math.ceil(total / limit);
+  
       return {
         success: true,
         data: users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       };
     } catch (error) {
       return {
@@ -92,6 +113,7 @@ export class UserService extends PrismaClient {
       };
     }
   }
+  
 
   async findOne(id: string) {
     try {
@@ -108,8 +130,30 @@ export class UserService extends PrismaClient {
           approved_at: true,
           created_at: true,
           updated_at: true,
+          gender: true,
+          date_of_birth: true,
           avatar: true,
           billing_id: true,
+          packages: {
+            select: {
+              id: true,
+              status: true,
+              name: true,
+              description: true,
+              price: true,
+              price_type: true,
+              final_price: true,
+              duration: true,
+              duration_type: true,
+              type: true,
+              package_files: {
+                select: {
+                  id: true,
+                  file: true,
+                },
+              },
+            },
+          },  
         },
       });
 
@@ -141,6 +185,19 @@ export class UserService extends PrismaClient {
         user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
         );
+      }
+
+      // add package files url to user
+      if (user.packages) {
+        for (const userPackage of user.packages) {
+          if (userPackage.package_files) {
+            for (const file of userPackage.package_files) {
+              file['file_url'] = SojebStorage.url(
+                appConfig().storageUrl.package + file.file,
+              );
+            }
+          }
+        }
       }
 
       if (!user) {

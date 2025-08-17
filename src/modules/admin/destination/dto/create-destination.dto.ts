@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateDestinationDto {
   @IsNotEmpty()
@@ -15,6 +15,60 @@ export class CreateDestinationDto {
     example: 'Paris is the capital of France',
   })
   description: string;
+
+  @IsOptional()
+  @IsNumber()
+  @ApiProperty({
+    description: 'Latitude coordinate',
+    example: 48.8566,
+    required: false,
+  })
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @ApiProperty({
+    description: 'Longitude coordinate',
+    example: 2.3522,
+    required: false,
+  })
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'Full address of the destination',
+    example: 'Paris, France',
+    required: false,
+  })
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'City name',
+    example: 'Paris',
+    required: false,
+  })
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'State/Province name',
+    example: 'Île-de-France',
+    required: false,
+  })
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'Postal/ZIP code',
+    example: '75001',
+    required: false,
+  })
+  zip_code?: string;
 
   @ApiProperty({
     description: 'Destination images',

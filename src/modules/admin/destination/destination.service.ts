@@ -27,6 +27,24 @@ export class DestinationService extends PrismaClient {
       if (createDestinationDto.description) {
         data.description = createDestinationDto.description;
       }
+      if (createDestinationDto.latitude) {
+        data.latitude = createDestinationDto.latitude;
+      }
+      if (createDestinationDto.longitude) {
+        data.longitude = createDestinationDto.longitude;
+      }
+      if (createDestinationDto.address) {
+        data.address = createDestinationDto.address;
+      }
+      if (createDestinationDto.city) {
+        data.city = createDestinationDto.city;
+      }
+      if (createDestinationDto.state) {
+        data.state = createDestinationDto.state;
+      }
+      if (createDestinationDto.zip_code) {
+        data.zip_code = createDestinationDto.zip_code;
+      }
       if (createDestinationDto.country_id) {
         data.country_id = createDestinationDto.country_id;
       }
@@ -78,6 +96,8 @@ export class DestinationService extends PrismaClient {
           id: true,
           name: true,
           description: true,
+          latitude: true,
+          longitude: true,
           country: {
             select: {
               id: true,
@@ -144,6 +164,12 @@ export class DestinationService extends PrismaClient {
           id: true,
           name: true,
           description: true,
+          latitude: true,
+          longitude: true,
+          address: true,
+          city: true,
+          state: true,
+          zip_code: true,
           country: {
             select: {
               id: true,
@@ -221,6 +247,24 @@ export class DestinationService extends PrismaClient {
       }
       if (updateDestinationDto.description) {
         data.description = updateDestinationDto.description;
+      }
+      if (updateDestinationDto.latitude) {
+        data.latitude = updateDestinationDto.latitude;
+      }
+      if (updateDestinationDto.longitude) {
+        data.longitude = updateDestinationDto.longitude;
+      }
+      if (updateDestinationDto.address) {
+        data.address = updateDestinationDto.address;
+      }
+      if (updateDestinationDto.city) {
+        data.city = updateDestinationDto.city;
+      }
+      if (updateDestinationDto.state) {
+        data.state = updateDestinationDto.state;
+      }
+      if (updateDestinationDto.zip_code) {
+        data.zip_code = updateDestinationDto.zip_code;
       }
       if (updateDestinationDto.country_id) {
         data.country_id = updateDestinationDto.country_id;

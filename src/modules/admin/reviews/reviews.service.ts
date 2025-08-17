@@ -28,6 +28,12 @@ export class ReviewsService extends PrismaClient {
           id: true,
           rating_value: true,
           comment: true,
+          review_files: {
+            select: {
+              id: true,
+              file: true,
+            },
+          },
           user: {
             select: {
               id: true,
@@ -51,6 +57,13 @@ export class ReviewsService extends PrismaClient {
           review.user['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + review.user.avatar,
           );
+        }
+        if (review.review_files) {
+          for (const file of review.review_files) {
+            file['review_file_url'] = SojebStorage.url(
+              appConfig().storageUrl.review + file.file,
+            );
+          }
         }
       }
 

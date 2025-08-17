@@ -5,25 +5,42 @@ const prisma = new PrismaClient();
 export class CheckoutRepository {
   /**
    * calculate total price
-   * @returns
+   * @returns final price after all calculations
    */
   static async calculateTotalPrice(checkout_id: string) {
-    const coupon_prices = await this.calculateCoupon(checkout_id);
-    const subtotal = await this.calculateSubTotalPrice(checkout_id);
+    const checkout = await prisma.checkout.findUnique({
+      where: {
+        id: checkout_id,
+      },
+      include: {
+        checkout_items: true,
+        checkout_extra_services: {
+          include: {
+            extra_service: true,
+          },
+        },
+      },
+    });
 
-    if (coupon_prices.length > 0) {
-      let total = 0.0;
-      for (const coupon of coupon_prices) {
-        if (coupon.amount_type == 'percentage') {
-          total += (subtotal * Number(coupon.amount)) / 100;
-        } else {
-          total += Number(coupon.amount);
-        }
-      }
-      return total;
-    } else {
-      return subtotal;
+    if (!checkout) {
+      return 0;
     }
+
+    // Calculate total from checkout items (which already include pricing)
+    let total = 0;
+    for (const item of checkout.checkout_items) {
+      // Use final_price if available, otherwise use total_price
+      const itemPrice = Number(item.final_price || item.total_price || 0);
+      total += itemPrice;
+    }
+
+    // Add extra services if any
+    for (const service of checkout.checkout_extra_services) {
+      const servicePrice = Number(service.extra_service.price || 0);
+      total += servicePrice;
+    }
+
+    return total;
   }
 
   static async calculateSubTotalPrice(checkout_id: string) {
@@ -32,30 +49,31 @@ export class CheckoutRepository {
         id: checkout_id,
       },
       include: {
-        checkout_items: {
-          include: {
-            package: true,
-          },
-        },
+        checkout_items: true,
         checkout_extra_services: {
           include: {
             extra_service: true,
           },
         },
-        checkout_travellers: true,
       },
     });
 
-    let subtotal: number = 0;
-    const checkoutTravellersCount = checkout.checkout_travellers.length;
-    // calculate subtotal
-    for (const item of checkout.checkout_items) {
-      subtotal += Number(item.package.price) * checkoutTravellersCount;
+    if (!checkout) {
+      return 0;
     }
 
-    // calculate extra services
+    let subtotal: number = 0;
+
+    // Calculate subtotal from checkout items (before discounts)
+    for (const item of checkout.checkout_items) {
+      const itemPrice = Number(item.total_price || 0);
+      subtotal += itemPrice;
+    }
+
+    // Calculate extra services
     for (const service of checkout.checkout_extra_services) {
-      subtotal += Number(service.extra_service.price) * checkoutTravellersCount;
+      const servicePrice = Number(service.extra_service.price || 0);
+      subtotal += servicePrice;
     }
 
     return subtotal;
@@ -66,30 +84,34 @@ export class CheckoutRepository {
       where: {
         id: checkout_id,
       },
+      include: {
+        checkout_items: true,
+      },
     });
-    if (checkout && checkout.user_id) {
-      const temp_redems = await prisma.tempRedeem.findMany({
-        where: {
-          checkout_id: checkout_id,
-        },
-        include: {
-          coupon: true,
-        },
-      });
 
-      const amountArray = [];
-      for (const redeem of temp_redems) {
-        if (redeem.coupon.method == 'code') {
-          amountArray.push({
-            amount: Number(redeem.coupon.amount),
-            amount_type: redeem.coupon.amount_type,
-          });
-        }
-      }
-
-      return amountArray;
-    } else {
+    if (!checkout) {
       return [];
     }
+
+    const temp_redems = await prisma.tempRedeem.findMany({
+      where: {
+        checkout_id: checkout_id,
+      },
+      include: {
+        coupon: true,
+      },
+    });
+
+    const amountArray = [];
+    for (const redeem of temp_redems) {
+      if (redeem.coupon.method == 'code') {
+        amountArray.push({
+          amount: Number(redeem.coupon.amount),
+          amount_type: redeem.coupon.amount_type,
+        });
+      }
+    }
+
+    return amountArray;
   }
 }

@@ -82,21 +82,22 @@ export class BlogController {
   }
 
   @Roles(Role.ADMIN, Role.VENDOR)
-  @ApiOperation({ summary: 'Get all blog' })
+  @ApiOperation({ summary: 'Get all blogs' })
   @Get()
   async findAll(
-    @Query() query: { q?: string; status?: number; approve?: string },
+    @Query() query: { q?: string; status?: number; approve?: string; page?: number; limit?: number },
   ) {
     try {
-      const searchQuery = query.q;
-      const status = query.status;
-      const approve = query.approve;
-
+      const { q, status, approve, page = 1, limit = 10 } = query;
+  
       const blogs = await this.blogService.findAll({
-        q: searchQuery,
-        status: status,
-        approve: approve,
+        q,
+        status,
+        approve,
+        page: Number(page),
+        limit: Number(limit),
       });
+  
       return blogs;
     } catch (error) {
       return {
@@ -105,6 +106,7 @@ export class BlogController {
       };
     }
   }
+  
 
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Get blog by id' })

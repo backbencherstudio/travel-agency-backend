@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Booking Test</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=AT6CeihhGTOXZboF0RiF-StDE83iZp5VxExAfiVNbzWSkjVQJ5gLtAnXfehv8Nmx82wL1aDgZh1YclAQ&currency=USD"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+      }
+      .success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .loading {
+        color: #007bff;
+      }
+      .test-cards {
+        background: #fff3cd;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        border: 1px solid #ffeeba;
+      }
+      .webhook-status {
+        background: #d1ecf1;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        border: 1px solid #bee5eb;
+      }
+      #card-element {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        min-height: 20px;
+      }
+      #card-errors {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+        min-height: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Payment System Test Suite</h1>
+
+    <div
+      style="
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      "
+    >
+      <h3>🧪 Test Configuration</h3>
+      <div class="form-group">
+        <label for="apiUrl">API Base URL:</label>
+        <input
+          type="text"
+          id="apiUrl"
+          value="http://localhost:4000"
+          placeholder="http://localhost:4000"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="authToken">Auth Token:</label>
+        <input
+          type="text"
+          id="authToken"
+          value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwic3ViIjoiY21kcGVteDkyMDAwMHdzZHNjcWhxeG0wOCIsImlhdCI6MTc1NDYyOTc4MCwiZXhwIjoxNzU0NzE2MTgwfQ.Hdz0u5d45ZVBrxlCYeHpnHYUOoKb8zNl0Z9c0mEYtig"
+          placeholder="Bearer token"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="checkoutId">Checkout ID:</label>
+      <input
+        type="text"
+        id="checkoutId"
+        placeholder="Enter checkout ID or use test mode"
+      />
+      <button
+        onclick="useTestCheckout()"
+        style="margin-top: 5px; background: #6c757d"
+      >
+        Use Test Checkout
+      </button>
+    </div>
+
+    <div class="form-group">
+      <label for="testAmount">Test Amount:</label>
+      <input
+        type="number"
+        id="testAmount"
+        value="10.00"
+        step="0.01"
+        min="0.50"
+        placeholder="10.00"
+      />
+      <small style="color: #666">Minimum $0.50 for Stripe</small>
+    </div>
+
+    <div class="form-group">
+      <label for="currency">Currency:</label>
+      <select id="currency">
+        <option value="USD" selected>USD - US Dollar</option>
+        <option value="EUR">EUR - Euro</option>
+        <option value="GBP">GBP - British Pound</option>
+        <option value="CAD">CAD - Canadian Dollar</option>
+      </select>
+      <small style="color: #666">PayPal currently supports USD only</small>
+    </div>
+
+    <div class="form-group">
+      <label for="bookingType">Booking Type:</label>
+      <select id="bookingType">
+        <option value="book">Book Now (Immediate Payment)</option>
+        <option value="reserve">Reserve (Pay Later)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="paymentMethod">Payment Method:</label>
+      <select id="paymentMethod" class="form-control">
+        <option value="stripe">Credit Card (Stripe)</option>
+        <option value="paypal">PayPal</option>
+        <option value="google_pay">Google Pay</option>
+        <option value="apple_pay">Apple Pay</option>
+      </select>
+      <div id="paymentMethodInfo" class="mt-2 text-muted small"></div>
+    </div>
+
+    <button onclick="createBooking()" style="background: #007bff">
+      Create Booking & Test Payment
+    </button>
+    <button
+      onclick="checkBookingStatus()"
+      style="background: #17a2b8; margin-left: 10px"
+    >
+      Check Payment Status
+    </button>
+
+    <div class="test-cards">
+      <h4>🧪 Test Cards for Stripe:</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px">
+        <li>
+          <strong>Success:</strong> 4242 4242 4242 4242 (any future date, any
+          CVC)
+        </li>
+        <li><strong>Decline:</strong> 4000 0000 0000 0002</li>
+        <li><strong>3D Secure:</strong> 4000 0000 0000 3220</li>
+        <li><strong>Insufficient Funds:</strong> 4000 0000 0000 9995</li>
+      </ul>
+    </div>
+
+    <div id="result"></div>
+
+    <!-- Payment Section -->
+    <div id="paymentSection" style="display: none">
+      <hr style="margin: 30px 0" />
+      <h2>Complete Payment</h2>
+
+      <!-- Card Payment -->
+      <div id="card-payment-group" class="form-group">
+        <label>Card Details:</label>
+        <div id="card-element"></div>
+        <div id="card-errors"></div>
+      </div>
+
+      <!-- Google Pay / Apple Pay -->
+      <div id="prb-payment-group" class="form-group" style="display: none">
+        <label>Google Pay / Apple Pay:</label>
+        <div id="payment-request-button"></div>
+        <div
+          id="prb-errors"
+          style="color: #dc3545; font-size: 14px; margin-top: 5px"
+        ></div>
+      </div>
+
+      <!-- PayPal -->
+      <div id="paypal-payment-group" class="form-group" style="display: none">
+        <label>PayPal:</label>
+        <div id="paypal-button-container"></div>
+      </div>
+
+      <button
+        id="completePaymentBtn"
+        onclick="completePayment()"
+        style="background: #28a745"
+      >
+        Complete Payment
+      </button>
+      <div id="paymentResult"></div>
+
+      <div class="webhook-status" style="margin-top: 20px">
+        <h4>📡 Payment Status Check</h4>
+        <p>
+          After payment completion, check if the webhook properly updated the
+          booking status:
+        </p>
+        <div id="webhookResult" style="margin-top: 10px"></div>
+      </div>
+    </div>
+
+    <script>
+      // Global variables
+      let currentClientSecret = null;
+      let currentBookingId = null;
+      let currentPaymentMethod = null;
+      let currentPaymentIntentId = null;
+      let stripe = null;
+      let cardElement = null;
+      let paymentRequestButton = null;
+
+      // Stripe configuration
+      const STRIPE_PUBLISHABLE_KEY =
+        'pk_test_51RgIDjGbZdiSzPj89wef1vxHaK0jRa4fAUcYFU1KT1mhNBvhgmfwmUWLwaLuV8YEqpae9XdgIwi3cAwHaQ0bxniz00QSaaPJgY';
+
+      // Initialize Stripe Elements
+      function initializeStripeElements() {
+        if (!stripe) {
+          stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+        }
+
+        const elements = stripe.elements();
+
+        // Create card element
+        cardElement = elements.create('card', {
+          style: {
+            base: {
+              fontSize: '16px',
+              color: '#424770',
+              '::placeholder': { color: '#aab7c4' },
+            },
+            invalid: { color: '#9e2146' },
+          },
+        });
+
+        // Mount the card element
+        cardElement.mount('#card-element');
+
+        // Handle real-time validation errors
+        cardElement.on('change', function (event) {
+          const displayError = document.getElementById('card-errors');
+          if (event.error) {
+            displayError.textContent = event.error.message;
+          } else {
+            displayError.textContent = '';
+          }
+        });
+      }
+
+      // Update payment method info
+      function updatePaymentInfo() {
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const infoDiv = document.getElementById('paymentMethodInfo');
+
+        if (infoDiv) {
+          switch (paymentMethod) {
+            case 'stripe':
+              infoDiv.innerHTML = '💳 Credit/Debit Card payment via Stripe';
+              break;
+            case 'paypal':
+              infoDiv.innerHTML =
+                '💙 PayPal payment with automatic webhook handling';
+              break;
+            case 'google_pay':
+              infoDiv.innerHTML = '📱 Google Pay via Stripe';
+              break;
+            case 'apple_pay':
+              infoDiv.innerHTML = '🍎 Apple Pay via Stripe';
+              break;
+            default:
+              infoDiv.innerHTML = 'Select a payment method';
+          }
+        }
+      }
+
+      // Initialize payment UI based on selected method
+      function initializePaymentUI() {
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        currentPaymentMethod = paymentMethod;
+
+        // Debug logging
+        console.log(
+          'Debug: initializePaymentUI called with paymentMethod:',
+          paymentMethod,
+        );
+        console.log('Debug: currentClientSecret:', currentClientSecret);
+        console.log('Debug: currentPaymentIntentId:', currentPaymentIntentId);
+
+        // Hide all payment groups initially
+        document.getElementById('card-payment-group').style.display = 'none';
+        document.getElementById('prb-payment-group').style.display = 'none';
+        document.getElementById('paypal-payment-group').style.display = 'none';
+        document.getElementById('completePaymentBtn').style.display = 'none';
+
+        switch (paymentMethod) {
+          case 'stripe':
+            document.getElementById('card-payment-group').style.display =
+              'block';
+            document.getElementById('completePaymentBtn').style.display =
+              'block';
+            // Ensure we have the client secret for Stripe payments
+            if (!currentClientSecret) {
+              console.error(
+                'Debug: No client secret available for Stripe payment',
+              );
+              document.getElementById('card-errors').textContent =
+                'Payment not initialized. Please try creating the booking again.';
+            } else {
+              document.getElementById('card-errors').textContent = '';
+            }
+            initializeStripeElements();
+            break;
+          case 'google_pay':
+          case 'apple_pay':
+            document.getElementById('prb-payment-group').style.display =
+              'block';
+            document.getElementById('completePaymentBtn').style.display =
+              'block';
+            initializePaymentRequestButton(paymentMethod);
+            break;
+          case 'paypal':
+            document.getElementById('paypal-payment-group').style.display =
+              'block';
+            initializePayPalPayment();
+            break;
+        }
+
+        updatePaymentInfo();
+      }
+
+      // Initialize Google Pay / Apple Pay
+      function initializePaymentRequestButton(paymentMethod) {
+        if (!stripe) {
+          stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+        }
+
+        const elements = stripe.elements();
+        const testAmount = parseFloat(
+          document.getElementById('testAmount').value,
+        );
+
+        const paymentRequest = stripe.paymentRequest({
+          country: 'US',
+          currency: 'usd',
+          total: {
+            label: 'Booking Payment',
+            amount: Math.round(testAmount * 100),
+          },
+          requestPayerName: true,
+          requestPayerEmail: true,
+          requestPayerPhone: false,
+          requestShipping: false,
+          disableWallets: [],
+        });
+
+        paymentRequestButton = elements.create('paymentRequestButton', {
+          paymentRequest,
+        });
+
+        paymentRequest.canMakePayment().then(function (result) {
+          if (result) {
+            paymentRequestButton.mount('#payment-request-button');
+          } else {
+            const errorMsg = `${paymentMethod === 'google_pay' ? 'Google Pay' : 'Apple Pay'} is not available on this device/browser.`;
+            document.getElementById('prb-errors').textContent = errorMsg;
+          }
+        });
+
+        paymentRequest.on('paymentmethod', async (ev) => {
+          const { error, paymentIntent } = await stripe.confirmPayment({
+            clientSecret: currentClientSecret,
+            paymentMethod: ev.paymentMethod.id,
+            return_url: window.location.href,
+          });
+
+          if (error) {
+            ev.complete('fail');
+            document.getElementById('prb-errors').textContent = error.message;
+          } else {
+            ev.complete('success');
+            currentPaymentIntentId = paymentIntent.id;
+            showPaymentSuccess(paymentIntent, paymentMethod);
+          }
+        });
+      }
+
+      // Initialize PayPal
+      function initializePayPalPayment() {
+        if (currentBookingId) {
+          paypal
+            .Buttons({
+              createOrder: function (data, actions) {
+                return actions.order.create({
+                  purchase_units: [
+                    {
+                      amount: {
+                        value: document.getElementById('testAmount').value,
+                      },
+                    },
+                  ],
+                });
+              },
+              onApprove: function (data, actions) {
+                return actions.order.capture().then(function (details) {
+                  showPaymentSuccess(details, 'paypal');
+                });
+              },
+              onError: function (err) {
+                document.getElementById('paymentResult').className =
+                  'result error';
+                document.getElementById('paymentResult').innerHTML =
+                  `<h4>❌ PayPal Payment Error</h4><p><strong>Error:</strong> ${err.message}</p>`;
+              },
+            })
+            .render('#paypal-button-container');
+        }
+      }
+
+      // Show payment success
+      function showPaymentSuccess(paymentData, method) {
+        document.getElementById('paymentResult').className = 'result success';
+        document.getElementById('paymentResult').innerHTML = `
+          <h4>✅ Payment Completed Successfully!</h4>
+          <p><strong>Booking ID:</strong> ${currentBookingId}</p>
+          <p><strong>Payment Method:</strong> ${method}</p>
+          <p><strong>Status:</strong> ${paymentData.status}</p>
+          <div style="background: #d1ecf1; padding: 10px; margin-top: 10px; border-radius: 4px;">
+            <strong>🔄 Next Step:</strong> Check booking status below to verify webhook processing
+          </div>
+        `;
+      }
+
+      // Complete payment
+      async function completePayment() {
+        if (currentPaymentMethod === 'paypal') {
+          return; // PayPal handles its own flow
+        }
+
+        if (!stripe || !cardElement) {
+          alert('Stripe not initialized. Please try again.');
+          return;
+        }
+
+        if (!currentClientSecret) {
+          console.error('Debug: currentClientSecret is null/undefined');
+          console.error('Debug: currentPaymentMethod:', currentPaymentMethod);
+          console.error('Debug: currentBookingId:', currentBookingId);
+          alert('No client secret found. Please try the payment again.');
+          return;
+        }
+
+        try {
+          console.log('Debug: Starting Stripe card payment confirmation');
+          console.log('Debug: currentClientSecret:', currentClientSecret);
+          console.log('Debug: cardElement:', cardElement);
+
+          // For card payments, we need to use confirmCardPayment with the card element
+          const result = await stripe.confirmCardPayment(currentClientSecret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: 'Test User',
+                email: 'test@example.com',
+              },
+            },
+          });
+
+          console.log('Debug: Stripe confirmCardPayment result:', result);
+
+          if (result.error) {
+            alert(`Payment failed: ${result.error.message}`);
+          } else {
+            showPaymentSuccess(result.paymentIntent, currentPaymentMethod);
+          }
+        } catch (error) {
+          alert(`Payment error: ${error.message}`);
+        }
+      }
+
+      // Create booking
+      async function createBooking() {
+        const resultDiv = document.getElementById('result');
+        const paymentSection = document.getElementById('paymentSection');
+        const apiUrl = document.getElementById('apiUrl').value;
+        const authToken = document.getElementById('authToken').value;
+        const checkoutId = document.getElementById('checkoutId').value;
+        const bookingType = document.getElementById('bookingType').value;
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const testAmount = parseFloat(
+          document.getElementById('testAmount').value,
+        );
+
+        if (!checkoutId) {
+          resultDiv.className = 'result error';
+          resultDiv.textContent =
+            'Please enter a checkout ID or click "Use Test Checkout"';
+          return;
+        }
+
+        if (testAmount < 0.5) {
+          resultDiv.className = 'result error';
+          resultDiv.textContent = 'Amount must be at least $0.50 for Stripe';
+          return;
+        }
+
+        resultDiv.className = 'result loading';
+        resultDiv.textContent = `Creating booking with ${paymentMethod}...`;
+
+        try {
+          const requestBody = {
+            checkout_id: checkoutId,
+            booking_type: bookingType,
+          };
+
+          if (bookingType === 'book') {
+            requestBody.payment_method = {
+              type: paymentMethod,
+              data: {
+                amount: testAmount,
+                currency: 'usd',
+              },
+            };
+          }
+
+          const response = await fetch(`${apiUrl}/api/booking`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = `
+              <h4>✅ Booking Created Successfully!</h4>
+              <p><strong>Booking ID:</strong> ${result.data.booking_id}</p>
+              <p><strong>Payment Method:</strong> ${result.data.payment_method}</p>
+              <p><strong>Payment Status:</strong> ${result.data.payment_status}</p>
+              <p><strong>Amount:</strong> $${result.data.final_price}</p>
+              ${result.data.client_secret ? `<p><strong>Client Secret:</strong> ${result.data.client_secret.substring(0, 20)}...</p>` : ''}
+              ${result.data.payment_intent_id ? `<p><strong>Payment Intent ID:</strong> ${result.data.payment_intent_id}</p>` : ''}
+            `;
+
+            currentBookingId = result.data.booking_id;
+            currentPaymentMethod = result.data.payment_method || paymentMethod;
+
+            // Extract client_secret for Stripe payments
+            if (result.data.client_secret) {
+              currentClientSecret = result.data.client_secret;
+              currentPaymentIntentId = result.data.payment_intent_id;
+            }
+
+            if (bookingType === 'book') {
+              paymentSection.style.display = 'block';
+              paymentSection.scrollIntoView({ behavior: 'smooth' });
+              initializePaymentUI();
+            }
+          } else {
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `<h4>❌ Booking Failed</h4><p><strong>Error:</strong> ${result.message}</p>`;
+          }
+        } catch (error) {
+          resultDiv.className = 'result error';
+          resultDiv.textContent = `❌ Error: ${error.message}`;
+        }
+      }
+
+      // Check booking status
+      async function checkBookingStatus() {
+        const webhookResultDiv = document.getElementById('webhookResult');
+        const apiUrl = document.getElementById('apiUrl').value;
+        const authToken = document.getElementById('authToken').value;
+
+        if (!currentBookingId) {
+          webhookResultDiv.className = 'result error';
+          webhookResultDiv.textContent =
+            'No booking ID available. Create a booking first.';
+          return;
+        }
+
+        webhookResultDiv.className = 'result loading';
+        webhookResultDiv.textContent = 'Checking booking status...';
+
+        try {
+          const response = await fetch(
+            `${apiUrl}/api/booking/${currentBookingId}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          const result = await response.json();
+
+          if (result.success) {
+            const booking = result.data;
+            webhookResultDiv.className = 'result success';
+            webhookResultDiv.innerHTML = `
+              <h4>📊 Current Booking Status</h4>
+              <p><strong>Booking ID:</strong> ${booking.id}</p>
+              <p><strong>Payment Status:</strong> ${booking.payment_status}</p>
+              <p><strong>Final Price:</strong> $${booking.final_price}</p>
+              <p><strong>Paid Amount:</strong> $${booking.paid_amount || 'N/A'}</p>
+              <p><strong>Last Updated:</strong> ${new Date(booking.updated_at).toLocaleString()}</p>
+              ${booking.payment_status === 'succeeded' ? '<div style="background: #d4edda; padding: 8px; margin-top: 8px; border-radius: 4px;">✅ Webhook processed successfully!</div>' : '<div style="background: #fff3cd; padding: 8px; margin-top: 8px; border-radius: 4px;">⏳ Waiting for webhook processing...</div>'}
+            `;
+          } else {
+            webhookResultDiv.className = 'result error';
+            webhookResultDiv.textContent = `Error: ${result.message}`;
+          }
+        } catch (error) {
+          webhookResultDiv.className = 'result error';
+          webhookResultDiv.textContent = `Error checking status: ${error.message}`;
+        }
+      }
+
+      // Use test checkout
+      function useTestCheckout() {
+        document.getElementById('checkoutId').value =
+          'test-checkout-' + Date.now();
+      }
+
+      // Event listeners
+      document
+        .getElementById('paymentMethod')
+        .addEventListener('change', initializePaymentUI);
+      document.addEventListener('DOMContentLoaded', function () {
+        updatePaymentInfo();
+        useTestCheckout();
+      });
+    </script>
+  </body>
+</html>

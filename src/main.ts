@@ -32,7 +32,7 @@ async function bootstrap() {
     index: false,
     prefix: '/storage',
   });
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalFilters(new CustomExceptionFilter());
 
   // storage setup

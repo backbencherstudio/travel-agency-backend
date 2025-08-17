@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -30,7 +31,7 @@ import appConfig from '../../../config/app.config';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/package')
 export class PackageController {
-  constructor(private readonly packageService: PackageService) {}
+  constructor(private readonly packageService: PackageService) { }
 
   @Roles(Role.ADMIN, Role.VENDOR)
   @ApiOperation({ summary: 'Create package' })
@@ -94,13 +95,61 @@ export class PackageController {
   @Get()
   async findAll(
     @Req() req: Request,
-    @Query() query: { q?: string; vendor_id?: string },
+    @Query() query: {
+      q?: string;
+      vendor_id?: string;
+      type?: string;
+      duration?: number;
+      min_price?: number;
+      max_price?: number;
+      min_rating?: number;
+      free_cancellation?: string;
+      tag_id?: string;
+      category_id?: string;
+      destination_id?: string;
+      country_id?: string;
+      start_date?: string;
+      end_date?: string;
+      available_date?: string;
+      page?: string;
+      limit?: string;
+    },
   ) {
     try {
       const user_id = req.user.userId;
       const vendor_id = query.vendor_id;
 
-      const packages = await this.packageService.findAll(user_id, vendor_id);
+      const filters = {
+        q: query.q,
+        type: query.type,
+        duration: query.duration ? Number(query.duration) : undefined,
+        min_price: query.min_price ? Number(query.min_price) : undefined,
+        max_price: query.max_price ? Number(query.max_price) : undefined,
+        min_rating: query.min_rating ? Number(query.min_rating) : undefined,
+        free_cancellation:
+          query.free_cancellation !== undefined
+            ? query.free_cancellation === 'true'
+            : undefined,
+        tag_id: query.tag_id,
+        category_id: query.category_id,
+        destination_id: query.destination_id,
+        country_id: query.country_id,
+        start_date: query.start_date,
+        end_date: query.end_date,
+        available_date: query.available_date,
+      };
+
+      const pagination = {
+        page: query.page ? parseInt(query.page) : 1,
+        limit: query.limit ? parseInt(query.limit) : 10,
+      };
+
+      const packages = await this.packageService.findAll(
+        user_id,
+        vendor_id,
+        filters,
+        pagination,
+      );
 
       return packages;
     } catch (error) {

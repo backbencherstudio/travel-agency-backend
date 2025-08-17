@@ -1,11 +1,110 @@
-import { Controller, Post, Req, Headers } from '@nestjs/common';
+import { Controller, Post, Req, Headers, Body } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
+import { CommissionIntegrationService } from '../../admin/sales-commission/commission-integration.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Stripe Payment')
 @Controller('payment/stripe')
 export class StripeController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(
+    private readonly stripeService: StripeService,
+    private readonly commissionIntegrationService: CommissionIntegrationService,
+    private readonly prisma: PrismaService,
+  ) { }
+
+  @Post('create-payment-intent')
+  @ApiOperation({ summary: 'Create payment intent for any payment method' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Amount in dollars' },
+        currency: { type: 'string', default: 'usd' },
+        customer_id: { type: 'string' },
+        payment_method_type: {
+          type: 'string',
+          enum: ['stripe', 'google_pay', 'apple_pay'],
+          default: 'stripe',
+          description: 'Payment method type'
+        },
+        metadata: { type: 'object', additionalProperties: true },
+      },
+      required: ['amount', 'customer_id'],
+    },
+  })
+  async createPaymentIntent(@Body() body: {
+    amount: number;
+    currency?: string;
+    customer_id: string;
+    payment_method_type?: 'stripe' | 'google_pay' | 'apple_pay';
+    metadata?: any;
+  }) {
+    try {
+      const paymentIntent = await this.stripeService.createPaymentIntentForMethod({
+        amount: body.amount,
+        currency: body.currency || 'usd',
+        customer_id: body.customer_id,
+        paymentMethodType: body.payment_method_type || 'stripe',
+        metadata: body.metadata,
+      });
+
+      return {
+        success: true,
+        data: {
+          client_secret: paymentIntent.client_secret,
+          payment_intent_id: paymentIntent.id,
+          payment_method_types: paymentIntent.payment_method_types,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  // Deprecated endpoints for backward compatibility
+  @Post('create-google-pay-intent')
+  @ApiOperation({
+    summary: 'Create payment intent for Google Pay',
+    deprecated: true,
+    description: 'Use /create-payment-intent with payment_method_type: "google_pay"'
+  })
+  async createGooglePayIntent(@Body() body: {
+    amount: number;
+    currency?: string;
+    customer_id: string;
+    metadata?: any;
+  }) {
+    return this.createPaymentIntent({
+      ...body,
+      payment_method_type: 'google_pay',
+    });
+  }
+
+  @Post('create-apple-pay-intent')
+  @ApiOperation({
+    summary: 'Create payment intent for Apple Pay',
+    deprecated: true,
+    description: 'Use /create-payment-intent with payment_method_type: "apple_pay"'
+  })
+  async createApplePayIntent(@Body() body: {
+    amount: number;
+    currency?: string;
+    customer_id: string;
+    metadata?: any;
+  }) {
+    return this.createPaymentIntent({
+      ...body,
+      payment_method_type: 'apple_pay',
+    });
+  }
+
+
 
   @Post('webhook')
   async handleWebhook(
@@ -24,10 +123,8 @@ export class StripeController {
           break;
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
-          // create tax transaction
-          // await StripePayment.createTaxTransaction(
-          //   paymentIntent.metadata['tax_calculation'],
-          // );
+          console.log('Payment intent succeeded:', paymentIntent.id, 'Amount:', paymentIntent.amount / 100);
+
           // Update transaction status in database
           await TransactionRepository.updateTransaction({
             reference_number: paymentIntent.id,
@@ -36,23 +133,91 @@ export class StripeController {
             paid_currency: paymentIntent.currency,
             raw_status: paymentIntent.status,
           });
+
+          // CRITICAL: Update booking payment status to succeeded
+          try {
+            const transaction = await this.prisma.paymentTransaction.findFirst({
+              where: { reference_number: paymentIntent.id },
+              include: { booking: true }
+            });
+
+            if (transaction?.booking_id) {
+              // Update booking payment status to succeeded
+              await this.prisma.booking.update({
+                where: { id: transaction.booking_id },
+                data: {
+                  payment_status: 'succeeded',
+                  paid_amount: paymentIntent.amount / 100,
+                  paid_currency: paymentIntent.currency
+                }
+              });
+
+              console.log('Booking payment status updated to succeeded for booking:', transaction.booking_id);
+
+              // Automatically calculate commissions for successful payment
+              await this.commissionIntegrationService.calculateCommissionsForBooking(transaction.booking_id);
+            } else {
+              console.error('No booking found for payment intent:', paymentIntent.id);
+            }
+          } catch (error) {
+            console.error('Error updating booking status or calculating commissions:', error);
+          }
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;
+          console.log('Payment intent failed:', failedPaymentIntent.id);
+
           // Update transaction status in database
           await TransactionRepository.updateTransaction({
             reference_number: failedPaymentIntent.id,
             status: 'failed',
             raw_status: failedPaymentIntent.status,
           });
+
+          // Update booking payment status to failed
+          try {
+            const transaction = await this.prisma.paymentTransaction.findFirst({
+              where: { reference_number: failedPaymentIntent.id }
+            });
+
+            if (transaction?.booking_id) {
+              await this.prisma.booking.update({
+                where: { id: transaction.booking_id },
+                data: { payment_status: 'failed' }
+              });
+              console.log('Booking payment status updated to failed for booking:', transaction.booking_id);
+            }
+          } catch (error) {
+            console.error('Error updating booking status for failed payment:', error);
+          }
+          break;
         case 'payment_intent.canceled':
           const canceledPaymentIntent = event.data.object;
+          console.log('Payment intent canceled:', canceledPaymentIntent.id);
+
           // Update transaction status in database
           await TransactionRepository.updateTransaction({
             reference_number: canceledPaymentIntent.id,
             status: 'canceled',
             raw_status: canceledPaymentIntent.status,
           });
+
+          // Update booking payment status to canceled
+          try {
+            const transaction = await this.prisma.paymentTransaction.findFirst({
+              where: { reference_number: canceledPaymentIntent.id }
+            });
+
+            if (transaction?.booking_id) {
+              await this.prisma.booking.update({
+                where: { id: transaction.booking_id },
+                data: { payment_status: 'canceled' }
+              });
+              console.log('Booking payment status updated to canceled for booking:', transaction.booking_id);
+            }
+          } catch (error) {
+            console.error('Error updating booking status for canceled payment:', error);
+          }
           break;
         case 'payment_intent.requires_action':
           const requireActionPaymentIntent = event.data.object;

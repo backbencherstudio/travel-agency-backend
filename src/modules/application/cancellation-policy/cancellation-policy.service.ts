@@ -4,7 +4,9 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class CancellationPolicyService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+  ) {
     super();
   }
 

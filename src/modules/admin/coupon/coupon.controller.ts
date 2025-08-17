@@ -42,15 +42,25 @@ export class CouponController {
 
   @ApiOperation({ summary: 'Get all coupons' })
   @Get()
-  async findAll(@Query() query: { q?: string; status?: number }) {
+  async findAll(
+    @Query() query: { q?: string; status?: number; page?: string; limit?: string },
+  ) {
     try {
       const searchQuery = query.q;
       const status = query.status;
+      const page = query.page ? parseInt(query.page) : 1;
+      const limit = query.limit ? parseInt(query.limit) : 10;
 
-      const coupons = await this.couponService.findAll({
-        q: searchQuery,
-        status: status,
-      });
+      const coupons = await this.couponService.findAll(
+        {
+          q: searchQuery,
+          status: status,
+        },
+        {
+          page,
+          limit,
+        },
+      );
       return coupons;
     } catch (error) {
       return {

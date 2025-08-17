@@ -20,6 +20,10 @@ import { UserModule } from './user/user.module';
 import { BookingModule } from './booking/booking.module';
 import { NotificationModule } from './notification/notification.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PlaceModule } from './place/place.module';
+import { LegalDocumentModule } from './legal-document/legal-document.module';
+import { JumioVerificationModule } from './jumio-verification/jumio-verification.module';
+import { SalesCommissionModule } from './sales-commission/sales-commission.module';
 
 @Module({
   imports: [
@@ -44,6 +48,10 @@ import { DashboardModule } from './dashboard/dashboard.module';
     BookingModule,
     NotificationModule,
     DashboardModule,
+    PlaceModule,
+    LegalDocumentModule,
+    JumioVerificationModule,
+    SalesCommissionModule,
   ],
 })
 export class AdminModule {}

@@ -53,6 +53,22 @@ export default () => ({
       secret_key: process.env.STRIPE_SECRET_KEY,
       webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
     },
+    paypal: {
+      client_id: process.env.PAYPAL_CLIENT_ID,
+      client_secret: process.env.PAYPAL_CLIENT_SECRET,
+      sandbox: process.env.PAYPAL_SANDBOX === 'true',
+    },
+  },
+
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY,
+  },
+
+  jumio: {
+    api_token: process.env.JUMIO_API_TOKEN,
+    api_secret: process.env.JUMIO_API_SECRET,
+    base_url: process.env.JUMIO_BASE_URL || 'https://netverify.com/api/v4',
+    callback_url: process.env.JUMIO_CALLBACK_URL,
   },
 
   /**
@@ -69,6 +85,8 @@ export default () => ({
     websiteInfo: '/website-info/',
     // chat
     attachment: '/attachment/',
+    review: '/review/',
+    legalDocuments: '/legal-documents/',
   },
 
   defaultUser: {

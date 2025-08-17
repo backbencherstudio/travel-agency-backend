@@ -94,19 +94,26 @@ export class BlogService extends PrismaClient {
     q = null,
     status = null,
     approve,
+    page = 1,
+    limit = 10,
   }: {
     q?: string;
     status?: number;
     approve?: string;
+    page?: number;
+    limit?: number;
   }) {
     try {
-      const whereClause = {};
+      const whereClause: any = {};
+
       if (q) {
         whereClause['OR'] = [{ title: { contains: q, mode: 'insensitive' } }];
       }
+
       if (status) {
         whereClause['status'] = Number(status);
       }
+
       if (approve) {
         if (approve === 'approved') {
           whereClause['approved_at'] = { not: null };
@@ -115,43 +122,62 @@ export class BlogService extends PrismaClient {
         }
       }
 
-      const blogs = await this.prisma.blog.findMany({
-        where: { ...whereClause },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          approved_at: true,
-          created_at: true,
-          updated_at: true,
-          status: true,
-          read_time: true,
-          blog_images: {
-            select: {
-              image: true,
+      // Calculate skip based on page and limit
+      const skip = (page - 1) * limit;
+
+      const [blogs, total] = await this.prisma.$transaction([
+        this.prisma.blog.findMany({
+          where: { ...whereClause },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            approved_at: true,
+            created_at: true,
+            updated_at: true,
+            status: true,
+            read_time: true,
+            blog_images: {
+              select: {
+                image: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
             },
           },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-            },
-          },
-        },
-      });
-      // add image url
+        }),
+        this.prisma.blog.count({
+          where: { ...whereClause },
+        }),
+      ]);
+
+      // Add image URLs to the blogs
       for (const blog of blogs) {
         for (const image of blog.blog_images) {
-          image['image_url'] = SojebStorage.url(
-            appConfig().storageUrl.blog + image.image,
-          );
+          image['image_url'] = SojebStorage.url(appConfig().storageUrl.blog + image.image);
         }
       }
+
+      const totalPages = Math.ceil(total / limit);
 
       return {
         success: true,
         data: blogs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       };
     } catch (error) {
       return {
@@ -160,6 +186,7 @@ export class BlogService extends PrismaClient {
       };
     }
   }
+
 
   async findOne(id: string) {
     try {

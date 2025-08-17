@@ -5,5 +5,6 @@ import { CancellationPolicyController } from './cancellation-policy.controller';
 @Module({
   controllers: [CancellationPolicyController],
   providers: [CancellationPolicyService],
+  exports: [CancellationPolicyService],
 })
-export class CancellationPolicyModule {}
+export class CancellationPolicyModule { }
