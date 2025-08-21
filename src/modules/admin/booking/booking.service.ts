@@ -125,7 +125,7 @@ export class BookingService extends PrismaClient {
           hasPreviousPage: page > 1,
         },
       };
-      
+
     } catch (error) {
       return {
         success: false,

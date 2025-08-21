@@ -719,7 +719,14 @@ export class PackageService extends PrismaClient {
               id: true,
               rating_value: true,
               comment: true,
-              user_id: true,
+              created_at: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
               review_files: {
                 select: {
                   id: true,
@@ -898,6 +905,15 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // add review user avatar
+      if (record && record.reviews.length > 0) {
+        for (const review of record.reviews) {
+          review.user['avatar'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + review.user.avatar,
+          );
+        }
+      }
+
       // add image url package_trip_plans
       if (record && record.package_trip_plans.length > 0) {
         for (const trip_plan of record.package_trip_plans) {
@@ -911,6 +927,12 @@ export class PackageService extends PrismaClient {
             }
           }
         }
+      }
+
+      // average rating
+      if (record && record.reviews.length > 0) {
+        const total_rating = record.reviews.reduce((acc, review) => acc + review.rating_value, 0);
+        record['average_rating'] = total_rating / record.reviews.length;
       }
 
       return {

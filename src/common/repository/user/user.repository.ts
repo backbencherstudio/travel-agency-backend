@@ -237,9 +237,18 @@ export class UserRepository {
         }
       }
 
+      // Generate base username
+      const baseUsername = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      let username = baseUsername;
+      let suffix = 1;
+      while (await prisma.user.findUnique({ where: { username } })) {
+        username = `${baseUsername}${suffix++}`;
+      }
+
       const user = await prisma.user.create({
         data: {
           ...data,
+          username: username,
         },
       });
 

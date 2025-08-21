@@ -26,9 +26,9 @@ export class WebsiteInfoService extends PrismaClient {
       if (createWebsiteInfoDto.phone_number) {
         data.phone_number = createWebsiteInfoDto.phone_number;
       }
-      // if (createWebsiteInfoDto.email) {
-      //   data.email = createWebsiteInfoDto.email;
-      // }
+      if (createWebsiteInfoDto.email) {
+        data.email = createWebsiteInfoDto.email;
+      }
       if (createWebsiteInfoDto.address) {
         data.address = createWebsiteInfoDto.address;
       }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import appConfig from 'src/config/app.config';
 
-export interface DeepSeekRequest {
+export interface OpenAIRequest {
     model: string;
     messages: Array<{
         role: 'system' | 'user' | 'assistant';
@@ -11,7 +11,7 @@ export interface DeepSeekRequest {
     max_tokens?: number;
 }
 
-export interface DeepSeekResponse {
+export interface OpenAIResponse {
     id: string;
     object: string;
     created: number;
@@ -32,22 +32,22 @@ export interface DeepSeekResponse {
 }
 
 @Injectable()
-export class DeepSeekService {
-    private readonly apiUrl = 'https://api.deepseek.com/v1/chat/completions';
-    private readonly model = 'deepseek/deepseek-r1:free';
+export class OpenAIService {
+    private readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
+    private readonly model = 'gpt-3.5-turbo';
 
     constructor() { }
 
     async generateResponse(prompt: string): Promise<string> {
         try {
-            const apiKey = appConfig().deepseek.apiKey
+            const apiKey = appConfig().openai.apiKey
         
             if (!apiKey) {
-                console.error('DeepSeek API key not configured, using fallback response');
+                console.error('OpenAI API key not configured, using fallback response');
                 return this.getFallbackResponse(prompt);
             }
 
-            const requestBody: DeepSeekRequest = {
+            const requestBody: OpenAIRequest = {
                 model: this.model,
                 messages: [
                     {
@@ -71,25 +71,26 @@ export class DeepSeekService {
                 },
                 body: JSON.stringify(requestBody),
             });
-            console.log('response', response);
+            console.log('OpenAI response status:', response.status);
+            
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.warn('DeepSeek API key is invalid or expired, using fallback response');
+                    console.warn('OpenAI API key is invalid or expired, using fallback response');
                     return this.getFallbackResponse(prompt);
                 }
-                throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+                throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
             }
 
-            const data: DeepSeekResponse = await response.json();
+            const data: OpenAIResponse = await response.json();
             const content = data.choices[0]?.message?.content;
 
             if (!content) {
-                throw new Error('No content received from DeepSeek API');
+                throw new Error('No content received from OpenAI API');
             }
 
             return content;
         } catch (error) {
-            console.error('DeepSeek API Error:', error);
+            console.error('OpenAI API Error:', error);
             return this.getFallbackResponse(prompt);
         }
     }

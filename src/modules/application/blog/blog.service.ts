@@ -60,6 +60,13 @@ export class BlogService extends PrismaClient {
         }
       }
 
+      // add user avatar
+      for (const blog of blogs) {
+        blog.user['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + blog.user.avatar,
+        );
+      }
+
       return {
         success: true,
         data: blogs,
@@ -145,7 +152,7 @@ export class BlogService extends PrismaClient {
 
       // add avatar url
       if (blog.user && blog.user.avatar) {
-        blog.user.avatar = SojebStorage.url(
+        blog.user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + blog.user.avatar,
         );
       }

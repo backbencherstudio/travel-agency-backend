@@ -215,6 +215,7 @@ export class PageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              username: true,
               avatar: true,
             }
           }
@@ -255,6 +256,7 @@ export class PageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              username: true,
               avatar: true,
             },
           },

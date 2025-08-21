@@ -916,6 +916,9 @@ export class PackageService extends PrismaClient {
       // existing package record
       const existing_package = await this.prisma.package.findUnique({
         where: { id: id },
+        include: {
+          package_files: true,
+        },
       });
 
       if (!existing_package) {
@@ -939,24 +942,25 @@ export class PackageService extends PrismaClient {
           updated_at: DateHelper.now(),
         },
       });
-
       // delete package images which is not included in updatePackageDto.package_files
-      if (updatePackageDto.package_files) {
-        const package_files = JSON.parse(updatePackageDto.package_files);
-
+      if (files.package_files) {
+        const package_files = files.package_files;
         // old package files
-        const old_package_files = await this.prisma.packageFile.findMany({
-          where: { package_id: record.id },
-        });
-        // delete old package file that are not in the new package files
-        for (const old_package_file of old_package_files) {
-          if (!package_files.some((pi) => pi.id == old_package_file.id)) {
-            await SojebStorage.delete(
-              appConfig().storageUrl.package + old_package_file.file,
-            );
-            await this.prisma.packageFile.delete({
-              where: { id: old_package_file.id, package_id: record.id },
-            });
+        if (existing_package && existing_package.package_files.length > 0) {
+          const old_package_files = await this.prisma.packageFile.findMany({
+            where: { package_id: record.id },
+          });
+
+          // delete old package file that are not in the new package files
+          for (const old_package_file of old_package_files) {
+            if (!package_files.some((pi) => pi.filename == old_package_file.file)) {
+              await SojebStorage.delete(
+                appConfig().storageUrl.package + old_package_file.file,
+              );
+              await this.prisma.packageFile.delete({
+                where: { id: old_package_file.id, package_id: record.id },
+              });
+            }
           }
         }
       }

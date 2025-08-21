@@ -27,7 +27,7 @@ import appConfig from '../../config/app.config';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   @ApiOperation({ summary: 'Get user details' })
   @ApiBearerAuth()
@@ -52,10 +52,11 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('convert-to-vendor')
-  async convertToVendor(@Req() req: Request) {
+  async convertToVendor(@Req() req: Request, @Body() data: { status: string }) {
     try {
       const user_id = req.user.userId;
-      const response = await this.authService.convertToVendor(user_id);
+      const status = data.status;
+      const response = await this.authService.convertToVendor(user_id, status);
       return response;
     } catch (error) {
       return {
@@ -64,6 +65,40 @@ export class AuthController {
       };
     }
   }
+
+  @ApiOperation({ summary: 'Vendor request' })
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('vendor-request')
+  async vendorRequest(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const response = await this.authService.vendorRequest(user_id);
+      return response;
+    }
+    catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  // @ApiOperation({ summary: 'Vendor request list' })
+  // @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard)
+  // @Get('vendor-request-list')
+  // async vendorRequestList(@Req() req: Request) {
+  //   const response = await this.authService.vendorRequestList();
+  // }
+  // catch (error) {
+  //   return {
+  //     success: false,
+  //     message: error.message,
+  //   };
+  // }
+
 
   @ApiOperation({ summary: 'Register a user' })
   @Post('register')
