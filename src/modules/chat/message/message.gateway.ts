@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   WebSocketGateway,
   SubscribeMessage,
@@ -21,20 +22,19 @@ import { ChatRepository } from 'src/common/repository/chat/chat.repository';
 })
 export class MessageGateway
   implements
-    OnGatewayInit,
-    OnGatewayConnection,
-    OnGatewayDisconnect,
-    OnModuleInit
-{
+  OnGatewayInit,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnModuleInit {
   @WebSocketServer()
   server: Server;
 
-  constructor() {}
+  constructor() { }
 
   // Map to store connected clients
   public clients = new Map<string, string>(); // userId -> socketId
 
-  onModuleInit() {}
+  onModuleInit() { }
 
   afterInit(server: Server) {
     console.log('Websocket server started');

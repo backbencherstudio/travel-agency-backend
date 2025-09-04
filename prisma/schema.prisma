@@ -251,6 +251,13 @@ model User {
   commission_calculations       CommissionCalculation[]     @relation("commission_recipient")
   commission_payments           CommissionPayment[]         @relation("commission_payments_made")
 
+  // Gift card relationships
+  purchased_gift_cards   GiftCard[]            @relation("gift_card_purchaser")
+  received_gift_cards    GiftCard[]            @relation("gift_card_recipient")
+  gift_card_transactions GiftCardTransaction[]
+  booking_gift_cards     BookingGiftCard[]
+  checkout_gift_cards    CheckoutGiftCard[]
+
   @@map("users")
 }
 
@@ -795,6 +802,7 @@ model PackageTripPlan {
   title       String?
   // trip plan description
   description String? @db.Text
+  notes       String? @db.Text
 
   package_trip_plan_images       PackageTripPlanImage[]
   package_trip_plan_destinations PackageTripPlanDestination[]
@@ -949,6 +957,10 @@ model Checkout {
   checkout_travellers     CheckoutTraveller[]
   checkout_extra_services CheckoutExtraService[]
   checkout_availabilities CheckoutAvailability[]
+
+  // Gift card relationships
+  checkout_gift_cards    CheckoutGiftCard[]
+  gift_card_transactions GiftCardTransaction[]
 
   @@map("checkouts")
 }
@@ -1215,6 +1227,10 @@ model Booking {
   commission_calculations CommissionCalculation[]
   reviews                 Review[]
 
+  // Gift card relationships
+  booking_gift_cards     BookingGiftCard[]
+  gift_card_transactions GiftCardTransaction[]
+
   @@map("bookings")
 }
 
@@ -1406,7 +1422,7 @@ model Coupon {
   description String?  @db.Text
   // Whether or not the coupon is a percentage or a fixed price. 
   // values: percentage,fixed
-  amount_type String?  @default("percentage")
+  amount_type String?  @default("percentage") // percentage, fixed
   amount      Decimal?
 
   // The number of uses currently
@@ -2084,6 +2100,155 @@ model ChatMessage {
 }
 
 // ==================== END CHATBOT SECTION ====================
+
+// ==================== GIFT CARD SECTION ====================
+
+// this table stores gift card information
+model GiftCard {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
+
+  // Gift card code (unique identifier for redemption)
+  code String? @unique
+
+  // Gift card amount and balance
+  amount   Decimal? // Original gift card value 5000$
+  currency String?  @default("USD")
+
+  // Purchaser information
+  purchaser_id String?
+  purchaser    User?   @relation("gift_card_purchaser", fields: [purchaser_id], references: [id])
+
+  // Recipient information
+  recipient_id String?
+  recipient    User?   @relation("gift_card_recipient", fields: [recipient_id], references: [id])
+
+  // Gift card details
+
+  title       String? // e.g. "Birthday Gift Card"
+  message     String? @db.Text // Personal message from purchaser
+  design_type String? @default("default") // Gift card design theme
+
+  // Validity period
+  issued_at              DateTime?             @default(now())
+  expires_at             DateTime? // Expiration date (null for no expiry)
+  redeemed_at            DateTime? // When fully redeemed
+  // Related transactions
+  gift_card_transactions GiftCardTransaction[]
+
+  // Related bookings that used this gift card
+  booking_gift_cards BookingGiftCard[]
+
+  // Related checkouts that used this gift card
+  checkout_gift_cards CheckoutGiftCard[]
+
+  @@map("gift_cards")
+}
+
+// this table stores gift card transaction history
+model GiftCardTransaction {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  gift_card_id String?
+  gift_card    GiftCard? @relation(fields: [gift_card_id], references: [id], onDelete: Cascade)
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // Transaction type
+  // available values: purchase, redemption, refund, adjustment, expiry
+  transaction_type String?
+
+  // Transaction details
+  amount         Decimal? // Amount involved in transaction
+  balance_before Decimal? // Balance before transaction
+  balance_after  Decimal? // Balance after transaction
+
+  // Related booking or checkout
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id])
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id])
+
+  // Transaction description
+  description String? @db.Text
+
+  // Reference information
+  reference_number String? // Transaction reference
+  payment_method   String? // How gift card was purchased
+
+  // Admin fields
+  processed_by String? // Admin who processed the transaction
+  admin_notes  String? @db.Text
+
+  @@map("gift_card_transactions")
+}
+
+// this table stores booking gift card usage
+model BookingGiftCard {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  booking_id String?
+  booking    Booking? @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  gift_card_id String?
+  gift_card    GiftCard? @relation(fields: [gift_card_id], references: [id], onDelete: Cascade)
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // Amount used from gift card for this booking
+  amount_used Decimal?
+
+  // Gift card balance before and after usage
+  balance_before Decimal?
+  balance_after  Decimal?
+
+  // Applied at timestamp
+  applied_at DateTime? @default(now())
+
+  @@map("booking_gift_cards")
+}
+
+// this table stores checkout gift card usage
+model CheckoutGiftCard {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+
+  checkout_id String?
+  checkout    Checkout? @relation(fields: [checkout_id], references: [id], onDelete: Cascade)
+
+  gift_card_id String?
+  gift_card    GiftCard? @relation(fields: [gift_card_id], references: [id], onDelete: Cascade)
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id])
+
+  // Amount to be used from gift card for this checkout
+  amount_to_use Decimal?
+
+  // Gift card balance at time of checkout
+  balance_at_checkout Decimal?
+
+  // Applied at timestamp
+  applied_at DateTime? @default(now())
+
+  @@map("checkout_gift_cards")
+}
+
+// ==================== END GIFT CARD SECTION ====================
 
 // this table stores example
 // model Note {

@@ -24,6 +24,7 @@ import { PlaceModule } from './place/place.module';
 import { LegalDocumentModule } from './legal-document/legal-document.module';
 import { JumioVerificationModule } from './jumio-verification/jumio-verification.module';
 import { SalesCommissionModule } from './sales-commission/sales-commission.module';
+import { GiftCardModule } from './gift-card/gift-card.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { SalesCommissionModule } from './sales-commission/sales-commission.modul
     LegalDocumentModule,
     JumioVerificationModule,
     SalesCommissionModule,
+    GiftCardModule,
   ],
 })
 export class AdminModule {}

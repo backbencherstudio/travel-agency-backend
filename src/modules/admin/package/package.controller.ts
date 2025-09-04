@@ -22,7 +22,7 @@ import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { Role } from '../../../common/guard/role/role.enum';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { Express, Request } from 'express';
 import { diskStorage } from 'multer';
 import appConfig from '../../../config/app.config';
@@ -37,24 +37,19 @@ export class PackageController {
   @ApiOperation({ summary: 'Create package' })
   @Post()
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [{ name: 'package_files' }, { name: 'trip_plans_images' }],
-      {
-        storage: diskStorage({
-          destination:
-            appConfig().storageUrl.rootUrl +
-            '/' +
-            appConfig().storageUrl.package,
-          filename: (req, file, cb) => {
-            const randomName = Array(32)
-              .fill(null)
-              .map(() => Math.round(Math.random() * 16).toString(16))
-              .join('');
-            return cb(null, `${randomName}${file.originalname}`);
-          },
-        }),
-      },
-    ),
+    AnyFilesInterceptor({
+      storage: diskStorage({
+        destination:
+          appConfig().storageUrl.rootUrl + '/' + appConfig().storageUrl.package,
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${file.originalname}`);
+        },
+      }),
+    }),
   )
   async create(
     @Req() req: Request,
@@ -69,10 +64,7 @@ export class PackageController {
         fileIsRequired: false,
       }),
     )
-    files: {
-      package_files?: Express.Multer.File[];
-      trip_plans_images?: Express.Multer.File[];
-    },
+    files: Express.Multer.File[],
   ) {
     try {
       const user_id = req.user.userId;
@@ -180,24 +172,19 @@ export class PackageController {
   @ApiOperation({ summary: 'Update package' })
   @Patch(':id')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [{ name: 'package_files' }, { name: 'trip_plans_images' }],
-      {
-        storage: diskStorage({
-          destination:
-            appConfig().storageUrl.rootUrl +
-            '/' +
-            appConfig().storageUrl.package,
-          filename: (req, file, cb) => {
-            const randomName = Array(32)
-              .fill(null)
-              .map(() => Math.round(Math.random() * 16).toString(16))
-              .join('');
-            return cb(null, `${randomName}${file.originalname}`);
-          },
-        }),
-      },
-    ),
+    AnyFilesInterceptor({
+      storage: diskStorage({
+        destination:
+          appConfig().storageUrl.rootUrl + '/' + appConfig().storageUrl.package,
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${file.originalname}`);
+        },
+      }),
+    }),
   )
   async update(
     @Param('id') id: string,
@@ -213,10 +200,7 @@ export class PackageController {
         fileIsRequired: false,
       }),
     )
-    files: {
-      package_files?: Express.Multer.File[];
-      trip_plans_images?: Express.Multer.File[];
-    },
+    files: Express.Multer.File[],
   ) {
     try {
       const user_id = req.user.userId;

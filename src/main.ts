@@ -25,7 +25,7 @@ async function bootstrap() {
 
   // Configure CORS with proper settings for file serving
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://travel-agency-client-apas.vercel.app'], // Allow your frontend URL or all origins in development
+    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://localhost:5173', 'https://travel-agency-client-roan.vercel.app'], // Allow your frontend URL or all origins in development
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,

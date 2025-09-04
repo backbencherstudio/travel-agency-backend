@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class CreatePlaceDto {
     @IsNotEmpty()
@@ -29,7 +30,7 @@ export class CreatePlaceDto {
     description?: string;
 
     @IsOptional()
-    @IsNumber()
+    @Transform(({ value }) => parseFloat(value))
     @ApiProperty({
         description: 'Latitude coordinate',
         example: 48.8584,
@@ -38,7 +39,7 @@ export class CreatePlaceDto {
     latitude?: number;
 
     @IsOptional()
-    @IsNumber()
+    @Transform(({ value }) => parseFloat(value))
     @ApiProperty({
         description: 'Longitude coordinate',
         example: 2.2945,

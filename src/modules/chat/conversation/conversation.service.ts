@@ -191,12 +191,12 @@ export class ConversationService extends PrismaClient {
 
       // add image url
       for (const conversation of conversations) {
-        if (conversation.creator.avatar) {
+        if (conversation.creator && conversation.creator.avatar) {
           conversation.creator['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + conversation.creator.avatar,
           );
         }
-        if (conversation.participant.avatar) {
+        if (conversation.participant && conversation.participant.avatar) {
           conversation.participant['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + conversation.participant.avatar,
           );

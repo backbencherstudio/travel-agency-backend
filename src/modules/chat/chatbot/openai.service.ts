@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import appConfig from 'src/config/app.config';
+import appConfig from '../../../config/app.config';
 
 export interface OpenAIRequest {
     model: string;
@@ -34,14 +34,14 @@ export interface OpenAIResponse {
 @Injectable()
 export class OpenAIService {
     private readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
-    private readonly model = 'gpt-3.5-turbo';
+    private readonly model = 'gpt-4o-mini';
 
     constructor() { }
 
     async generateResponse(prompt: string): Promise<string> {
         try {
-            const apiKey = appConfig().openai.apiKey
-        
+            const apiKey = appConfig().openai.apiKey;
+
             if (!apiKey) {
                 console.error('OpenAI API key not configured, using fallback response');
                 return this.getFallbackResponse(prompt);
@@ -72,7 +72,7 @@ export class OpenAIService {
                 body: JSON.stringify(requestBody),
             });
             console.log('OpenAI response status:', response.status);
-            
+
             if (!response.ok) {
                 if (response.status === 401) {
                     console.warn('OpenAI API key is invalid or expired, using fallback response');

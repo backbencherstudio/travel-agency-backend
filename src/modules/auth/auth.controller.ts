@@ -52,10 +52,8 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('convert-to-vendor')
-  async convertToVendor(@Req() req: Request, @Body() data: { status: string }) {
+  async convertToVendor(@Req() req: Request, @Body() { user_id, status }: { user_id: string, status: number }) {
     try {
-      const user_id = req.user.userId;
-      const status = data.status;
       const response = await this.authService.convertToVendor(user_id, status);
       return response;
     } catch (error) {
@@ -85,19 +83,20 @@ export class AuthController {
     }
   }
 
-  // @ApiOperation({ summary: 'Vendor request list' })
-  // @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard)
-  // @Get('vendor-request-list')
-  // async vendorRequestList(@Req() req: Request) {
-  //   const response = await this.authService.vendorRequestList();
-  // }
-  // catch (error) {
-  //   return {
-  //     success: false,
-  //     message: error.message,
-  //   };
-  // }
+  @ApiOperation({ summary: 'Vendor request list' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('vendor-request-list')
+  async vendorRequestList(@Req() req: Request) {
+    const response = await this.authService.vendorRequestList();
+    return response;
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
 
 
   @ApiOperation({ summary: 'Register a user' })

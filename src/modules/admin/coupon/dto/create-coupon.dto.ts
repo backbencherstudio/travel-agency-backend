@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsNumber, IsOptional } from 'class-validator';
 
 export class CreateCouponDto {
   @ApiProperty({
@@ -49,6 +51,15 @@ export class CreateCouponDto {
     example: '2025-01-01',
   })
   starts_at?: Date;
+
+  @ApiProperty({
+    description: 'The status of the coupon',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => Number(value))
+  status?: number;
 
   @ApiProperty({
     description: 'The end date of the coupon',

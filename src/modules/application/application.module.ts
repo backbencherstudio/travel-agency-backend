@@ -13,6 +13,7 @@ import { PageModule } from './page/page.module';
 import { CouponModule } from './coupon/coupon.module';
 import { WishListModule } from './wishlist/wishlist.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { GiftCardModule } from './gift-card/gift-card.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     CouponModule,
     WishListModule,
     DashboardModule,
+    GiftCardModule,
   ],
 })
 export class ApplicationModule {}

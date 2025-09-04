@@ -77,7 +77,7 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async convertToVendor(user_id: string, status: string) {
+  async convertToVendor(user_id: string, status: number) {
     try {
       const user = await this.prisma.user.findFirst({
         where: {
@@ -99,7 +99,7 @@ export class AuthService extends PrismaClient {
         };
       }
 
-      if (status == 'approved') {
+      if (status == 1) {
         await this.prisma.user.update({
           where: {
             id: user_id,
@@ -109,7 +109,7 @@ export class AuthService extends PrismaClient {
             approved_at: new Date(),
           },
         });
-      } else if (status == 'rejected') {
+      } else {
         await this.prisma.user.update({
           where: {
             id: user_id,
@@ -121,10 +121,23 @@ export class AuthService extends PrismaClient {
           },
         });
       }
-
+      const updatedUser = await this.prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_number: true,
+          avatar: true,
+          type: true,
+        },
+      });
       return {
         success: true,
         message: 'Vendor request sent successfully',
+        data: updatedUser,
       };
     } catch (error) {
       return {
@@ -149,10 +162,10 @@ export class AuthService extends PrismaClient {
         };
       }
 
-      if (user.type == 'vendor') {
+      if (user.type != 'user') {
         return {
           success: false,
-          message: 'User is already a vendor',
+          message: 'User type is not a user',
         };
       }
 
@@ -165,6 +178,55 @@ export class AuthService extends PrismaClient {
         },
       });
 
+      return {
+        success: true,
+        message: 'Vendor request sent successfully',
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async vendorRequestList() {
+    try {
+      const vendors = await this.prisma.user.findMany({
+        where: {
+          approved_at: null,
+          vendor_request_at: {
+            not: null,
+          },
+          type: 'user',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_number: true,
+          vendor_request_at: true,
+          avatar: true,
+          type: true,
+        },
+        orderBy: {
+          vendor_request_at: 'desc',
+        },
+      });
+      // add avatar url
+      for (const record of vendors) {
+        // Add file URLs
+        if (record.avatar) {
+          record['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + record.avatar,
+          );
+        }
+      }
+      return {
+        success: true,
+        data: vendors,
+      };
     } catch (error) {
       return {
         success: false,
