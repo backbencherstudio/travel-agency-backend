@@ -15,7 +15,15 @@ import { ChatbotService } from './chatbot.service';
 
 @WebSocketGateway({
     cors: {
-        origin: '*',
+        origin: [
+            'http://localhost:3000',
+            'http://127.0.0.1:5500',
+            'http://localhost:5173',
+            'https://travel-agency-client-roan.vercel.app',
+            'https://nirob.signalsmind.com',
+            process.env.CLIENT_APP_URL || 'http://localhost:5173'
+        ],
+        credentials: true,
     },
     namespace: '/chatbot',
 })

@@ -186,4 +186,27 @@ export class CheckoutController {
       };
     }
   }
+
+  @Delete('gift-card/:gift_card_id')
+  @ApiOperation({ summary: 'Remove gift card from checkout' })
+  async removeGiftCard(
+    @Req() req: Request,
+    @Param('gift_card_id') gift_card_id: string,
+    @Query('checkout_id') checkout_id: string,
+  ) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.checkoutService.removeGiftCard({
+        user_id,
+        gift_card_id,
+        checkout_id,
+      });
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }

@@ -791,12 +791,28 @@ model PackageTripPlan {
   status     Int?      @default(1) @db.SmallInt
   sort_order Int?      @default(0)
 
-  // e.g, 5 days, 4 nights
+  title         String?
+  description   String? @db.Text
+  notes         String? @db.Text
   duration      Int?
   duration_type String? // e.g. days, nights, hours
 
   package_id String?
   package    Package? @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  package_trip_plan_images       PackageTripPlanImage[]
+  package_trip_plan_destinations PackageTripPlanDestination[]
+  package_trip_plan_details      PackageTripPlanDetails[]
+
+  @@map("package_trip_plans")
+}
+
+model PackageTripPlanDetails {
+  id         String    @id @default(cuid())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now())
+  deleted_at DateTime?
+  status     Int?      @default(1) @db.SmallInt
 
   // trip plan title
   title       String?
@@ -804,10 +820,12 @@ model PackageTripPlan {
   description String? @db.Text
   notes       String? @db.Text
 
-  package_trip_plan_images       PackageTripPlanImage[]
-  package_trip_plan_destinations PackageTripPlanDestination[]
+  time Int? // e.g. "08:00"
 
-  @@map("package_trip_plans")
+  package_trip_plan_id String?
+  package_trip_plan    PackageTripPlan? @relation(fields: [package_trip_plan_id], references: [id], onDelete: Cascade)
+
+  @@map("package_trip_plan_details")
 }
 
 // this table stores package trip plan image

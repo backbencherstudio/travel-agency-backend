@@ -112,6 +112,20 @@ export class PackageService extends PrismaClient {
                 });
               }
             }
+            // trip plan details
+            if (trip_plan.details && trip_plan.details.length > 0) {
+              for (const detail of trip_plan.details) {
+                await this.prisma.packageTripPlanDetails.create({
+                  data: {
+                    package_trip_plan_id: trip_plan_record.id,
+                    title: detail.title,
+                    description: detail.description,
+                    time: detail.time,
+                    notes: detail.notes,
+                  },
+                });
+              }
+            }
             // add trip plan images to this specific trip plan via field trip_plans_{index}_images
             const fieldName = `trip_plans_${index}_images`;
             const imagesForThisTrip = (files || []).filter((f) => f.fieldname === fieldName);
@@ -730,6 +744,14 @@ export class PackageService extends PrismaClient {
                       longitude: true,
                     },
                   },
+                },
+              },
+              package_trip_plan_details: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  time: true,
                 },
               },
             },
