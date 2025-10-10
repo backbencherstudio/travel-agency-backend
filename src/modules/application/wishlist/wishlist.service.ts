@@ -33,16 +33,29 @@ export class WishListService {
                 },
             });
 
+            let wishlist = null;
+
             if (existingWishlist) {
-                return {
-                    success: false,
-                    message: 'Package already in wishlist',
-                };
+                wishlist = await this.prisma.wishList.delete({
+                    where: {
+                        id: existingWishlist.id,
+                    },
+                });
+            } else {
+                wishlist = await this.prisma.wishList.create({
+                    data: {
+                        user_id: user_id,
+                        package_id: createWishListDto.package_id,
+                        note: createWishListDto.note,
+                    },
+                });
             }
+
 
             return {
                 success: true,
-                message: 'Package added to wishlist successfully',
+                message: existingWishlist ? 'Package removed from wishlist successfully' : 'Package added to wishlist successfully',
+                data: wishlist,
             };
         } catch (error) {
             return {
@@ -68,7 +81,7 @@ export class WishListService {
 
             const wishlists = await this.prisma.wishList.findMany({
                 where: {
-                    user_id: user_id,
+                    //    user_id: user_id,
                 },
                 skip: skip,
                 take: limit,

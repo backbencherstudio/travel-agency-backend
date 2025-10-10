@@ -27,10 +27,6 @@ export class GiftCardService extends PrismaClient {
 
       const giftCard = await this.prisma.giftCard.create({
         data: { ...data },
-        include: {
-          purchaser: { select: { id: true, name: true, email: true } },
-          recipient: { select: { id: true, name: true, email: true } },
-        },
       });
 
       return {
@@ -74,10 +70,6 @@ export class GiftCardService extends PrismaClient {
           skip,
           take: limit,
           orderBy: { created_at: 'desc' },
-          include: {
-            purchaser: { select: { id: true, name: true, email: true } },
-            recipient: { select: { id: true, name: true, email: true } },
-          },
         }),
         this.prisma.giftCard.count({ where }),
       ]);
@@ -107,14 +99,6 @@ export class GiftCardService extends PrismaClient {
     try {
       const giftCard = await this.prisma.giftCard.findUnique({
         where: { id, deleted_at: null },
-        include: {
-          purchaser: { select: { id: true, name: true, email: true } },
-          recipient: { select: { id: true, name: true, email: true } },
-          gift_card_transactions: {
-            orderBy: { created_at: 'desc' },
-            include: { user: { select: { id: true, name: true, email: true } } },
-          },
-        },
       });
 
       if (!giftCard) {
@@ -148,11 +132,7 @@ export class GiftCardService extends PrismaClient {
 
       const updatedGiftCard = await this.prisma.giftCard.update({
         where: { id },
-        data,
-        include: {
-          purchaser: { select: { id: true, name: true, email: true } },
-          recipient: { select: { id: true, name: true, email: true } },
-        },
+        data
       });
 
       return {
@@ -190,10 +170,6 @@ export class GiftCardService extends PrismaClient {
     try {
       const giftCard = await this.prisma.giftCard.findUnique({
         where: { code, deleted_at: null },
-        include: {
-          purchaser: { select: { id: true, name: true, email: true } },
-          recipient: { select: { id: true, name: true, email: true } },
-        },
       });
 
       if (!giftCard) {

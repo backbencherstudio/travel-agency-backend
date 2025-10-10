@@ -335,6 +335,7 @@ export class PackageService extends PrismaClient {
       start_date?: string;
       end_date?: string;
       available_date?: string;
+      user_id?: string;
     },
     pagination?: {
       page?: number;
@@ -375,6 +376,7 @@ export class PackageService extends PrismaClient {
             where_condition['final_price']['lte'] = filters.max_price;
           }
         }
+
         if (filters.free_cancellation !== undefined) {
           where_condition['cancellation_policy'] = {
             policy: filters.free_cancellation
@@ -565,6 +567,24 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          wishList: {
+            select: {
+              id: true,
+              user_id: true,
+            },
+          },
+          package_places: {
+            select: {
+              id: true,
+              type: true,
+              place: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package_availabilities: {
             select: {
               id: true,
@@ -599,6 +619,13 @@ export class PackageService extends PrismaClient {
         },
       });
 
+
+      if (filters.user_id) {
+        // add user wishlist true or false
+        for (const pkg of packages) {
+          pkg['is_wishlist'] = pkg.wishList.some(wish => wish.user_id === filters.user_id);
+        }
+      }
       // Process packages to add computed fields
       if (packages && packages.length > 0) {
         for (const record of packages) {
@@ -771,6 +798,12 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          wishList: {
+            select: {
+              id: true,
+              user_id: true,
+            },
+          },
           package_places: {
             select: {
               id: true,
@@ -779,6 +812,13 @@ export class PackageService extends PrismaClient {
                 select: {
                   id: true,
                   name: true,
+                  latitude: true,
+                  longitude: true,
+                  description: true,
+                  address: true,
+                  type: true,
+                  city: true,
+                  country: true,
                 },
               },
             },
@@ -836,6 +876,15 @@ export class PackageService extends PrismaClient {
                   },
                 },
               },
+              package_trip_plan_details: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  time: true,
+                  notes: true,
+                },
+              },
             },
           },
           package_tags: {
@@ -880,6 +929,10 @@ export class PackageService extends PrismaClient {
           success: false,
           message: 'Package not found',
         };
+      }
+
+      if (user_id) {
+        record['is_wishlist'] = record.wishList.some(wish => wish.user_id === user_id);
       }
 
       // add file url package_files

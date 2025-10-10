@@ -691,7 +691,7 @@ export class CheckoutService extends PrismaClient {
           checkout_items: { include: { package: true } },
           checkout_extra_services: { include: { extra_service: true } },
           temp_redeems: { include: { coupon: true } },
-          checkout_gift_cards: { include: { gift_card: true } },
+          checkout_gift_cards: { include: { gift_card_purchase: { include: { gift_card: true } } } },
         },
       });
 
@@ -748,16 +748,27 @@ export class CheckoutService extends PrismaClient {
 
       // Add gift card discounts
       for (const checkoutGiftCard of checkout.checkout_gift_cards) {
-        const giftCardDiscount = Number(checkoutGiftCard.amount_to_use || 0);
-        totalDiscount += giftCardDiscount;
+      
+        const quantity = checkoutGiftCard.quantity || 1;
+        const giftCardAmount = Number(checkoutGiftCard.gift_card_purchase?.gift_card?.amount || 0);
+        const totalGiftCardValue = giftCardAmount * quantity;
+
+        // Only apply discount up to the remaining total price
+        const remainingPrice = totalPrice - totalDiscount;
+        const actualDiscount = Math.min(totalGiftCardValue, remainingPrice);
+
+        totalDiscount += actualDiscount;
         appliedCoupons.push({
-          id: checkoutGiftCard.gift_card.id,
-          code: checkoutGiftCard.gift_card.code,
-          name: checkoutGiftCard.gift_card.title || 'Gift Card',
-          amount: giftCardDiscount,
+          id: checkoutGiftCard.gift_card_purchase?.gift_card?.id,
+          code: checkoutGiftCard.gift_card_purchase?.gift_card?.code,
+          name: checkoutGiftCard.gift_card_purchase?.gift_card?.title || 'Gift Card',
+          amount: totalGiftCardValue,
           amount_type: 'fixed',
-          discount_amount: giftCardDiscount,
+          discount_amount: actualDiscount,
           type: 'gift_card',
+          quantity: quantity,
+          available_amount: totalGiftCardValue,
+          applied_amount: actualDiscount,
         });
       }
 

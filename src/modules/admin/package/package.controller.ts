@@ -13,6 +13,8 @@ import {
   ParseFilePipe,
   UploadedFiles,
   Query,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { PackageService } from './package.service';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -49,6 +51,10 @@ export class PackageController {
           return cb(null, `${randomName}${file.originalname}`);
         },
       }),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB per file
+        files: 20, // Maximum 20 files
+      },
     }),
   )
   async create(
@@ -57,9 +63,8 @@ export class PackageController {
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          // new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB
-          // support all image types
-          // new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+          new FileTypeValidator({ fileType: 'image/*' }), // Only image files
         ],
         fileIsRequired: false,
       }),
@@ -184,6 +189,10 @@ export class PackageController {
           return cb(null, `${randomName}${file.originalname}`);
         },
       }),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB per file
+        files: 20, // Maximum 20 files
+      },
     }),
   )
   async update(
@@ -193,9 +202,8 @@ export class PackageController {
     @UploadedFiles(
       new ParseFilePipe({
         validators: [
-          // new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }), // 10MB
-          // support all image types
-          // new FileTypeValidator({ fileType: 'image/*' }),
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+          new FileTypeValidator({ fileType: 'image/*' }), // Only image files
         ],
         fileIsRequired: false,
       }),

@@ -10,54 +10,52 @@ export class GiftCardRepository {
         user_id,
         code,
         checkout_id,
-        amount_to_use,
+        quantity = 1,
     }: {
         user_id: string;
         code: string;
         checkout_id: string;
-        amount_to_use?: number; // optional; if not provided will use available balance
+        quantity?: number; // quantity of gift cards to use (default 1)
     }) {
         try {
-
-           
-            // Find gift card by code
             const giftCard = await prisma.giftCard.findFirst({
                 where: { code },
-                include: {
-                    gift_card_transactions: true,
-                },
             });
-
+            
             if (!giftCard) {
                 return { success: false, message: 'Gift card not found' };
             }
+            // Find gift card purchase by code
+            const giftCardPurchase = await prisma.giftCardPurchase.findFirst({
+                where: {
+                    gift_card_id: giftCard.id,
+                //    payment_status: 'succeeded'
+                },
+                include: {
+                    gift_card: true,
+                },
+            });
 
-            // Check expiration
-            if (giftCard.expires_at && new Date() > giftCard.expires_at) {
-                return { success: false, message: 'Gift card has expired' };
+            if (!giftCardPurchase) {
+                return { success: false, message: 'Gift card not found or not paid' };
             }
 
-            // Compute current balance from transactions
-            let balance = Number(giftCard.amount || 0);
-            for (const txn of giftCard.gift_card_transactions) {
-                const amt = Number(txn.amount || 0);
-                if (txn.transaction_type === 'redemption') balance -= amt;
-                if (txn.transaction_type === 'refund' || txn.transaction_type === 'adjustment') balance += amt; // basic handling
-            }
-            if (balance <= 0) {
-                return { success: false, message: 'Gift card has no remaining balance' };
+            // Check if user has enough quantity available
+            const availableQuantity = giftCardPurchase.quantity || 1;
+            if (quantity > availableQuantity) {
+                return { success: false, message: `Only ${availableQuantity} gift card(s) available` };
             }
 
-            const useAmount = Math.max(0, Math.min(typeof amount_to_use === 'number' ? amount_to_use : balance, balance));
-            if (useAmount <= 0) {
-                return { success: false, message: 'Invalid gift card amount to apply' };
-            }
-
-            console.log("useAmount", useAmount);
+            const totalAmount = Number(giftCardPurchase.gift_card.amount || 0) * quantity;
+            console.log("Using", quantity, "gift cards for total amount:", totalAmount);
 
             // Upsert temporary checkout gift card record (acts as temp redeem)
             const existing = await prisma.checkoutGiftCard.findFirst({
-                where: { checkout_id, gift_card_id: giftCard.id, user_id },
+                where: {
+                    checkout_id,
+                    gift_card_purchase_id: giftCardPurchase.id,
+                    user_id
+                },
             });
 
             let record;
@@ -65,18 +63,16 @@ export class GiftCardRepository {
                 record = await prisma.checkoutGiftCard.update({
                     where: { id: existing.id },
                     data: {
-                        amount_to_use: useAmount,
-                        balance_at_checkout: balance,
+                        quantity: quantity,
                     },
                 });
             } else {
                 record = await prisma.checkoutGiftCard.create({
                     data: {
                         checkout_id,
-                        gift_card_id: giftCard.id,
+                        gift_card_purchase_id: giftCardPurchase.id,
                         user_id,
-                        amount_to_use: useAmount,
-                        balance_at_checkout: balance,
+                        quantity: quantity,
                     },
                 });
             }
@@ -87,9 +83,11 @@ export class GiftCardRepository {
                 data: {
                     checkout_gift_card: record,
                     gift_card: {
-                        id: giftCard.id,
-                        code: giftCard.code,
-                        balance,
+                        id: giftCardPurchase.gift_card.id,
+                        code: giftCardPurchase.gift_card.code,
+                        amount: giftCardPurchase.gift_card.amount,
+                        quantity: quantity,
+                        total_amount: totalAmount,
                     },
                 },
             };

@@ -59,6 +59,7 @@ export class PageService extends PrismaClient {
         where: {
           status: 1,
           type: 'package',
+          rejected_at: null,
         },
         take: 3,
         select: {

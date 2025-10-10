@@ -295,21 +295,6 @@ export class UnifiedPaymentService {
                 return paymentResult;
             }
 
-            // Create payment transaction record
-            await this.prisma.paymentTransaction.create({
-                data: {
-                    user_id: userId,
-                    provider: type === 'stripe' || type === 'google_pay' || type === 'apple_pay' ? 'stripe' : 'paypal',
-                    reference_number: paymentResult.payment_reference,
-                    status: 'succeeded',
-                    raw_status: 'succeeded',
-                    amount: amount,
-                    currency: currency,
-                    paid_amount: amount,
-                    paid_currency: currency,
-                }
-            });
-
             return {
                 success: true,
                 message: 'Payment processed successfully',
@@ -368,7 +353,7 @@ export class UnifiedPaymentService {
 
             return {
                 success: true,
-                payment_reference: paymentIntent.id,
+                payment_reference: paymentIntent.client_secret,
             };
         } catch (error) {
             return {

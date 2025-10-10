@@ -27,6 +27,7 @@ import { diskStorage } from 'multer';
 export class PackageController {
   constructor(private readonly packageService: PackageService) { }
 
+
   @ApiOperation({ summary: 'Get all packages' })
   @Get()
   // async findAll(@Query() query: QueryPackageDto) {
@@ -69,6 +70,7 @@ export class PackageController {
     @Query() query: {
       q?: string;
       vendor_id?: string;
+      user_id?: string;
       type?: string;
       duration?: number;
       min_price?: number;
@@ -107,6 +109,7 @@ export class PackageController {
         start_date: query.start_date,
         end_date: query.end_date,
         available_date: query.available_date,
+        user_id: query.user_id,
       };
 
       const pagination = {
@@ -131,9 +134,9 @@ export class PackageController {
   // @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get package by id' })
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Query('user_id') user_id: string) {
     try {
-      const record = await this.packageService.findOne(id);
+      const record = await this.packageService.findOne(id, user_id);
       return record;
     } catch (error) {
       return {

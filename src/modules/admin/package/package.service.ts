@@ -311,14 +311,14 @@ export class PackageService extends PrismaClient {
       if (createPackageDto.package_places) {
         const package_places = JSON.parse(createPackageDto.package_places);
         for (const package_place of package_places) {
-          const placeData = {
-            package_id: record.id,
-            place_id: package_place.place_id,
-            type: package_place.type || 'meeting_point',
-          };
-
           await this.prisma.packagePlace.create({
-            data: placeData,
+            data: {
+              package: { connect: { id: record.id } },
+              place: package_place.place_id
+                ? { connect: { id: package_place.place_id } }
+                : undefined,
+              type: package_place.type || 'meeting_point',
+            },
           });
         }
       }
@@ -368,6 +368,7 @@ export class PackageService extends PrismaClient {
       return {
         success: true,
         message: 'Package created successfully',
+        data: record,
       };
     } catch (error) {
       // delete any uploaded files from storage on error
@@ -431,7 +432,10 @@ export class PackageService extends PrismaClient {
       });
 
       const packages = await this.prisma.package.findMany({
-        where: { ...where_condition },
+        where: {
+          ...where_condition,
+          rejected_at: null,
+        },
         skip: skip,
         take: limit,
         select: {
@@ -440,6 +444,7 @@ export class PackageService extends PrismaClient {
           updated_at: true,
           status: true,
           approved_at: true,
+          rejected_at: true,
           user_id: true,
           name: true,
           description: true,
@@ -500,6 +505,18 @@ export class PackageService extends PrismaClient {
           package_categories: {
             select: {
               category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          package_places: {
+            select: {
+              id: true,
+              type: true,
+              place: {
                 select: {
                   id: true,
                   name: true,
@@ -613,6 +630,7 @@ export class PackageService extends PrismaClient {
           updated_at: true,
           status: true,
           approved_at: true,
+          rejected_at: true,
           user_id: true,
           name: true,
           description: true,
@@ -698,6 +716,13 @@ export class PackageService extends PrismaClient {
                 select: {
                   id: true,
                   name: true,
+                  latitude: true,
+                  longitude: true,
+                  description: true,
+                  address: true,
+                  type: true,
+                  city: true,
+                  country: true,
                 },
               },
             },
@@ -752,6 +777,7 @@ export class PackageService extends PrismaClient {
                   title: true,
                   description: true,
                   time: true,
+                  notes: true,
                 },
               },
             },
@@ -874,44 +900,45 @@ export class PackageService extends PrismaClient {
     files: Express.Multer.File[],
   ) {
     try {
+      console.log(updatePackageDto);
       const data: any = {};
-      if (updatePackageDto.name) {
+      if (updatePackageDto.name !== undefined) {
         data.name = updatePackageDto.name;
       }
-      if (updatePackageDto.description) {
+      if (updatePackageDto.description !== undefined) {
         data.description = updatePackageDto.description;
       }
-      if (updatePackageDto.price) {
+      if (updatePackageDto.price !== undefined) {
         data.price = updatePackageDto.price;
       }
-      if (updatePackageDto.duration) {
-        data.duration = Number(updatePackageDto.duration);
+      if (updatePackageDto.duration !== undefined) {
+        data.duration = updatePackageDto.duration !== null ? Number(updatePackageDto.duration) : null;
       }
-      if (updatePackageDto.duration_type) {
+      if (updatePackageDto.duration_type !== undefined) {
         data.duration_type = updatePackageDto.duration_type;
       }
-      if (updatePackageDto.type) {
+      if (updatePackageDto.type !== undefined) {
         data.type = updatePackageDto.type;
       }
-      if (updatePackageDto.min_adults) {
-        data.min_adults = Number(updatePackageDto.min_adults);
+      if (updatePackageDto.min_adults !== undefined) {
+        data.min_adults = updatePackageDto.min_adults !== null ? Number(updatePackageDto.min_adults) : null;
       }
-      if (updatePackageDto.max_adults) {
-        data.max_adults = Number(updatePackageDto.max_adults);
+      if (updatePackageDto.max_adults !== undefined) {
+        data.max_adults = updatePackageDto.max_adults !== null ? Number(updatePackageDto.max_adults) : null;
       }
-      if (updatePackageDto.min_children) {
-        data.min_children = Number(updatePackageDto.min_children);
+      if (updatePackageDto.min_children !== undefined) {
+        data.min_children = updatePackageDto.min_children !== null ? Number(updatePackageDto.min_children) : null;
       }
-      if (updatePackageDto.max_children) {
-        data.max_children = Number(updatePackageDto.max_children);
+      if (updatePackageDto.max_children !== undefined) {
+        data.max_children = updatePackageDto.max_children !== null ? Number(updatePackageDto.max_children) : null;
       }
-      if (updatePackageDto.min_infants) {
-        data.min_infants = Number(updatePackageDto.min_infants);
+      if (updatePackageDto.min_infants !== undefined) {
+        data.min_infants = updatePackageDto.min_infants !== null ? Number(updatePackageDto.min_infants) : null;
       }
-      if (updatePackageDto.max_infants) {
-        data.max_infants = Number(updatePackageDto.max_infants);
+      if (updatePackageDto.max_infants !== undefined) {
+        data.max_infants = updatePackageDto.max_infants !== null ? Number(updatePackageDto.max_infants) : null;
       }
-      if (updatePackageDto.cancellation_policy_id) {
+      if (updatePackageDto.cancellation_policy_id !== undefined) {
         data.cancellation_policy_id = updatePackageDto.cancellation_policy_id;
       }
 
@@ -942,6 +969,7 @@ export class PackageService extends PrismaClient {
         data: {
           ...data,
           updated_at: DateHelper.now(),
+          rejected_at: null,
         },
       });
       // delete package images which is not included in updatePackageDto.package_files
@@ -1057,6 +1085,45 @@ export class PackageService extends PrismaClient {
               where: { id: trip_plan.id },
               data: trip_plan_data,
             });
+
+            // Update trip plan destinations if provided
+            if (trip_plan.destinations && trip_plan.destinations.length > 0) {
+              // Delete existing trip plan destinations
+              await this.prisma.packageTripPlanDestination.deleteMany({
+                where: { package_trip_plan_id: trip_plan.id },
+              });
+
+              // Create new trip plan destinations
+              for (const destination of trip_plan.destinations) {
+                await this.prisma.packageTripPlanDestination.create({
+                  data: {
+                    package_trip_plan_id: trip_plan.id,
+                    destination_id: destination.id,
+                  },
+                });
+              }
+            }
+
+            // Update trip plan details if provided
+            if (trip_plan.details && trip_plan.details.length > 0) {
+              // Delete existing trip plan details
+              await this.prisma.packageTripPlanDetails.deleteMany({
+                where: { package_trip_plan_id: trip_plan.id },
+              });
+
+              // Create new trip plan details
+              for (const detail of trip_plan.details) {
+                await this.prisma.packageTripPlanDetails.create({
+                  data: {
+                    package_trip_plan_id: trip_plan.id,
+                    title: detail.title,
+                    description: detail.description,
+                    time: detail.time,
+                    notes: detail.notes,
+                  },
+                });
+              }
+            }
 
             // delete old trip plan images from storage which is not in the new trip plans
             const old_trip_plan_images =
@@ -1292,17 +1359,14 @@ export class PackageService extends PrismaClient {
 
         // Create new package places
         for (const package_place of package_places) {
-          const placeData = {
-            package_id: record.id,
-            place_id: package_place.place_id,
-            type: package_place.type || 'meeting_point',
-            is_default: package_place.is_default !== undefined ? package_place.is_default : false,
-            is_active: package_place.is_active !== undefined ? package_place.is_active : true,
-            sort_order: package_place.sort_order ? Number(package_place.sort_order) : 0,
-          };
-
           await this.prisma.packagePlace.create({
-            data: placeData,
+            data: {
+              package: { connect: { id: record.id } },
+              place: package_place.place_id
+                ? { connect: { id: package_place.place_id } }
+                : undefined,
+              type: package_place.type || 'meeting_point',
+            },
           });
         }
       }
@@ -1402,7 +1466,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: new Date() },
+        data: { approved_at: new Date(), rejected_at: null },
       });
       return {
         success: true,
@@ -1429,7 +1493,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: null },
+        data: { approved_at: null, rejected_at: new Date() },
       });
       return {
         success: true,

@@ -41,6 +41,37 @@ export class GiftCardController {
     }
   }
 
+  @Get('my-purchases')
+  @ApiOperation({ summary: 'Get user\'s purchased gift cards' })
+  async getUserPurchasedGiftCards(
+    @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('payment_status') payment_status?: string,
+  ) {
+    try {
+      const userId = req.user.userId;
+      const pagination = {
+        page: page ? parseInt(page) : 1,
+        limit: limit ? parseInt(limit) : 10,
+      };
+
+      const filters = {
+        status: status || undefined,
+        payment_status: payment_status || undefined,
+      };
+
+      const result = await this.giftCardService.getUserPurchasedGiftCards(userId, pagination, filters);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Find gift card by ID (view before purchase)' })
   async findGiftCardById(@Param('id') id: string) {
@@ -55,16 +86,15 @@ export class GiftCardController {
     }
   }
 
-  @Post(':id/purchase')
-  @ApiOperation({ summary: 'Purchase gift card by ID' })
+  @Post('purchase')
+  @ApiOperation({ summary: 'Purchase gift card' })
   async purchaseGiftCard(
     @Req() req: Request,
-    @Param('id') giftCardId: string,
     @Body() purchaseDto: PurchaseGiftCardDto,
   ) {
     try {
       const userId = req.user.userId;
-      const result = await this.giftCardService.purchaseGiftCard(userId, giftCardId, purchaseDto);
+      const result = await this.giftCardService.purchaseGiftCard(userId, purchaseDto);
       return result;
     } catch (error) {
       return {
