@@ -40,6 +40,7 @@ export class OpenAIService {
 
     async generateResponse(prompt: string): Promise<string> {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const apiKey = appConfig().openai.apiKey;
 
             if (!apiKey) {
