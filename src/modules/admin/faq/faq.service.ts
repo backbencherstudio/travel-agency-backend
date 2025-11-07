@@ -168,6 +168,13 @@ export class FaqService extends PrismaClient {
       if (updateFaqDto.question) {
         data['question'] = updateFaqDto.question;
       }
+      if (updateFaqDto.answer) {
+        data['answer'] = updateFaqDto.answer;
+      }
+      if (updateFaqDto.sort_order) {
+        data['sort_order'] = updateFaqDto.sort_order;
+      }
+
       await this.prisma.faq.update({
         where: {
           id: id,

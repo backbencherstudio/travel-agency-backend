@@ -40,9 +40,17 @@ export class BookingService extends PrismaClient {
       if (q) {
         where_condition['OR'] = [
           { invoice_number: { contains: q, mode: 'insensitive' } },
-          { user: { name: { contains: q, mode: 'insensitive' } } },
+          { user: { is: { name: { contains: q, mode: 'insensitive' } } } },
+          {
+            booking_items: {
+              some: {
+                package: { is: { name: { contains: q, mode: 'insensitive' } } },
+              },
+            },
+          },
         ];
       }
+
 
       if (status) {
         where_condition['status'] = status;
@@ -125,7 +133,7 @@ export class BookingService extends PrismaClient {
           hasPreviousPage: page > 1,
         },
       };
-      
+
     } catch (error) {
       return {
         success: false,

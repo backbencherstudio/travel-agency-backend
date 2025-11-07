@@ -5,6 +5,16 @@ import { PayPalService } from './paypal/paypal.service';
 import { UserRepository } from '../../common/repository/user/user.repository';
 import { PaymentMethodType, ProcessPaymentDto } from '../application/checkout/dto/payment-method.dto';
 
+export interface GiftCardPaymentDto {
+    gift_card_id: string;
+    amount: number;
+    currency: string;
+    payment_method: {
+        type: 'stripe' | 'paypal' | 'google_pay' | 'apple_pay';
+        data: any;
+    };
+}
+
 @Injectable()
 export class UnifiedPaymentService {
     constructor(
@@ -249,6 +259,141 @@ export class UnifiedPaymentService {
                 ],
             },
         };
+    }
+
+    /**
+     * Process gift card payment
+     */
+    async processGiftCardPayment(userId: string, paymentData: GiftCardPaymentDto) {
+        try {
+            const { gift_card_id, amount, currency, payment_method } = paymentData;
+            const { type, data } = payment_method;
+
+            // Get user details
+            const user = await UserRepository.getUserDetails(userId);
+            if (!user) {
+                return { success: false, message: 'User not found' };
+            }
+
+            let paymentResult: any;
+
+            // Handle different payment methods
+            switch (type) {
+                case 'stripe':
+                case 'google_pay':
+                case 'apple_pay':
+                    paymentResult = await this.processStripeGiftCardPayment(type, data, user, amount, currency, gift_card_id);
+                    break;
+                case 'paypal':
+                    paymentResult = await this.processPayPalGiftCardPayment(data, user, amount, currency, gift_card_id);
+                    break;
+                default:
+                    return { success: false, message: 'Unsupported payment method' };
+            }
+
+            if (!paymentResult.success) {
+                return paymentResult;
+            }
+
+            return {
+                success: true,
+                message: 'Payment processed successfully',
+                payment_reference: paymentResult.payment_reference,
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message,
+            };
+        }
+    }
+
+    /**
+     * Process Stripe payment for gift card
+     */
+    private async processStripeGiftCardPayment(
+        type: string,
+        data: any,
+        user: any,
+        amount: number,
+        currency: string,
+        gift_card_id: string
+    ) {
+        try {
+            // Create or get Stripe customer
+            let customerId = user.billing_id;
+            if (!customerId) {
+                // Create Stripe customer if not exists
+                const customer = await this.stripeService.createCustomer({
+                    user_id: user.id,
+                    email: user.email,
+                    name: user.name,
+                });
+                customerId = customer.id;
+
+                // Update user billing_id
+                await this.prisma.user.update({
+                    where: { id: user.id },
+                    data: { billing_id: customerId }
+                });
+            }
+
+            // Create payment intent
+            const paymentIntent = await this.stripeService.createPaymentIntentForMethod({
+                amount: Math.round(amount * 100), // Convert to cents
+                currency: currency.toLowerCase(),
+                customer_id: customerId,
+                paymentMethodType: type as 'stripe' | 'google_pay' | 'apple_pay',
+                metadata: {
+                    gift_card_id: gift_card_id,
+                    user_id: user.id,
+                    type: 'gift_card_purchase'
+                }
+            });
+
+            return {
+                success: true,
+                payment_reference: paymentIntent.client_secret,
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message,
+            };
+        }
+    }
+
+    /**
+     * Process PayPal payment for gift card
+     */
+    private async processPayPalGiftCardPayment(
+        data: any,
+        user: any,
+        amount: number,
+        currency: string,
+        gift_card_id: string
+    ) {
+        try {
+            // Create PayPal order
+            const order = await this.paypalService.createOrder({
+                amount: amount,
+                currency: currency,
+                booking_id: gift_card_id, // Using gift_card_id as reference
+                user_id: user.id,
+                return_url: `${process.env.CLIENT_APP_URL || 'http://localhost:5173'}/gift-cards/success`,
+                cancel_url: `${process.env.CLIENT_APP_URL || 'http://localhost:5173'}/gift-cards/cancel`,
+            });
+
+            return {
+                success: true,
+                payment_reference: order.data?.id || 'paypal_order',
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message,
+            };
+        }
     }
 
 } 

@@ -60,8 +60,8 @@ export default () => ({
     },
   },
 
-  deepseek: {
-    apiKey: process.env.DEEPSEEK_API_KEY,
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
   },
 
   jumio: {

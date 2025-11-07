@@ -232,6 +232,9 @@ export class CouponService extends PrismaClient {
       if (updateCouponDto.min_quantity) {
         data.min_quantity = updateCouponDto.min_quantity;
       }
+      if (updateCouponDto.status) {
+        data.status = updateCouponDto.status;
+      }
       await this.prisma.coupon.update({
         where: { id },
         data: {
@@ -239,10 +242,14 @@ export class CouponService extends PrismaClient {
           updated_at: DateHelper.now(),
         },
       });
-
+      // get updated coupon
+      const updatedCoupon = await this.prisma.coupon.findUnique({
+        where: { id },
+      });
       return {
         success: true,
         message: 'Coupon updated successfully',
+        data: updatedCoupon,
       };
     } catch (error) {
       return {

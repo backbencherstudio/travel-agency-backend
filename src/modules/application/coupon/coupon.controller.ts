@@ -1,11 +1,9 @@
 import {
   Controller,
   Get,
-  Post,
   Delete,
   Param,
   Query,
-  Body,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -72,25 +70,6 @@ export class CouponController {
     }
   }
 
-  @ApiOperation({ summary: 'Redeem a coupon' })
-  @Post('redeem')
-  async redeemCoupon(
-    @Request() req,
-    @Body() body: { code: string },
-  ) {
-    try {
-      const userId = req.user.userId;
-      const { code } = body;
-      const result = await this.couponService.redeemCoupon(userId, code);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
   @ApiOperation({ summary: 'Remove applied coupon from checkout' })
   @Delete('remove/:checkoutId')
   async removeCoupon(
@@ -100,57 +79,6 @@ export class CouponController {
     try {
       const userId = req.user.userId;
       const result = await this.couponService.removeCoupon(userId, checkoutId);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  @ApiOperation({ summary: 'Get applied coupon for checkout' })
-  @Get('applied/:checkoutId')
-  async getAppliedCoupon(
-    @Request() req,
-    @Param('checkoutId') checkoutId: string,
-  ) {
-    try {
-      const userId = req.user.userId;
-      const result = await this.couponService.getAppliedCoupon(userId, checkoutId);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  @ApiOperation({ summary: 'Auto-apply available coupons to checkout' })
-  @Post('auto-apply/:checkoutId')
-  async autoApplyCoupons(
-    @Request() req,
-    @Param('checkoutId') checkoutId: string,
-  ) {
-    try {
-      const userId = req.user.userId;
-      const result = await this.couponService.autoApplyAvailableCoupons(userId, checkoutId);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
-
-  @ApiOperation({ summary: 'Get user available coupons' })
-  @Get('my-coupons')
-  async getUserAvailableCoupons(@Request() req) {
-    try {
-      const userId = req.user.userId;
-      const result = await this.couponService.getUserAvailableCoupons(userId);
       return result;
     } catch (error) {
       return {

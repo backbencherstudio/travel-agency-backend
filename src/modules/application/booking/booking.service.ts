@@ -42,6 +42,7 @@ export class BookingService {
             checkout_items: { include: { package: true } },
             checkout_travellers: true,
             temp_redeems: { include: { coupon: true } },
+            checkout_gift_cards: { include: { gift_card_purchase: { include: { gift_card: true } } } },
           },
         });
         if (!checkout) return { success: false, message: 'Checkout not found' };
@@ -78,6 +79,24 @@ export class BookingService {
             amount: coupon.amount,
             amount_type: coupon.amount_type,
             discount_amount: couponDiscount,
+          });
+        }
+
+        // Add gift card discounts
+        for (const checkoutGiftCard of checkout.checkout_gift_cards) {
+          const quantity = checkoutGiftCard.quantity || 1;
+          const giftCardAmount = Number(checkoutGiftCard.gift_card_purchase?.gift_card?.amount || 0);
+          const giftCardDiscount = giftCardAmount * quantity;
+          totalDiscount += giftCardDiscount;
+          appliedCoupons.push({
+            id: checkoutGiftCard.gift_card_purchase?.gift_card?.id,
+            code: checkoutGiftCard.gift_card_purchase?.gift_card?.code,
+            name: checkoutGiftCard.gift_card_purchase?.gift_card?.title || 'Gift Card',
+            amount: giftCardDiscount,
+            amount_type: 'fixed',
+            discount_amount: giftCardDiscount,
+            type: 'gift_card',
+            quantity: quantity,
           });
         }
         const finalPrice = Math.max(0, totalPrice - totalDiscount);
@@ -213,6 +232,24 @@ export class BookingService {
           });
         }
 
+        // Create booking gift cards and process gift card transactions
+        for (const checkoutGiftCard of checkout.checkout_gift_cards) {
+          const quantity = checkoutGiftCard.quantity || 1;
+          const giftCardAmount = Number(checkoutGiftCard.gift_card_purchase?.gift_card?.amount || 0);
+          const amountUsed = giftCardAmount * quantity;
+
+          // Create booking gift card record
+          await prisma.bookingGiftCard.create({
+            data: {
+              booking_id: booking.id,
+              gift_card_purchase_id: checkoutGiftCard.gift_card_purchase_id,
+              user_id: userId,
+              quantity: quantity,
+              amount_used: amountUsed,
+            },
+          });
+        }
+
         // Create booking availability
         for (const item of checkout.checkout_items) {
           const packageAvailability = await prisma.packageAvailability.findFirst({
@@ -310,6 +347,9 @@ export class BookingService {
         if (!paymentResult.success) {
           return { success: false, message: paymentResult['message'] || 'Payment failed' };
         }
+
+        // Consume/delete gift card purchases after successful payment
+        await this.consumeGiftCardsAfterPayment(booking.id);
       }
 
       // Create notification
@@ -352,6 +392,52 @@ export class BookingService {
     }
   }
 
+  /**
+   * Consume/delete gift card purchases after successful payment
+   */
+  private async consumeGiftCardsAfterPayment(bookingId: string) {
+    try {
+      // Get all gift cards used in this booking
+      const bookingGiftCards = await this.prisma.bookingGiftCard.findMany({
+        where: {
+          booking_id: bookingId,
+          deleted_at: null
+        },
+        include: {
+          gift_card_purchase: true
+        }
+      });
+
+      // Mark gift card purchases as consumed/deleted
+      for (const bookingGiftCard of bookingGiftCards) {
+        if (bookingGiftCard.gift_card_purchase) {
+          await this.prisma.giftCardPurchase.update({
+            where: { id: bookingGiftCard.gift_card_purchase.id },
+            data: {
+              deleted_at: new Date(),
+              status: 0, // Mark as inactive/consumed
+            }
+          });
+
+          // Also mark the gift card itself as consumed
+          await this.prisma.giftCard.update({
+            where: { id: bookingGiftCard.gift_card_purchase.gift_card_id },
+            data: {
+              deleted_at: new Date(),
+              status: 0, // Mark as inactive/consumed
+            }
+          });
+        }
+      }
+
+      console.log(`Successfully consumed ${bookingGiftCards.length} gift card(s) for booking ${bookingId}`);
+    } catch (error) {
+      console.error('Error consuming gift cards after payment:', error);
+      // Don't throw error here as the booking is already created and payment is successful
+      // Just log the error for debugging
+    }
+  }
+
   async findAll(params: {
     user_id?: string;
     q?: string;
@@ -368,8 +454,14 @@ export class BookingService {
       if (params.q) {
         where['OR'] = [
           { invoice_number: { contains: params.q, mode: 'insensitive' } },
-          { user: { name: { contains: params.q, mode: 'insensitive' } } },
-          { booking_items: { some: { package: { name: { contains: params.q, mode: 'insensitive' } } } } },
+          { user: { is: { name: { contains: params.q, mode: 'insensitive' } } } },
+          {
+            booking_items: {
+              some: {
+                package: { is: { name: { contains: params.q, mode: 'insensitive' } } },
+              },
+            },
+          },
         ];
       }
       if (params.status) where['status'] = Number(params.status);
@@ -418,6 +510,18 @@ export class BookingService {
               amount_type: true,
               amount: true,
               coupon: { select: { name: true, amount: true, amount_type: true } },
+            },
+          },
+          booking_gift_cards: {
+            select: {
+              id: true,
+              quantity: true,
+              amount_used: true,
+              gift_card_purchase: {
+                select: {
+                  gift_card: { select: { code: true, title: true } }
+                }
+              },
             },
           },
           user: { select: { id: true, name: true } },
@@ -542,6 +646,28 @@ export class BookingService {
                   min_type: true,
                   min_amount: true,
                   min_quantity: true,
+                },
+              },
+            },
+          },
+          booking_gift_cards: {
+            select: {
+              id: true,
+              quantity: true,
+              amount_used: true,
+              applied_at: true,
+              gift_card_purchase: {
+                select: {
+                  gift_card: {
+                    select: {
+                      id: true,
+                      code: true,
+                      title: true,
+                      message: true,
+                      amount: true,
+                      currency: true,
+                    },
+                  },
                 },
               },
             },

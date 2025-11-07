@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { DeepSeekService } from './deepseek.service';
+import { OpenAIService } from './openai.service';
 
 export interface AIResponse {
     message: string;
@@ -14,7 +14,7 @@ export interface AIResponse {
 export class AIService {
     constructor(
         private prisma: PrismaService,
-        private deepSeekService: DeepSeekService,
+        private openaiService: OpenAIService,
     ) { }
 
     async generateResponse(
@@ -29,14 +29,14 @@ export class AIService {
             // Get relevant data for context
             const contextData = await this.getContextData();
 
-            // Create prompt for DeepSeek
+            // Create prompt for OpenAI
             const prompt = this.createPrompt(message, user, contextData, conversationContext);
 
-            // Call DeepSeek API
-            const aiResponseText = await this.deepSeekService.generateResponse(prompt);
+            // Call OpenAI API
+            const aiResponseText = await this.openaiService.generateResponse(prompt);
 
             // Parse the AI response
-            const aiResponse = this.deepSeekService.parseAIResponse(aiResponseText);
+            const aiResponse = this.openaiService.parseAIResponse(aiResponseText);
 
             return this.processAIResponse(aiResponse);
         } catch (error) {

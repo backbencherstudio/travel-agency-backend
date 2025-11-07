@@ -33,6 +33,7 @@ export class AuthService extends PrismaClient {
         select: {
           id: true,
           name: true,
+          username: true,
           email: true,
           avatar: true,
           address: true,
@@ -76,11 +77,156 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async convertToVendor(user_id: string) {
+  async convertToVendor(user_id: string, status: number) {
     try {
-      const response = await UserRepository.convertTo(user_id, 'vendor');
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+      });
 
-      return response;
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      if (user.type == 'vendor') {
+        return {
+          success: false,
+          message: 'User is already a vendor',
+        };
+      }
+
+      if (status == 1) {
+        await this.prisma.user.update({
+          where: {
+            id: user_id,
+          },
+          data: {
+            type: 'vendor',
+            approved_at: new Date(),
+          },
+        });
+      } else {
+        await this.prisma.user.update({
+          where: {
+            id: user_id,
+          },
+          data: {
+            approved_at: null,
+            vendor_request_at: null,
+            type: 'user',
+          },
+        });
+      }
+      const updatedUser = await this.prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_number: true,
+          avatar: true,
+          type: true,
+        },
+      });
+      return {
+        success: true,
+        message: 'Vendor request sent successfully',
+        data: updatedUser,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async vendorRequest(user_id: string) {
+    try {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: user_id,
+        },
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found',
+        };
+      }
+
+      if (user.type != 'user') {
+        return {
+          success: false,
+          message: 'User type is not a user',
+        };
+      }
+
+      await this.prisma.user.update({
+        where: {
+          id: user_id,
+        },
+        data: {
+          vendor_request_at: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Vendor request sent successfully',
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async vendorRequestList() {
+    try {
+      const vendors = await this.prisma.user.findMany({
+        where: {
+          approved_at: null,
+          vendor_request_at: {
+            not: null,
+          },
+          type: 'user',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_number: true,
+          vendor_request_at: true,
+          avatar: true,
+          type: true,
+        },
+        orderBy: {
+          vendor_request_at: 'desc',
+        },
+      });
+      // add avatar url
+      for (const record of vendors) {
+        // Add file URLs
+        if (record.avatar) {
+          record['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + record.avatar,
+          );
+        }
+      }
+      return {
+        success: true,
+        data: vendors,
+      };
     } catch (error) {
       return {
         success: false,

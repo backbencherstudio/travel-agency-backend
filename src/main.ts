@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { join } from 'path';
+import * as express from 'express';
 // import express from 'express';
 // internal imports
 import { AppModule } from './app.module';
@@ -16,21 +17,52 @@ import { SojebStorage } from './common/lib/Disk/SojebStorage';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+    bodyParser: false, // Disable default body parser to configure custom limits
   });
 
-  // Handle raw body for webhooks
-  // app.use('/payment/stripe/webhook', express.raw({ type: 'application/json' }));
+  // Configure body size limits for file uploads
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   app.setGlobalPrefix('api');
-  app.enableCors();
-  app.use(helmet());
+
+  // Configure CORS with proper settings for file serving
+  app.enableCors({
+    origin: [
+      'http://localhost:3000',
+      'http://127.0.0.1:5500',
+      'http://localhost:5173',
+      'https://travel-agency-client-roan.vercel.app',
+      'https://nirob.signalsmind.com',
+      process.env.CLIENT_APP_URL || 'http://localhost:5173'
+    ], // Allow your frontend URL or all origins in development
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+  });
+
+  // Configure helmet with relaxed settings for file serving
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin resource sharing
+    crossOriginEmbedderPolicy: false, // Disable COEP which can block file access
+  }));
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     index: false,
     prefix: '/public',
+    setHeaders: (res) => {
+      res.set('Access-Control-Allow-Origin', process.env.CLIENT_APP_URL || '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    },
   });
   app.useStaticAssets(join(__dirname, '..', 'public/storage'), {
     index: false,
     prefix: '/storage',
+    setHeaders: (res) => {
+      res.set('Access-Control-Allow-Origin', process.env.CLIENT_APP_URL || '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    },
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalFilters(new CustomExceptionFilter());

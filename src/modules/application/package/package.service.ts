@@ -335,6 +335,7 @@ export class PackageService extends PrismaClient {
       start_date?: string;
       end_date?: string;
       available_date?: string;
+      user_id?: string;
     },
     pagination?: {
       page?: number;
@@ -375,6 +376,7 @@ export class PackageService extends PrismaClient {
             where_condition['final_price']['lte'] = filters.max_price;
           }
         }
+
         if (filters.free_cancellation !== undefined) {
           where_condition['cancellation_policy'] = {
             policy: filters.free_cancellation
@@ -565,6 +567,24 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          wishList: {
+            select: {
+              id: true,
+              user_id: true,
+            },
+          },
+          package_places: {
+            select: {
+              id: true,
+              type: true,
+              place: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package_availabilities: {
             select: {
               id: true,
@@ -599,6 +619,13 @@ export class PackageService extends PrismaClient {
         },
       });
 
+
+      if (filters.user_id) {
+        // add user wishlist true or false
+        for (const pkg of packages) {
+          pkg['is_wishlist'] = pkg.wishList.some(wish => wish.user_id === filters.user_id);
+        }
+      }
       // Process packages to add computed fields
       if (packages && packages.length > 0) {
         for (const record of packages) {
@@ -719,7 +746,14 @@ export class PackageService extends PrismaClient {
               id: true,
               rating_value: true,
               comment: true,
-              user_id: true,
+              created_at: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
               review_files: {
                 select: {
                   id: true,
@@ -764,6 +798,12 @@ export class PackageService extends PrismaClient {
               },
             },
           },
+          wishList: {
+            select: {
+              id: true,
+              user_id: true,
+            },
+          },
           package_places: {
             select: {
               id: true,
@@ -772,6 +812,13 @@ export class PackageService extends PrismaClient {
                 select: {
                   id: true,
                   name: true,
+                  latitude: true,
+                  longitude: true,
+                  description: true,
+                  address: true,
+                  type: true,
+                  city: true,
+                  country: true,
                 },
               },
             },
@@ -829,6 +876,15 @@ export class PackageService extends PrismaClient {
                   },
                 },
               },
+              package_trip_plan_details: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  time: true,
+                  notes: true,
+                },
+              },
             },
           },
           package_tags: {
@@ -875,6 +931,10 @@ export class PackageService extends PrismaClient {
         };
       }
 
+      if (user_id) {
+        record['is_wishlist'] = record.wishList.some(wish => wish.user_id === user_id);
+      }
+
       // add file url package_files
       if (record && record.package_files.length > 0) {
         for (const file of record.package_files) {
@@ -898,6 +958,15 @@ export class PackageService extends PrismaClient {
         }
       }
 
+      // add review user avatar
+      if (record && record.reviews.length > 0) {
+        for (const review of record.reviews) {
+          review.user['avatar'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + review.user.avatar,
+          );
+        }
+      }
+
       // add image url package_trip_plans
       if (record && record.package_trip_plans.length > 0) {
         for (const trip_plan of record.package_trip_plans) {
@@ -911,6 +980,12 @@ export class PackageService extends PrismaClient {
             }
           }
         }
+      }
+
+      // average rating
+      if (record && record.reviews.length > 0) {
+        const total_rating = record.reviews.reduce((acc, review) => acc + review.rating_value, 0);
+        record['average_rating'] = total_rating / record.reviews.length;
       }
 
       return {

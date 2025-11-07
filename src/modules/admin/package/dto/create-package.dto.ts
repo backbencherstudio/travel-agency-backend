@@ -204,12 +204,17 @@ export class CreatePackageDto {
         ]
       },
       {
-        title: 'Day 2 - Exploration',
-        description: 'Explore the main attractions and landmarks',
-        duration: 1,
-        duration_type: 'days',
         destinations: [
           { id: 'dest789' }
+        ],
+        notes: 'Notes for day 2',
+        details: [
+          {
+            title: 'Day 2 - Exploration',
+            description: 'Explore the main attractions and landmarks',
+            duration: 1,
+            duration_type: 'days',
+          }
         ]
       },
       {

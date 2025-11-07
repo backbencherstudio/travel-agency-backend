@@ -10,6 +10,7 @@ import {
 } from './dto/create-checkout.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
 import { UpdateCheckoutDto } from './dto/update-checkout.dto';
+import { GiftCardRepository } from 'src/common/repository/gift-card/gift-card.repository';
 
 @Injectable()
 export class CheckoutService extends PrismaClient {
@@ -556,6 +557,7 @@ export class CheckoutService extends PrismaClient {
         return { success: false, message: 'Checkout or items not found' };
       }
 
+      // Try coupon first
       const applyCoupon = await CouponRepository.applyCoupon({
         user_id,
         coupon_code: code,
@@ -563,8 +565,50 @@ export class CheckoutService extends PrismaClient {
         checkout_id,
       });
 
+      if (applyCoupon.success) {
+        const prices = await this.calculateCheckoutPrices(checkout_id);
+        return { success: true, message: applyCoupon.message, data: prices };
+      }
+
+      // If not a valid coupon, try gift card code as fallback
+      const applyGift = await GiftCardRepository.applyGiftCardToCheckout({
+        user_id,
+        code,
+        checkout_id,
+      });
+
+      if (!applyGift.success) {
+        return { success: false, message: applyCoupon.message || applyGift.message || 'Invalid code' };
+      }
+
       const prices = await this.calculateCheckoutPrices(checkout_id);
-      return { success: applyCoupon.success, message: applyCoupon.message, data: prices };
+      return { success: true, message: applyGift.message, data: prices };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  async removeGiftCard({ user_id, gift_card_id, checkout_id }: { user_id: string; gift_card_id: string; checkout_id: string }) {
+    try {
+      // Check if gift card exists in checkout
+      const checkoutGiftCard = await this.prisma.checkoutGiftCard.findFirst({
+        where: {
+          id: gift_card_id,
+          user_id: user_id,
+          checkout_id: checkout_id,
+        },
+      });
+
+      if (!checkoutGiftCard) {
+        return { success: false, message: 'Gift card not found in checkout' };
+      }
+
+      await this.prisma.checkoutGiftCard.delete({
+        where: { id: gift_card_id },
+      });
+
+      const prices = await this.calculateCheckoutPrices(checkout_id);
+      return { success: true, message: 'Gift card removed successfully', data: prices };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -647,6 +691,7 @@ export class CheckoutService extends PrismaClient {
           checkout_items: { include: { package: true } },
           checkout_extra_services: { include: { extra_service: true } },
           temp_redeems: { include: { coupon: true } },
+          checkout_gift_cards: { include: { gift_card_purchase: { include: { gift_card: true } } } },
         },
       });
 
@@ -698,6 +743,32 @@ export class CheckoutService extends PrismaClient {
           amount: coupon.amount,
           amount_type: coupon.amount_type,
           discount_amount: couponDiscount,
+        });
+      }
+
+      // Add gift card discounts
+      for (const checkoutGiftCard of checkout.checkout_gift_cards) {
+      
+        const quantity = checkoutGiftCard.quantity || 1;
+        const giftCardAmount = Number(checkoutGiftCard.gift_card_purchase?.gift_card?.amount || 0);
+        const totalGiftCardValue = giftCardAmount * quantity;
+
+        // Only apply discount up to the remaining total price
+        const remainingPrice = totalPrice - totalDiscount;
+        const actualDiscount = Math.min(totalGiftCardValue, remainingPrice);
+
+        totalDiscount += actualDiscount;
+        appliedCoupons.push({
+          id: checkoutGiftCard.gift_card_purchase?.gift_card?.id,
+          code: checkoutGiftCard.gift_card_purchase?.gift_card?.code,
+          name: checkoutGiftCard.gift_card_purchase?.gift_card?.title || 'Gift Card',
+          amount: totalGiftCardValue,
+          amount_type: 'fixed',
+          discount_amount: actualDiscount,
+          type: 'gift_card',
+          quantity: quantity,
+          available_amount: totalGiftCardValue,
+          applied_amount: actualDiscount,
         });
       }
 

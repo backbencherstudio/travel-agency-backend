@@ -59,6 +59,7 @@ export class PageService extends PrismaClient {
         where: {
           status: 1,
           type: 'package',
+          rejected_at: null,
         },
         take: 3,
         select: {
@@ -215,6 +216,7 @@ export class PageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              username: true,
               avatar: true,
             }
           }
@@ -255,6 +257,7 @@ export class PageService extends PrismaClient {
             select: {
               id: true,
               name: true,
+              username: true,
               avatar: true,
             },
           },

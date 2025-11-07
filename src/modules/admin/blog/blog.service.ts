@@ -149,6 +149,7 @@ export class BlogService extends PrismaClient {
                 id: true,
                 name: true,
                 type: true,
+                avatar: true,
               },
             },
           },
@@ -163,6 +164,13 @@ export class BlogService extends PrismaClient {
         for (const image of blog.blog_images) {
           image['image_url'] = SojebStorage.url(appConfig().storageUrl.blog + image.image);
         }
+      }
+
+      // add user avatar
+      for (const blog of blogs) {
+        blog.user['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + blog.user.avatar,
+        );
       }
 
       const totalPages = Math.ceil(total / limit);
@@ -212,6 +220,7 @@ export class BlogService extends PrismaClient {
               id: true,
               name: true,
               type: true,
+              avatar: true,
             },
           },
         },
@@ -232,6 +241,11 @@ export class BlogService extends PrismaClient {
           );
         }
       }
+
+      // add user avatar
+      blog.user['avatar_url'] = SojebStorage.url(
+        appConfig().storageUrl.avatar + blog.user.avatar,
+      );
 
       return {
         success: true,
