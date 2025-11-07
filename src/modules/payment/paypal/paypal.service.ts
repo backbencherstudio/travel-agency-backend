@@ -390,6 +390,9 @@ export class PayPalService {
                         updated_at: new Date()
                     }
                 });
+
+                // Consume gift cards after successful payment
+                await this.consumeGiftCardsAfterPayment(transaction.booking.id);
             }
         } catch (error) {
             console.error('Error handling payment completed webhook:', error);
@@ -491,6 +494,52 @@ export class PayPalService {
         } catch (error) {
             console.error('Webhook signature verification failed:', error);
             return false;
+        }
+    }
+
+    /**
+     * Consume/delete gift card purchases after successful payment
+     */
+    private async consumeGiftCardsAfterPayment(bookingId: string) {
+        try {
+            // Get all gift cards used in this booking
+            const bookingGiftCards = await this.prisma.bookingGiftCard.findMany({
+                where: {
+                    booking_id: bookingId,
+                    deleted_at: null
+                },
+                include: {
+                    gift_card_purchase: true
+                }
+            });
+
+            // Mark gift card purchases as consumed/deleted
+            for (const bookingGiftCard of bookingGiftCards) {
+                if (bookingGiftCard.gift_card_purchase) {
+                    await this.prisma.giftCardPurchase.update({
+                        where: { id: bookingGiftCard.gift_card_purchase.id },
+                        data: {
+                            deleted_at: new Date(),
+                            status: 0, // Mark as inactive/consumed
+                        }
+                    });
+
+                    // Also mark the gift card itself as consumed
+                    await this.prisma.giftCard.update({
+                        where: { id: bookingGiftCard.gift_card_purchase.gift_card_id },
+                        data: {
+                            deleted_at: new Date(),
+                            status: 0, // Mark as inactive/consumed
+                        }
+                    });
+                }
+            }
+
+            console.log(`Successfully consumed ${bookingGiftCards.length} gift card(s) for booking ${bookingId}`);
+        } catch (error) {
+            console.error('Error consuming gift cards after payment:', error);
+            // Don't throw error here as the booking is already created and payment is successful
+            // Just log the error for debugging
         }
     }
 }
