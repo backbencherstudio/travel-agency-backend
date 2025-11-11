@@ -42,6 +42,8 @@ async function bootstrap() {
     credentials: true,
   });
 
+
+
   // Configure helmet with relaxed settings for file serving
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin resource sharing
