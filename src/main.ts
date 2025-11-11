@@ -34,6 +34,7 @@ async function bootstrap() {
       'http://localhost:5173',
       'https://travel-agency-client-roan.vercel.app',
       'https://nirob.signalsmind.com',
+      'https://wepaser.com',
       process.env.CLIENT_APP_URL || 'http://localhost:5173'
     ], // Allow your frontend URL or all origins in development
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
