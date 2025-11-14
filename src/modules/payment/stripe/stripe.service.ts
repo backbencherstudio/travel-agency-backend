@@ -8,14 +8,14 @@ export class StripeService {
   }
 
   /**
-   * Create payment intent for any payment method type
+   * Create payment intent (Stripe only)
    */
   async createPaymentIntentForMethod(params: {
     amount: number;
     currency: string;
     customer_id: string;
     metadata?: any;
-    paymentMethodType: 'stripe' | 'google_pay' | 'apple_pay';
+    paymentMethodType: 'stripe';
   }) {
     console.log('StripeService.createPaymentIntentForMethod called with:', params);
     try {
@@ -40,36 +40,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * @deprecated Use createPaymentIntentForMethod with paymentMethodType: 'google_pay'
-   */
-  async createGooglePayPaymentIntent(params: {
-    amount: number;
-    currency: string;
-    customer_id: string;
-    metadata?: any;
-  }) {
-    return this.createPaymentIntentForMethod({
-      ...params,
-      paymentMethodType: 'google_pay',
-    });
-  }
-
-  /**
-   * @deprecated Use createPaymentIntentForMethod with paymentMethodType: 'apple_pay'
-   */
-  async createApplePayPaymentIntent(params: {
-    amount: number;
-    currency: string;
-    customer_id: string;
-    metadata?: any;
-  }) {
-    return this.createPaymentIntentForMethod({
-      ...params,
-      paymentMethodType: 'apple_pay',
-    });
-  }
-
 
 
   /**
@@ -83,9 +53,6 @@ export class StripeService {
     return StripePayment.createCustomer(params);
   }
 
-  /**
-   * @deprecated Use createPaymentIntentForMethod with paymentMethodType: 'stripe'
-   */
   async createPaymentIntent(params: {
     amount: number;
     currency: string;

@@ -32,13 +32,13 @@ export class PurchaseGiftCardDto {
         description: 'Payment method details',
         type: 'object',
         properties: {
-            type: { type: 'string', enum: ['stripe', 'paypal', 'google_pay', 'apple_pay'] },
+            type: { type: 'string', enum: ['stripe'] },
             data: { type: 'object', additionalProperties: true }
         }
     })
     @IsNotEmpty()
     payment_method: {
-        type: 'stripe' | 'paypal' | 'google_pay' | 'apple_pay';
+        type: 'stripe';
         data: any;
     };
 }

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simple Booking Test</title>
     <script src="https://js.stripe.com/v3/"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=AT6CeihhGTOXZboF0RiF-StDE83iZp5VxExAfiVNbzWSkjVQJ5gLtAnXfehv8Nmx82wL1aDgZh1YclAQ&currency=USD"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -156,7 +155,6 @@
         <option value="GBP">GBP - British Pound</option>
         <option value="CAD">CAD - Canadian Dollar</option>
       </select>
-      <small style="color: #666">PayPal currently supports USD only</small>
     </div>
 
     <div class="form-group">
@@ -170,12 +168,11 @@
     <div class="form-group">
       <label for="paymentMethod">Payment Method:</label>
       <select id="paymentMethod" class="form-control">
-        <option value="stripe">Credit Card (Stripe)</option>
-        <option value="paypal">PayPal</option>
-        <option value="google_pay">Google Pay</option>
-        <option value="apple_pay">Apple Pay</option>
+        <option value="stripe" selected>Credit Card (Stripe)</option>
       </select>
-      <div id="paymentMethodInfo" class="mt-2 text-muted small"></div>
+      <div id="paymentMethodInfo" class="mt-2 text-muted small">
+        💳 Credit/Debit Card payment via Stripe
+      </div>
     </div>
 
     <button onclick="createBooking()" style="background: #007bff">
@@ -215,22 +212,6 @@
         <div id="card-errors"></div>
       </div>
 
-      <!-- Google Pay / Apple Pay -->
-      <div id="prb-payment-group" class="form-group" style="display: none">
-        <label>Google Pay / Apple Pay:</label>
-        <div id="payment-request-button"></div>
-        <div
-          id="prb-errors"
-          style="color: #dc3545; font-size: 14px; margin-top: 5px"
-        ></div>
-      </div>
-
-      <!-- PayPal -->
-      <div id="paypal-payment-group" class="form-group" style="display: none">
-        <label>PayPal:</label>
-        <div id="paypal-button-container"></div>
-      </div>
-
       <button
         id="completePaymentBtn"
         onclick="completePayment()"
@@ -254,11 +235,10 @@
       // Global variables
       let currentClientSecret = null;
       let currentBookingId = null;
-      let currentPaymentMethod = null;
+      let currentPaymentMethod = 'stripe';
       let currentPaymentIntentId = null;
       let stripe = null;
       let cardElement = null;
-      let paymentRequestButton = null;
 
       // Stripe configuration
       const STRIPE_PUBLISHABLE_KEY =
@@ -300,171 +280,36 @@
 
       // Update payment method info
       function updatePaymentInfo() {
-        const paymentMethod = document.getElementById('paymentMethod').value;
         const infoDiv = document.getElementById('paymentMethodInfo');
-
         if (infoDiv) {
-          switch (paymentMethod) {
-            case 'stripe':
-              infoDiv.innerHTML = '💳 Credit/Debit Card payment via Stripe';
-              break;
-            case 'paypal':
-              infoDiv.innerHTML =
-                '💙 PayPal payment with automatic webhook handling';
-              break;
-            case 'google_pay':
-              infoDiv.innerHTML = '📱 Google Pay via Stripe';
-              break;
-            case 'apple_pay':
-              infoDiv.innerHTML = '🍎 Apple Pay via Stripe';
-              break;
-            default:
-              infoDiv.innerHTML = 'Select a payment method';
-          }
+          infoDiv.innerHTML = '💳 Credit/Debit Card payment via Stripe';
         }
       }
 
-      // Initialize payment UI based on selected method
+      // Initialize payment UI (Stripe only)
       function initializePaymentUI() {
-        const paymentMethod = document.getElementById('paymentMethod').value;
-        currentPaymentMethod = paymentMethod;
+        currentPaymentMethod = 'stripe';
 
         // Debug logging
-        console.log(
-          'Debug: initializePaymentUI called with paymentMethod:',
-          paymentMethod,
-        );
+        console.log('Debug: initializePaymentUI called for Stripe payment');
         console.log('Debug: currentClientSecret:', currentClientSecret);
         console.log('Debug: currentPaymentIntentId:', currentPaymentIntentId);
 
-        // Hide all payment groups initially
-        document.getElementById('card-payment-group').style.display = 'none';
-        document.getElementById('prb-payment-group').style.display = 'none';
-        document.getElementById('paypal-payment-group').style.display = 'none';
-        document.getElementById('completePaymentBtn').style.display = 'none';
+        // Show card payment group and complete button
+        document.getElementById('card-payment-group').style.display = 'block';
+        document.getElementById('completePaymentBtn').style.display = 'block';
 
-        switch (paymentMethod) {
-          case 'stripe':
-            document.getElementById('card-payment-group').style.display =
-              'block';
-            document.getElementById('completePaymentBtn').style.display =
-              'block';
-            // Ensure we have the client secret for Stripe payments
-            if (!currentClientSecret) {
-              console.error(
-                'Debug: No client secret available for Stripe payment',
-              );
-              document.getElementById('card-errors').textContent =
-                'Payment not initialized. Please try creating the booking again.';
-            } else {
-              document.getElementById('card-errors').textContent = '';
-            }
-            initializeStripeElements();
-            break;
-          case 'google_pay':
-          case 'apple_pay':
-            document.getElementById('prb-payment-group').style.display =
-              'block';
-            document.getElementById('completePaymentBtn').style.display =
-              'block';
-            initializePaymentRequestButton(paymentMethod);
-            break;
-          case 'paypal':
-            document.getElementById('paypal-payment-group').style.display =
-              'block';
-            initializePayPalPayment();
-            break;
+        // Ensure we have the client secret for Stripe payments
+        if (!currentClientSecret) {
+          console.error('Debug: No client secret available for Stripe payment');
+          document.getElementById('card-errors').textContent =
+            'Payment not initialized. Please try creating the booking again.';
+        } else {
+          document.getElementById('card-errors').textContent = '';
         }
 
+        initializeStripeElements();
         updatePaymentInfo();
-      }
-
-      // Initialize Google Pay / Apple Pay
-      function initializePaymentRequestButton(paymentMethod) {
-        if (!stripe) {
-          stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
-        }
-
-        const elements = stripe.elements();
-        const testAmount = parseFloat(
-          document.getElementById('testAmount').value,
-        );
-
-        const paymentRequest = stripe.paymentRequest({
-          country: 'US',
-          currency: 'usd',
-          total: {
-            label: 'Booking Payment',
-            amount: Math.round(testAmount * 100),
-          },
-          requestPayerName: true,
-          requestPayerEmail: true,
-          requestPayerPhone: false,
-          requestShipping: false,
-          disableWallets: [],
-        });
-
-        paymentRequestButton = elements.create('paymentRequestButton', {
-          paymentRequest,
-        });
-
-        paymentRequest.canMakePayment().then(function (result) {
-          if (result) {
-            paymentRequestButton.mount('#payment-request-button');
-          } else {
-            const errorMsg = `${paymentMethod === 'google_pay' ? 'Google Pay' : 'Apple Pay'} is not available on this device/browser.`;
-            document.getElementById('prb-errors').textContent = errorMsg;
-          }
-        });
-
-        paymentRequest.on('paymentmethod', async (ev) => {
-          const { error, paymentIntent } = await stripe.confirmPayment({
-            clientSecret: currentClientSecret,
-            paymentMethod: ev.paymentMethod.id,
-            return_url: window.location.href,
-          });
-
-          if (error) {
-            ev.complete('fail');
-            document.getElementById('prb-errors').textContent = error.message;
-          } else {
-            ev.complete('success');
-            currentPaymentIntentId = paymentIntent.id;
-            showPaymentSuccess(paymentIntent, paymentMethod);
-          }
-        });
-      }
-
-      // Initialize PayPal
-      function initializePayPalPayment() {
-        if (currentBookingId) {
-          paypal
-            .Buttons({
-              createOrder: function (data, actions) {
-                return actions.order.create({
-                  purchase_units: [
-                    {
-                      amount: {
-                        value: document.getElementById('testAmount').value,
-                      },
-                    },
-                  ],
-                });
-              },
-              onApprove: function (data, actions) {
-                return actions.order.capture().then(function (details) {
-                  showPaymentSuccess(details, 'paypal');
-                });
-              },
-              onError: function (err) {
-                document.getElementById('paymentResult').className =
-                  'result error';
-                document.getElementById('paymentResult').innerHTML =
-                  `<h4>❌ PayPal Payment Error</h4><p><strong>Error:</strong> ${err.message}</p>`;
-              },
-            })
-            .render('#paypal-button-container');
-        }
       }
 
       // Show payment success
@@ -481,12 +326,8 @@
         `;
       }
 
-      // Complete payment
+      // Complete payment (Stripe only)
       async function completePayment() {
-        if (currentPaymentMethod === 'paypal') {
-          return; // PayPal handles its own flow
-        }
-
         if (!stripe || !cardElement) {
           alert('Stripe not initialized. Please try again.');
           return;
@@ -521,7 +362,7 @@
           if (result.error) {
             alert(`Payment failed: ${result.error.message}`);
           } else {
-            showPaymentSuccess(result.paymentIntent, currentPaymentMethod);
+            showPaymentSuccess(result.paymentIntent, 'stripe');
           }
         } catch (error) {
           alert(`Payment error: ${error.message}`);
@@ -536,7 +377,6 @@
         const authToken = document.getElementById('authToken').value;
         const checkoutId = document.getElementById('checkoutId').value;
         const bookingType = document.getElementById('bookingType').value;
-        const paymentMethod = document.getElementById('paymentMethod').value;
         const testAmount = parseFloat(
           document.getElementById('testAmount').value,
         );
@@ -555,7 +395,7 @@
         }
 
         resultDiv.className = 'result loading';
-        resultDiv.textContent = `Creating booking with ${paymentMethod}...`;
+        resultDiv.textContent = `Creating booking with Stripe...`;
 
         try {
           const requestBody = {
@@ -565,7 +405,7 @@
 
           if (bookingType === 'book') {
             requestBody.payment_method = {
-              type: paymentMethod,
+              type: 'stripe',
               data: {
                 amount: testAmount,
                 currency: 'usd',
@@ -597,7 +437,7 @@
             `;
 
             currentBookingId = result.data.booking_id;
-            currentPaymentMethod = result.data.payment_method || paymentMethod;
+            currentPaymentMethod = 'stripe';
 
             // Extract client_secret for Stripe payments
             if (result.data.client_secret) {
@@ -675,9 +515,6 @@
       }
 
       // Event listeners
-      document
-        .getElementById('paymentMethod')
-        .addEventListener('change', initializePaymentUI);
       document.addEventListener('DOMContentLoaded', function () {
         updatePaymentInfo();
         useTestCheckout();

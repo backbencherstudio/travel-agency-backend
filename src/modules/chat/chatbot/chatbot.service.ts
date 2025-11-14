@@ -73,7 +73,7 @@ export class ChatbotService {
         }
 
         // Payment patterns
-        if (this.matchesPattern(message, ['payment', 'pay', 'credit card', 'debit card', 'google pay', 'apple pay', 'paypal', 'refund'])) {
+        if (this.matchesPattern(message, ['payment', 'pay', 'credit card', 'debit card', 'refund'])) {
             return 'payment_question';
         }
 
@@ -201,12 +201,10 @@ export class ChatbotService {
 
     private handlePaymentQuestion(): ChatbotResponse {
         return {
-            message: `💳 Payment Information:\n\nWe accept multiple payment methods:\n\n• 💳 Credit/Debit Cards (Visa, MasterCard, Amex)\n• 📱 Google Pay\n• 🍎 Apple Pay\n• 💙 PayPal\n\nAll payments are processed securely through Stripe.\n\nNeed help with a specific payment method?`,
+            message: `💳 Payment Information:\n\nWe accept:\n\n• 💳 Credit/Debit Cards (Visa, MasterCard, Amex)\n\nAll payments are processed securely through Stripe.\n\nNeed help with the payment process?`,
             type: 'quick_replies',
             quickReplies: [
                 'Credit/Debit Card',
-                'Google Pay/Apple Pay',
-                'PayPal',
                 'Refund policy',
                 'Payment security'
             ]
@@ -500,5 +498,5 @@ export class ChatbotService {
         );
     }
 
-    
+
 } 

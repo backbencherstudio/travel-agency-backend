@@ -266,9 +266,7 @@ export class GiftCardService {
                         payment_status: 'pending',
                         paid_amount: totalAmount,
                         paid_currency: existingGiftCard.currency,
-                        payment_provider: purchaseDto.payment_method.type === 'stripe' ||
-                            purchaseDto.payment_method.type === 'google_pay' ||
-                            purchaseDto.payment_method.type === 'apple_pay' ? 'stripe' : 'paypal',
+                        payment_provider: 'stripe',
                     }
                 });
 
@@ -302,9 +300,7 @@ export class GiftCardService {
                     data: {
                         user_id: userId,
                         gift_card_purchase_id: giftCardPurchase.id,
-                        provider: purchaseDto.payment_method.type === 'stripe' ||
-                            purchaseDto.payment_method.type === 'google_pay' ||
-                            purchaseDto.payment_method.type === 'apple_pay' ? 'stripe' : 'paypal',
+                        provider: 'stripe',
                         reference_number: paymentResult.payment_reference,
                         status: 'succeeded',
                         raw_status: 'succeeded',

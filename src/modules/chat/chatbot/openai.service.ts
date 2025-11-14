@@ -122,11 +122,11 @@ export class OpenAIService {
 
         if (lowerPrompt.includes('payment') || lowerPrompt.includes('pay')) {
             return JSON.stringify({
-                message: "💳 Payment Information: We accept multiple payment methods including Credit/Debit Cards, Google Pay, Apple Pay, and PayPal. All payments are processed securely through Stripe. What specific payment method would you like to know more about?",
+                message: "💳 Payment Information: We accept Credit/Debit Cards (Visa, MasterCard, Amex). All payments are processed securely through Stripe. What would you like to know more about?",
                 confidence: 0.88,
                 intent: "payment_question",
                 entities: [],
-                quickReplies: ["Credit/Debit Card", "Google Pay/Apple Pay", "PayPal", "Payment security", "Refund policy"]
+                quickReplies: ["Credit/Debit Card", "Payment security", "Refund policy"]
             });
         }
 

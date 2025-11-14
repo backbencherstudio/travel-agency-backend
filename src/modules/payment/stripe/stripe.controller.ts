@@ -16,7 +16,7 @@ export class StripeController {
   ) { }
 
   @Post('create-payment-intent')
-  @ApiOperation({ summary: 'Create payment intent for any payment method' })
+  @ApiOperation({ summary: 'Create payment intent (Stripe only)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -24,12 +24,7 @@ export class StripeController {
         amount: { type: 'number', description: 'Amount in dollars' },
         currency: { type: 'string', default: 'usd' },
         customer_id: { type: 'string' },
-        payment_method_type: {
-          type: 'string',
-          enum: ['stripe', 'google_pay', 'apple_pay'],
-          default: 'stripe',
-          description: 'Payment method type'
-        },
+        payment_method_type: { type: 'string', enum: ['stripe'], default: 'stripe', description: 'Payment method type' },
         metadata: { type: 'object', additionalProperties: true },
       },
       required: ['amount', 'customer_id'],
@@ -39,7 +34,7 @@ export class StripeController {
     amount: number;
     currency?: string;
     customer_id: string;
-    payment_method_type?: 'stripe' | 'google_pay' | 'apple_pay';
+    payment_method_type?: 'stripe';
     metadata?: any;
   }) {
     try {
@@ -47,7 +42,7 @@ export class StripeController {
         amount: body.amount,
         currency: body.currency || 'usd',
         customer_id: body.customer_id,
-        paymentMethodType: body.payment_method_type || 'stripe',
+        paymentMethodType: 'stripe',
         metadata: body.metadata,
       });
 
@@ -65,43 +60,6 @@ export class StripeController {
         message: error.message,
       };
     }
-  }
-
-  // Deprecated endpoints for backward compatibility
-  @Post('create-google-pay-intent')
-  @ApiOperation({
-    summary: 'Create payment intent for Google Pay',
-    deprecated: true,
-    description: 'Use /create-payment-intent with payment_method_type: "google_pay"'
-  })
-  async createGooglePayIntent(@Body() body: {
-    amount: number;
-    currency?: string;
-    customer_id: string;
-    metadata?: any;
-  }) {
-    return this.createPaymentIntent({
-      ...body,
-      payment_method_type: 'google_pay',
-    });
-  }
-
-  @Post('create-apple-pay-intent')
-  @ApiOperation({
-    summary: 'Create payment intent for Apple Pay',
-    deprecated: true,
-    description: 'Use /create-payment-intent with payment_method_type: "apple_pay"'
-  })
-  async createApplePayIntent(@Body() body: {
-    amount: number;
-    currency?: string;
-    customer_id: string;
-    metadata?: any;
-  }) {
-    return this.createPaymentIntent({
-      ...body,
-      payment_method_type: 'apple_pay',
-    });
   }
 
 

@@ -3,9 +3,6 @@ import { IsString, IsNumber, IsEnum } from 'class-validator';
 
 export enum PaymentMethodType {
     STRIPE = 'stripe',
-    PAYPAL = 'paypal',
-    GOOGLE_PAY = 'google_pay',
-    APPLE_PAY = 'apple_pay',
 }
 
 export class PaymentDataDto {

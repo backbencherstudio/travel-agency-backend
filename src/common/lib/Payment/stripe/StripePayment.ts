@@ -159,7 +159,7 @@ export class StripePayment {
     currency: string;
     customer_id: string;
     metadata?: stripe.MetadataParam;
-    paymentMethodType?: 'stripe' | 'google_pay' | 'apple_pay';
+    paymentMethodType?: 'stripe';
   }): Promise<stripe.PaymentIntent> {
     console.log(`Creating ${paymentMethodType} payment intent:`, {
       amount,
@@ -176,8 +176,8 @@ export class StripePayment {
       console.warn('Could not get account info:', error.message);
     }
 
-    // Configure payment method options based on type
-    const paymentConfig = this.getPaymentConfiguration(paymentMethodType);
+    // Configure payment method options (Stripe only)
+    const paymentConfig = this.getPaymentConfiguration();
 
     const stripeParams: stripe.PaymentIntentCreateParams = {
       amount: amount * 100, // amount in cents
@@ -219,66 +219,16 @@ export class StripePayment {
   }
 
   /**
-   * Get payment configuration for different payment method types
+   * Get payment configuration (Stripe only)
    */
-  private static getPaymentConfiguration(paymentMethodType: string) {
-    switch (paymentMethodType) {
-      case 'google_pay':
-      case 'apple_pay':
-        // For digital wallets, we need to create a payment intent that can accept
-        // the payment method data from the frontend Payment Request API
-        return {
-          payment_method_types: ['card'],
-          options: {
-            payment_method_options: {
-              card: {
-                request_three_d_secure: 'automatic' as stripe.PaymentIntentCreateParams.PaymentMethodOptions.Card.RequestThreeDSecure,
-              },
-            },
-            capture_method: 'automatic' as stripe.PaymentIntentCreateParams.CaptureMethod,
-            confirmation_method: 'manual' as stripe.PaymentIntentCreateParams.ConfirmationMethod,
-          },
-        };
-      case 'stripe':
-      default:
-        return {
-          payment_method_types: ['card'],
-          options: {
-            capture_method: 'automatic' as stripe.PaymentIntentCreateParams.CaptureMethod,
-            confirmation_method: 'automatic' as stripe.PaymentIntentCreateParams.ConfirmationMethod,
-          },
-        };
-    }
-  }
-
-  /**
-   * @deprecated Use createPaymentIntent with paymentMethodType: 'google_pay'
-   */
-  static async createGooglePayPaymentIntent(params: {
-    amount: number;
-    currency: string;
-    customer_id: string;
-    metadata?: stripe.MetadataParam;
-  }): Promise<stripe.PaymentIntent> {
-    return this.createPaymentIntent({
-      ...params,
-      paymentMethodType: 'google_pay',
-    });
-  }
-
-  /**
-   * @deprecated Use createPaymentIntent with paymentMethodType: 'apple_pay'
-   */
-  static async createApplePayPaymentIntent(params: {
-    amount: number;
-    currency: string;
-    customer_id: string;
-    metadata?: stripe.MetadataParam;
-  }): Promise<stripe.PaymentIntent> {
-    return this.createPaymentIntent({
-      ...params,
-      paymentMethodType: 'apple_pay',
-    });
+  private static getPaymentConfiguration() {
+    return {
+      payment_method_types: ['card'],
+      options: {
+        capture_method: 'automatic' as stripe.PaymentIntentCreateParams.CaptureMethod,
+        confirmation_method: 'automatic' as stripe.PaymentIntentCreateParams.ConfirmationMethod,
+      },
+    };
   }
 
 

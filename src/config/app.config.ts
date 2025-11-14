@@ -53,11 +53,6 @@ export default () => ({
       secret_key: process.env.STRIPE_SECRET_KEY,
       webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
     },
-    paypal: {
-      client_id: process.env.PAYPAL_CLIENT_ID,
-      client_secret: process.env.PAYPAL_CLIENT_SECRET,
-      sandbox: process.env.PAYPAL_SANDBOX === 'true',
-    },
   },
 
   openai: {
