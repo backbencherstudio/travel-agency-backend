@@ -3,12 +3,17 @@ import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment'
 
 @Injectable()
 export class StripeService {
+  /**
+   * Handle Stripe webhook events
+   * Verifies webhook signature and returns event object
+   */
   async handleWebhook(rawBody: string, sig: string | string[]) {
     return StripePayment.handleWebhook(rawBody, sig);
   }
 
   /**
-   * Create payment intent (Stripe only)
+   * Create payment intent for Stripe payment
+   * This is the main method for creating payment intents
    */
   async createPaymentIntentForMethod(params: {
     amount: number;
@@ -40,10 +45,9 @@ export class StripeService {
     }
   }
 
-
-
   /**
    * Create Stripe customer
+   * Creates a new customer in Stripe or returns existing customer
    */
   async createCustomer(params: {
     user_id: string;
@@ -53,6 +57,10 @@ export class StripeService {
     return StripePayment.createCustomer(params);
   }
 
+  /**
+   * Create payment intent (legacy method)
+   * @deprecated Use createPaymentIntentForMethod instead
+   */
   async createPaymentIntent(params: {
     amount: number;
     currency: string;
@@ -67,11 +75,20 @@ export class StripeService {
 
   /**
    * Create refund for a payment intent
+   * Can refund full or partial amount
    */
   async createRefund(params: {
     payment_intent_id: string;
     amount?: number;
   }) {
     return StripePayment.createRefund(params);
+  }
+
+  /**
+   * Get payment intent by ID from Stripe
+   * Useful for manual status verification
+   */
+  async getPaymentIntent(payment_intent_id: string) {
+    return StripePayment.getPaymentIntent(payment_intent_id);
   }
 }

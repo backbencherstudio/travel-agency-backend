@@ -13,6 +13,7 @@ import appConfig from '../../config/app.config';
 import { SojebStorage } from '../../common/lib/Disk/SojebStorage';
 import { DateHelper } from '../../common/helper/date.helper';
 import { StripePayment } from 'src/common/lib/Payment/stripe/StripePayment';
+import { StripeConnect } from '../../common/lib/Payment/stripe/StripeConnect';
 
 @Injectable()
 export class AuthService extends PrismaClient {
@@ -100,6 +101,26 @@ export class AuthService extends PrismaClient {
       }
 
       if (status == 1) {
+        // Create Stripe Connect account for vendor if it doesn't exist
+        let stripeConnectAccountId = user.stripe_connect_account_id;
+
+        if (!stripeConnectAccountId && user.email) {
+          try {
+            const connectAccount = await StripeConnect.createConnectAccount({
+              email: user.email,
+              country: 'US', // Default country, can be made configurable later
+              type: 'express',
+            });
+            stripeConnectAccountId = connectAccount.id;
+          } catch (error) {
+            // Log error but don't fail vendor approval
+            console.error(
+              `Failed to create Stripe Connect account for vendor ${user_id}:`,
+              error.message,
+            );
+          }
+        }
+
         await this.prisma.user.update({
           where: {
             id: user_id,
@@ -107,6 +128,9 @@ export class AuthService extends PrismaClient {
           data: {
             type: 'vendor',
             approved_at: new Date(),
+            ...(stripeConnectAccountId && {
+              stripe_connect_account_id: stripeConnectAccountId,
+            }),
           },
         });
       } else {

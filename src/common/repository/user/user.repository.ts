@@ -4,6 +4,7 @@ import appConfig from '../../../config/app.config';
 import { ArrayHelper } from '../../helper/array.helper';
 import { Role } from '../../guard/role/role.enum';
 import { DateHelper } from '../../helper/date.helper';
+import { StripeConnect } from '../../lib/Payment/stripe/StripeConnect';
 
 const prisma = new PrismaClient();
 
@@ -253,6 +254,32 @@ export class UserRepository {
       });
 
       if (user) {
+        // Create Stripe Connect account for vendor if type is VENDOR
+        if (type == Role.VENDOR && email) {
+          try {
+            const connectAccount = await StripeConnect.createConnectAccount({
+              email: email,
+              country: 'US', // Default country, can be made configurable later
+              type: 'express',
+            });
+
+            // Update user with Stripe Connect account ID
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { stripe_connect_account_id: connectAccount.id },
+            });
+
+            // Update user object for return value
+            user.stripe_connect_account_id = connectAccount.id;
+          } catch (error) {
+            // Log error but don't fail user creation
+            console.error(
+              `Failed to create Stripe Connect account for vendor ${user.id}:`,
+              error.message,
+            );
+          }
+        }
+
         if (role_id) {
           // attach role
           await this.attachRole({

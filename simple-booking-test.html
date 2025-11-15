@@ -184,6 +184,12 @@
     >
       Check Payment Status
     </button>
+    <button
+      onclick="checkEscrowStatus()"
+      style="background: #6f42c1; margin-left: 10px"
+    >
+      Check Escrow Status
+    </button>
 
     <div class="test-cards">
       <h4>🧪 Test Cards for Stripe:</h4>
@@ -228,6 +234,29 @@
           booking status:
         </p>
         <div id="webhookResult" style="margin-top: 10px"></div>
+      </div>
+    </div>
+
+    <!-- Escrow Section -->
+    <div id="escrowSection" style="display: none; margin-top: 30px">
+      <hr style="margin: 30px 0" />
+      <h2>🔒 Escrow System</h2>
+
+      <div class="webhook-status" style="margin-top: 20px">
+        <h4>💰 Escrow Status</h4>
+        <div id="escrowStatusResult" style="margin-top: 10px"></div>
+      </div>
+
+      <div style="margin-top: 20px">
+        <h4>✅ Tour Completion</h4>
+        <p>After the tour is completed, confirm it to trigger payout:</p>
+        <button
+          onclick="confirmTourCompletion()"
+          style="background: #28a745; margin-top: 10px"
+        >
+          Confirm Tour Completion
+        </button>
+        <div id="confirmResult" style="margin-top: 10px"></div>
       </div>
     </div>
 
@@ -363,6 +392,15 @@
             alert(`Payment failed: ${result.error.message}`);
           } else {
             showPaymentSuccess(result.paymentIntent, 'stripe');
+            // Show escrow section after successful payment
+            document.getElementById('escrowSection').style.display = 'block';
+            document
+              .getElementById('escrowSection')
+              .scrollIntoView({ behavior: 'smooth' });
+            // Auto-check escrow status
+            setTimeout(() => {
+              checkEscrowStatus();
+            }, 2000);
           }
         } catch (error) {
           alert(`Payment error: ${error.message}`);
@@ -450,6 +488,11 @@
               paymentSection.scrollIntoView({ behavior: 'smooth' });
               initializePaymentUI();
             }
+
+            // Show escrow section if payment succeeded
+            if (result.data.payment_status === 'succeeded') {
+              document.getElementById('escrowSection').style.display = 'block';
+            }
           } else {
             resultDiv.className = 'result error';
             resultDiv.innerHTML = `<h4>❌ Booking Failed</h4><p><strong>Error:</strong> ${result.message}</p>`;
@@ -489,14 +532,28 @@
           if (result.success) {
             const booking = result.data;
             webhookResultDiv.className = 'result success';
+
+            // Show escrow section if payment succeeded
+            if (booking.payment_status === 'succeeded') {
+              document.getElementById('escrowSection').style.display = 'block';
+            }
+
             webhookResultDiv.innerHTML = `
               <h4>📊 Current Booking Status</h4>
               <p><strong>Booking ID:</strong> ${booking.id}</p>
+              <p><strong>Status:</strong> ${booking.status || 'N/A'}</p>
               <p><strong>Payment Status:</strong> ${booking.payment_status}</p>
+              <p><strong>Escrow Status:</strong> ${booking.escrow_status || 'pending'}</p>
               <p><strong>Final Price:</strong> $${booking.final_price}</p>
               <p><strong>Paid Amount:</strong> $${booking.paid_amount || 'N/A'}</p>
+              <p><strong>Payout Schedule:</strong> ${booking.payout_schedule || 'event_based'}</p>
+              ${booking.completed_at ? `<p><strong>Completed At:</strong> ${new Date(booking.completed_at).toLocaleString()}</p>` : ''}
+              ${booking.client_confirmed_at ? `<p><strong>Client Confirmed At:</strong> ${new Date(booking.client_confirmed_at).toLocaleString()}</p>` : ''}
               <p><strong>Last Updated:</strong> ${new Date(booking.updated_at).toLocaleString()}</p>
-              ${booking.payment_status === 'succeeded' ? '<div style="background: #d4edda; padding: 8px; margin-top: 8px; border-radius: 4px;">✅ Webhook processed successfully!</div>' : '<div style="background: #fff3cd; padding: 8px; margin-top: 8px; border-radius: 4px;">⏳ Waiting for webhook processing...</div>'}
+              ${booking.payment_status === 'succeeded' ? '<div style="background: #d4edda; padding: 8px; margin-top: 8px; border-radius: 4px;">✅ Payment succeeded! Funds held in escrow.</div>' : '<div style="background: #fff3cd; padding: 8px; margin-top: 8px; border-radius: 4px;">⏳ Waiting for payment...</div>'}
+              ${booking.escrow_status === 'held' ? '<div style="background: #d1ecf1; padding: 8px; margin-top: 8px; border-radius: 4px;">🔒 Funds held in escrow. Waiting for tour completion.</div>' : ''}
+              ${booking.escrow_status === 'released_full' ? '<div style="background: #d4edda; padding: 8px; margin-top: 8px; border-radius: 4px;">✅ Funds released to vendor (80%) + Commission (20%)</div>' : ''}
+              ${booking.escrow_status === 'released_partial' ? '<div style="background: #fff3cd; padding: 8px; margin-top: 8px; border-radius: 4px;">💰 Partial release completed. Waiting for final release.</div>' : ''}
             `;
           } else {
             webhookResultDiv.className = 'result error';
@@ -505,6 +562,170 @@
         } catch (error) {
           webhookResultDiv.className = 'result error';
           webhookResultDiv.textContent = `Error checking status: ${error.message}`;
+        }
+      }
+
+      // Check escrow status
+      async function checkEscrowStatus() {
+        const escrowResultDiv = document.getElementById('escrowStatusResult');
+        const apiUrl = document.getElementById('apiUrl').value;
+        const authToken = document.getElementById('authToken').value;
+
+        if (!currentBookingId) {
+          escrowResultDiv.className = 'result error';
+          escrowResultDiv.textContent =
+            'No booking ID available. Create a booking first.';
+          return;
+        }
+
+        escrowResultDiv.className = 'result loading';
+        escrowResultDiv.textContent = 'Checking escrow status...';
+
+        try {
+          // First check booking status to get escrow info
+          const response = await fetch(
+            `${apiUrl}/api/booking/${currentBookingId}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          const result = await response.json();
+
+          if (result.success) {
+            const booking = result.data;
+            escrowResultDiv.className = 'result success';
+
+            const escrowStatus = booking.escrow_status || 'pending';
+            const paidAmount = parseFloat(booking.paid_amount || 0);
+            const commissionAmount = paidAmount * 0.2; // 20%
+            const vendorAmount = paidAmount * 0.8; // 80%
+
+            let statusMessage = '';
+            let statusColor = '#fff3cd';
+
+            switch (escrowStatus) {
+              case 'pending':
+                statusMessage = '⏳ Payment pending - Funds not yet in escrow';
+                break;
+              case 'held':
+                statusMessage =
+                  '🔒 Funds held in escrow - Waiting for tour completion';
+                statusColor = '#d1ecf1';
+                break;
+              case 'released_partial':
+                statusMessage =
+                  '💰 Partial release completed (50% released 30 days before trip)';
+                statusColor = '#fff3cd';
+                break;
+              case 'released_full':
+                statusMessage = '✅ Funds fully released to vendor';
+                statusColor = '#d4edda';
+                break;
+              case 'refunded':
+                statusMessage = '↩️ Funds refunded to client';
+                statusColor = '#f8d7da';
+                break;
+              default:
+                statusMessage = `📊 Escrow status: ${escrowStatus}`;
+            }
+
+            escrowResultDiv.innerHTML = `
+              <h4>🔒 Escrow Details</h4>
+              <p><strong>Escrow Status:</strong> ${escrowStatus}</p>
+              <div style="background: ${statusColor}; padding: 10px; margin-top: 8px; border-radius: 4px;">
+                ${statusMessage}
+              </div>
+              ${
+                paidAmount > 0
+                  ? `
+                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                  <h5>💰 Payment Breakdown:</h5>
+                  <p><strong>Total Paid:</strong> $${paidAmount.toFixed(2)}</p>
+                  <p><strong>Vendor Receives (80%):</strong> $${vendorAmount.toFixed(2)}</p>
+                  <p><strong>Platform Commission (20%):</strong> $${commissionAmount.toFixed(2)}</p>
+                  <p><strong>Payout Schedule:</strong> ${booking.payout_schedule || 'event_based'}</p>
+                  ${booking.payout_schedule === 'weekly' ? '<p style="color: #856404; margin-top: 5px;">📅 Weekly payout: Every Monday at 9:00 AM</p>' : ''}
+                  ${booking.payout_schedule === 'event_based' ? '<p style="color: #856404; margin-top: 5px;">📅 Event-based: 50% at 30 days before, 50% after completion</p>' : ''}
+                </div>
+              `
+                  : ''
+              }
+            `;
+          } else {
+            escrowResultDiv.className = 'result error';
+            escrowResultDiv.textContent = `Error: ${result.message}`;
+          }
+        } catch (error) {
+          escrowResultDiv.className = 'result error';
+          escrowResultDiv.textContent = `Error checking escrow status: ${error.message}`;
+        }
+      }
+
+      // Confirm tour completion
+      async function confirmTourCompletion() {
+        const confirmResultDiv = document.getElementById('confirmResult');
+        const apiUrl = document.getElementById('apiUrl').value;
+        const authToken = document.getElementById('authToken').value;
+
+        if (!currentBookingId) {
+          confirmResultDiv.className = 'result error';
+          confirmResultDiv.textContent =
+            'No booking ID available. Create a booking first.';
+          return;
+        }
+
+        if (
+          !confirm(
+            'Are you sure you want to confirm tour completion? This will trigger payout for packages.',
+          )
+        ) {
+          return;
+        }
+
+        confirmResultDiv.className = 'result loading';
+        confirmResultDiv.textContent = 'Confirming tour completion...';
+
+        try {
+          const response = await fetch(
+            `${apiUrl}/api/booking/${currentBookingId}/confirm`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+              },
+            },
+          );
+
+          const result = await response.json();
+
+          if (result.success) {
+            confirmResultDiv.className = 'result success';
+            confirmResultDiv.innerHTML = `
+              <h4>✅ Tour Confirmed Successfully!</h4>
+              <p>${result.message}</p>
+              <div style="background: #d1ecf1; padding: 10px; margin-top: 10px; border-radius: 4px;">
+                <strong>📅 Next Steps:</strong>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                  <li>For daily tours: Funds will be released on next Monday (weekly payout)</li>
+                  <li>For packages: Final release will be processed automatically</li>
+                </ul>
+              </div>
+            `;
+
+            // Refresh booking status
+            setTimeout(() => {
+              checkBookingStatus();
+              checkEscrowStatus();
+            }, 1000);
+          } else {
+            confirmResultDiv.className = 'result error';
+            confirmResultDiv.innerHTML = `<h4>❌ Confirmation Failed</h4><p>${result.message}</p>`;
+          }
+        } catch (error) {
+          confirmResultDiv.className = 'result error';
+          confirmResultDiv.textContent = `Error: ${error.message}`;
         }
       }
 

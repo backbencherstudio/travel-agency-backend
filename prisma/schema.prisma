@@ -211,6 +211,9 @@ model User {
   // billing id. e.g. stripe customer id
   billing_id String?
 
+  // Stripe Connect account ID for vendors (for receiving payouts)
+  stripe_connect_account_id String?
+
   // available values: su_admin, admin, vendor, user
   type String? @default("user")
 
@@ -481,6 +484,10 @@ model Package {
   max_infants  Int? @default(2)
 
   type String? @default("tour") // e.g. "package", "tour", "cruise"
+
+  // Partial payment schedule for travel packages (>24h)
+  // JSON format: [{"percentage": 30, "days_before_trip": 60}, {"percentage": 40, "days_before_trip": 30}, {"percentage": 30, "days_before_trip": 0}]
+  partial_payment_schedule String? @db.Text
 
   cancellation_policy_id String?
   cancellation_policy    PackageCancellationPolicy? @relation(fields: [cancellation_policy_id], references: [id])
@@ -1153,7 +1160,7 @@ model Booking {
   approved_at DateTime?
   // booking status
   // available values:
-  // pending, processing, paused, confirmed, cancelled
+  // pending, processing, paused, confirmed, cancelled, complete
   status      String?   @default("pending")
 
   // booking type
@@ -1229,6 +1236,21 @@ model Booking {
   country  String?
 
   comments String? @db.Text
+
+  // Escrow system fields
+  // Escrow status: pending, held, released_partial, released_full, refunded
+  escrow_status String? @default("pending")
+
+  // Completion and confirmation timestamps
+  completed_at        DateTime?
+  client_confirmed_at DateTime?
+
+  // Payout schedule: weekly (for daily tours), event_based (for packages)
+  payout_schedule String? @default("event_based")
+
+  // Release percentages for travel packages (>24h)
+  release_percentage_30days Decimal? // Percentage to release 30 days before trip
+  release_percentage_final  Decimal? // Final percentage to release after trip completion
 
   booking_items           BookingItem[]
   booking_coupons         BookingCoupon[]

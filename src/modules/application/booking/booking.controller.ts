@@ -169,4 +169,40 @@ export class BookingController {
       };
     }
   }
+
+  @ApiOperation({
+    summary: 'Client confirms tour completion',
+    description: 'Client confirms that the tour has been completed successfully'
+  })
+  @Post(':id/confirm')
+  async confirmTour(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.clientConfirmTour(id, user_id);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Mark booking as complete',
+    description: 'Admin or vendor marks booking as complete (triggers final payout for packages)'
+  })
+  @Post(':id/complete')
+  async markComplete(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.markBookingComplete(id, user_id);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }

@@ -169,7 +169,7 @@ export class StripePayment {
       paymentMethodType
     });
 
-    // Get account info for debugging
+    // Optional: Get account info for debugging (non-blocking)
     try {
       await this.getAccountInfo();
     } catch (error) {
@@ -219,7 +219,10 @@ export class StripePayment {
   }
 
   /**
-   * Get payment configuration (Stripe only)
+   * Get payment configuration for Stripe payment intents
+   * Using automatic confirmation but without attaching payment_method
+   * This ensures payment intent stays in 'requires_payment_method' status
+   * until user confirms payment on frontend
    */
   private static getPaymentConfiguration() {
     return {
@@ -227,6 +230,8 @@ export class StripePayment {
       options: {
         capture_method: 'automatic' as stripe.PaymentIntentCreateParams.CaptureMethod,
         confirmation_method: 'automatic' as stripe.PaymentIntentCreateParams.ConfirmationMethod,
+        // Note: We don't attach payment_method here, so it won't auto-confirm
+        // Payment will be confirmed when user completes payment on frontend
       },
     };
   }
@@ -351,6 +356,14 @@ export class StripePayment {
       payment_intent: payment_intent_id,
       ...(amount ? { amount } : {}),
     });
+  }
+
+  /**
+   * Retrieve payment intent by ID from Stripe
+   * Useful for manual status verification and sync
+   */
+  static async getPaymentIntent(payment_intent_id: string): Promise<stripe.PaymentIntent> {
+    return await Stripe.paymentIntents.retrieve(payment_intent_id);
   }
 
   static handleWebhook(rawBody: string, sig: string | string[]): stripe.Event {

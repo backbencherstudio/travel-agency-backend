@@ -21,6 +21,11 @@ export class UnifiedPaymentService {
         private stripeService: StripeService
     ) { }
 
+    /**
+     * Process payment for a booking
+     * Creates payment intent and transaction record
+     * Payment status will be updated via webhook when payment actually completes
+     */
     async processPayment(userId: string, paymentData: ProcessPaymentDto) {
         try {
             const { booking_id, payment_method } = paymentData;
@@ -56,15 +61,12 @@ export class UnifiedPaymentService {
                 return paymentResult;
             }
 
-            // For Stripe payments, mark as succeeded immediately
-            await this.prisma.booking.update({
-                where: { id: booking_id },
-                data: { payment_status: 'succeeded' },
-            });
+            // Payment status will be updated by webhook when payment actually completes
+            // Keep status as 'pending' until webhook confirms payment success
 
             return {
                 success: true,
-                message: 'Payment processed successfully',
+                message: 'Payment intent created successfully. Please complete payment on the frontend.',
                 data: paymentResult.data,
             };
         } catch (error) {
@@ -72,6 +74,11 @@ export class UnifiedPaymentService {
         }
     }
 
+    /**
+     * Process Stripe payment for booking
+     * Creates payment intent and transaction record
+     * Payment status will be updated via webhook when payment completes
+     */
     private async processStripePayment(paymentType: PaymentMethodType, data: any, user: any, booking: any) {
         try {
             // Validate user billing_id
@@ -89,7 +96,7 @@ export class UnifiedPaymentService {
                 return { success: false, message: 'Currency is required' };
             }
 
-            // Create payment intent using unified method
+            // Create payment intent using Stripe service
             const paymentIntent = await this.stripeService.createPaymentIntentForMethod({
                 amount: data.amount,
                 currency: data.currency,
@@ -102,7 +109,15 @@ export class UnifiedPaymentService {
                 },
             });
 
-            // Create transaction record
+            // Check payment intent status - if succeeded immediately, log warning
+            // Payment status should only be updated via webhook, not here
+            if (paymentIntent.status === 'succeeded') {
+                console.warn(`⚠️ Payment Intent ${paymentIntent.id} created with 'succeeded' status immediately. This should not happen. Status will be updated via webhook.`);
+                console.warn('⚠️ If webhook is disabled, use /api/payment/stripe/sync-payment-status endpoint to manually sync status.');
+            }
+
+            // Always create transaction with 'pending' status initially
+            // Status will be updated by webhook when payment actually completes
             await this.prisma.paymentTransaction.create({
                 data: {
                     user_id: user.id,
@@ -111,8 +126,8 @@ export class UnifiedPaymentService {
                     reference_number: paymentIntent.id,
                     amount: data.amount,
                     currency: data.currency,
-                    status: 'pending',
-                    raw_status: paymentIntent.status,
+                    status: 'pending', // Always start with pending, webhook will update
+                    raw_status: paymentIntent.status, // Store Stripe's raw status for reference
                 },
             });
 
@@ -129,6 +144,10 @@ export class UnifiedPaymentService {
         }
     }
 
+    /**
+     * Get payment configuration for frontend
+     * Returns Stripe publishable key for client-side payment processing
+     */
     async getPaymentConfiguration() {
         return {
             success: true,
@@ -140,6 +159,10 @@ export class UnifiedPaymentService {
         };
     }
 
+    /**
+     * Get available payment methods
+     * Returns list of supported payment methods (currently Stripe only)
+     */
     async getAvailablePaymentMethods() {
         return {
             success: true,
@@ -200,7 +223,8 @@ export class UnifiedPaymentService {
     }
 
     /**
-     * Process Stripe payment for gift card
+     * Process Stripe payment for gift card purchase
+     * Creates or retrieves Stripe customer, then creates payment intent
      */
     private async processStripeGiftCardPayment(
         type: string,
@@ -222,14 +246,14 @@ export class UnifiedPaymentService {
                 });
                 customerId = customer.id;
 
-                // Update user billing_id
+                // Update user billing_id in database
                 await this.prisma.user.update({
                     where: { id: user.id },
                     data: { billing_id: customerId }
                 });
             }
 
-            // Create payment intent
+            // Create payment intent for gift card purchase
             const paymentIntent = await this.stripeService.createPaymentIntentForMethod({
                 amount: Math.round(amount * 100), // Convert to cents
                 currency: currency.toLowerCase(),

@@ -14,6 +14,7 @@ import { CancellationStatusDto } from './dto/cancellation-status.dto';
 import { CancellationCalculatorService } from '../../../common/services/cancellation-calculator.service';
 import { UnifiedPaymentService } from '../../payment/unified-payment.service';
 import { PaymentMethodType } from '../checkout/dto/payment-method.dto';
+import { EscrowService } from '../../payment/escrow.service';
 
 @Injectable()
 export class BookingService {
@@ -23,6 +24,7 @@ export class BookingService {
     private messageGateway: MessageGateway,
     private cancellationCalculator: CancellationCalculatorService,
     private unifiedPaymentService: UnifiedPaymentService,
+    private escrowService: EscrowService,
   ) { }
 
   async create(userId: string, createBookingDto: CreateBookingDto) {
@@ -1136,6 +1138,168 @@ export class BookingService {
       return {
         success: false,
         message: error.message,
+      };
+    }
+  }
+
+  /**
+   * Client confirms tour completion
+   * Updates booking status and triggers payout for daily tours
+   */
+  async clientConfirmTour(bookingId: string, userId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId, user_id: userId },
+        include: {
+          booking_items: {
+            include: {
+              package: true,
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        return { success: false, message: 'Booking not found or access denied' };
+      }
+
+      if (booking.status !== 'confirmed') {
+        return {
+          success: false,
+          message: 'Booking must be confirmed before client confirmation',
+        };
+      }
+
+      if (booking.client_confirmed_at) {
+        return {
+          success: false,
+          message: 'Tour already confirmed by client',
+        };
+      }
+
+      // Update booking with client confirmation
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          client_confirmed_at: new Date(),
+          status: 'complete',
+          completed_at: new Date(),
+        },
+      });
+
+      // Check if it's a daily tour (weekly payout) or package (event-based)
+      const isDailyTour = booking.booking_items.some(
+        (item) =>
+          item.package?.duration_type === 'hours' &&
+          (item.package?.duration || 0) <= 24,
+      );
+
+      if (isDailyTour && booking.payout_schedule === 'weekly') {
+        // For daily tours, funds will be released on next Monday via weekly payout
+        // No immediate release needed
+      } else {
+        // For packages, trigger final release
+        await this.escrowService.processFinalRelease(bookingId);
+      }
+
+      return {
+        success: true,
+        message: 'Tour confirmed by client successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to confirm tour',
+      };
+    }
+  }
+
+  /**
+   * Mark booking as complete (admin/vendor action)
+   * Triggers final payout for packages
+   */
+  async markBookingComplete(
+    bookingId: string,
+    userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userType?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      // Check if user is admin or vendor
+      const user = await UserRepository.getUserDetails(userId);
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      const isAdmin = user.type === 'admin' || user.type === 'su_admin';
+      const isVendor = user.type === 'vendor';
+
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          booking_items: {
+            include: {
+              package: true,
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        return { success: false, message: 'Booking not found' };
+      }
+
+      // Check permissions
+      if (!isAdmin && !(isVendor && booking.vendor_id === userId)) {
+        return {
+          success: false,
+          message: 'Unauthorized to mark booking as complete',
+        };
+      }
+
+      if (booking.status === 'complete') {
+        return {
+          success: false,
+          message: 'Booking already marked as complete',
+        };
+      }
+
+      // Update booking status
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'complete',
+          completed_at: new Date(),
+        },
+      });
+
+      // Check if it's a package (event-based payout)
+      const isPackage = booking.booking_items.some(
+        (item) =>
+          item.package?.duration_type === 'days' ||
+          (item.package?.duration_type === 'hours' &&
+            (item.package?.duration || 0) > 24),
+      );
+
+      if (isPackage && booking.payout_schedule === 'event_based') {
+        // Trigger final release for packages
+        await this.escrowService.processFinalRelease(bookingId);
+      }
+
+      return {
+        success: true,
+        message: 'Booking marked as complete successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to mark booking as complete',
       };
     }
   }

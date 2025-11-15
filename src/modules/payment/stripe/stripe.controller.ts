@@ -5,6 +5,7 @@ import { TransactionRepository } from '../../../common/repository/transaction/tr
 import { CommissionIntegrationService } from '../../admin/sales-commission/commission-integration.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { EscrowService } from '../escrow.service';
 
 @ApiTags('Stripe Payment')
 @Controller('payment/stripe')
@@ -13,6 +14,7 @@ export class StripeController {
     private readonly stripeService: StripeService,
     private readonly commissionIntegrationService: CommissionIntegrationService,
     private readonly prisma: PrismaService,
+    private readonly escrowService: EscrowService,
   ) { }
 
   @Post('create-payment-intent')
@@ -100,130 +102,22 @@ export class StripeController {
           const paymentIntent = event.data.object;
           console.log('Payment intent succeeded:', paymentIntent.id, 'Amount:', paymentIntent.amount / 100);
 
-          // Update transaction status in database
-          await TransactionRepository.updateTransaction({
-            reference_number: paymentIntent.id,
-            status: 'succeeded',
-            paid_amount: paymentIntent.amount / 100, // amount in dollars
-            paid_currency: paymentIntent.currency,
-            raw_status: paymentIntent.status,
-          });
-
-          // CRITICAL: Update booking or gift card purchase payment status to succeeded
-          try {
-            const transaction = await this.prisma.paymentTransaction.findFirst({
-              where: { reference_number: paymentIntent.id },
-              include: { booking: true, gift_card_purchase: true }
-            });
-
-            if (transaction?.booking_id) {
-              // Update booking payment status to succeeded
-              await this.prisma.booking.update({
-                where: { id: transaction.booking_id },
-                data: {
-                  payment_status: 'succeeded',
-                  paid_amount: paymentIntent.amount / 100,
-                  paid_currency: paymentIntent.currency
-                }
-              });
-
-              // Consume gift cards after successful payment
-              await this.consumeGiftCardsAfterPayment(transaction.booking_id);
-
-              // Automatically calculate commissions for successful payment
-              await this.commissionIntegrationService.calculateCommissionsForBooking(transaction.booking_id);
-            } else if (transaction?.gift_card_purchase_id) {
-              // Update gift card purchase payment status to succeeded
-              await this.prisma.giftCardPurchase.update({
-                where: { id: transaction.gift_card_purchase_id },
-                data: {
-                  payment_status: 'succeeded',
-                  payment_raw_status: 'succeeded',
-                  payment_reference_number: paymentIntent.id
-                }
-              });
-
-              console.log('Gift card purchase payment status updated to succeeded for purchase:', transaction.gift_card_purchase_id);
-            } else {
-              console.error('No booking or gift card purchase found for payment intent:', paymentIntent.id);
-            }
-          } catch (error) {
-            console.error('Error updating payment status or calculating commissions:', error);
-          }
+          // Update payment status using reusable function
+          await this.updatePaymentStatusFromIntent(paymentIntent);
           break;
         case 'payment_intent.payment_failed':
           const failedPaymentIntent = event.data.object;
           console.log('Payment intent failed:', failedPaymentIntent.id);
 
-          // Update transaction status in database
-          await TransactionRepository.updateTransaction({
-            reference_number: failedPaymentIntent.id,
-            status: 'failed',
-            raw_status: failedPaymentIntent.status,
-          });
-
-          // Update booking or gift card purchase payment status to failed
-          try {
-            const transaction = await this.prisma.paymentTransaction.findFirst({
-              where: { reference_number: failedPaymentIntent.id }
-            });
-
-            if (transaction?.booking_id) {
-              await this.prisma.booking.update({
-                where: { id: transaction.booking_id },
-                data: { payment_status: 'failed' }
-              });
-              console.log('Booking payment status updated to failed for booking:', transaction.booking_id);
-            } else if (transaction?.gift_card_purchase_id) {
-              await this.prisma.giftCardPurchase.update({
-                where: { id: transaction.gift_card_purchase_id },
-                data: {
-                  payment_status: 'failed',
-                  payment_raw_status: 'failed'
-                }
-              });
-              console.log('Gift card purchase payment status updated to failed for purchase:', transaction.gift_card_purchase_id);
-            }
-          } catch (error) {
-            console.error('Error updating payment status for failed payment:', error);
-          }
+          // Update payment status using reusable function
+          await this.updatePaymentStatusFromIntent(failedPaymentIntent);
           break;
         case 'payment_intent.canceled':
           const canceledPaymentIntent = event.data.object;
           console.log('Payment intent canceled:', canceledPaymentIntent.id);
 
-          // Update transaction status in database
-          await TransactionRepository.updateTransaction({
-            reference_number: canceledPaymentIntent.id,
-            status: 'canceled',
-            raw_status: canceledPaymentIntent.status,
-          });
-
-          // Update booking or gift card purchase payment status to canceled
-          try {
-            const transaction = await this.prisma.paymentTransaction.findFirst({
-              where: { reference_number: canceledPaymentIntent.id }
-            });
-
-            if (transaction?.booking_id) {
-              await this.prisma.booking.update({
-                where: { id: transaction.booking_id },
-                data: { payment_status: 'canceled' }
-              });
-              console.log('Booking payment status updated to canceled for booking:', transaction.booking_id);
-            } else if (transaction?.gift_card_purchase_id) {
-              await this.prisma.giftCardPurchase.update({
-                where: { id: transaction.gift_card_purchase_id },
-                data: {
-                  payment_status: 'canceled',
-                  payment_raw_status: 'canceled'
-                }
-              });
-              console.log('Gift card purchase payment status updated to canceled for purchase:', transaction.gift_card_purchase_id);
-            }
-          } catch (error) {
-            console.error('Error updating payment status for canceled payment:', error);
-          }
+          // Update payment status using reusable function
+          await this.updatePaymentStatusFromIntent(canceledPaymentIntent);
           break;
         case 'payment_intent.requires_action':
           const requireActionPaymentIntent = event.data.object;
@@ -242,6 +136,135 @@ export class StripeController {
     } catch (error) {
       console.error('Webhook error', error);
       return { received: false };
+    }
+  }
+
+  /**
+   * Update payment status from payment intent (reusable function)
+   * Handles both booking and gift card purchase status updates
+   */
+  private async updatePaymentStatusFromIntent(paymentIntent: any) {
+    // Update transaction status in database
+    await TransactionRepository.updateTransaction({
+      reference_number: paymentIntent.id,
+      status: paymentIntent.status === 'succeeded' ? 'succeeded' : paymentIntent.status === 'failed' ? 'failed' : paymentIntent.status === 'canceled' ? 'canceled' : 'pending',
+      paid_amount: paymentIntent.status === 'succeeded' ? paymentIntent.amount / 100 : null,
+      paid_currency: paymentIntent.status === 'succeeded' ? paymentIntent.currency : null,
+      raw_status: paymentIntent.status,
+    });
+
+    // Update booking or gift card purchase payment status
+    try {
+      const transaction = await this.prisma.paymentTransaction.findFirst({
+        where: { reference_number: paymentIntent.id },
+        include: { booking: true, gift_card_purchase: true }
+      });
+
+      if (transaction?.booking_id) {
+        // Update booking payment status
+        await this.prisma.booking.update({
+          where: { id: transaction.booking_id },
+          data: {
+            payment_status: paymentIntent.status === 'succeeded' ? 'succeeded' : paymentIntent.status === 'failed' ? 'failed' : paymentIntent.status === 'canceled' ? 'canceled' : 'pending',
+            paid_amount: paymentIntent.status === 'succeeded' ? paymentIntent.amount / 100 : null,
+            paid_currency: paymentIntent.status === 'succeeded' ? paymentIntent.currency : null
+          }
+        });
+
+        if (paymentIntent.status === 'succeeded') {
+          // Consume gift cards after successful payment
+          await this.consumeGiftCardsAfterPayment(transaction.booking_id);
+
+          // Automatically calculate commissions for successful payment
+          await this.commissionIntegrationService.calculateCommissionsForBooking(transaction.booking_id);
+
+          // Hold funds in escrow after successful payment
+          try {
+            const escrowResult = await this.escrowService.holdFundsInEscrow(transaction.booking_id);
+            if (escrowResult.success) {
+              console.log(`Funds held in escrow for booking: ${transaction.booking_id}`);
+            } else {
+              console.warn(`Failed to hold funds in escrow for booking ${transaction.booking_id}:`, escrowResult.message);
+            }
+          } catch (error) {
+            console.error(`Error holding funds in escrow for booking ${transaction.booking_id}:`, error.message);
+            // Don't fail the webhook if escrow fails - payment is already succeeded
+          }
+        }
+
+        console.log(`Booking payment status updated to ${paymentIntent.status} for booking: ${transaction.booking_id}`);
+      } else if (transaction?.gift_card_purchase_id) {
+        // Update gift card purchase payment status
+        await this.prisma.giftCardPurchase.update({
+          where: { id: transaction.gift_card_purchase_id },
+          data: {
+            payment_status: paymentIntent.status === 'succeeded' ? 'succeeded' : paymentIntent.status === 'failed' ? 'failed' : paymentIntent.status === 'canceled' ? 'canceled' : 'pending',
+            payment_raw_status: paymentIntent.status,
+            payment_reference_number: paymentIntent.id
+          }
+        });
+
+        console.log(`Gift card purchase payment status updated to ${paymentIntent.status} for purchase: ${transaction.gift_card_purchase_id}`);
+      } else {
+        console.error('No booking or gift card purchase found for payment intent:', paymentIntent.id);
+        return { success: false, message: 'No transaction found for this payment intent' };
+      }
+
+      return { success: true, message: `Payment status updated to ${paymentIntent.status}` };
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Manually sync payment status from Stripe
+   * Use this endpoint if webhook fails or doesn't arrive
+   */
+  @Post('sync-payment-status')
+  @ApiOperation({ summary: 'Manually sync payment status from Stripe' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        payment_intent_id: { type: 'string', description: 'Stripe payment intent ID' },
+      },
+      required: ['payment_intent_id'],
+    },
+  })
+  async syncPaymentStatus(@Body() body: { payment_intent_id: string }) {
+    try {
+      // Get payment intent from Stripe
+      const paymentIntent = await this.stripeService.getPaymentIntent(body.payment_intent_id);
+
+      if (!paymentIntent) {
+        return {
+          success: false,
+          message: 'Payment intent not found in Stripe',
+        };
+      }
+
+      console.log(`Manually syncing payment status for payment intent: ${paymentIntent.id}, status: ${paymentIntent.status}`);
+
+      // Update payment status using the same logic as webhook
+      const result = await this.updatePaymentStatusFromIntent(paymentIntent);
+
+      return {
+        success: result.success,
+        message: result.message,
+        data: {
+          payment_intent_id: paymentIntent.id,
+          status: paymentIntent.status,
+          amount: paymentIntent.amount / 100,
+          currency: paymentIntent.currency,
+        },
+      };
+    } catch (error) {
+      console.error('Error syncing payment status:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to sync payment status',
+      };
     }
   }
 
