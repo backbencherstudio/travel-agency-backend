@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { StripeConnect } from '../../../common/lib/Payment/stripe/StripeConnect';
 import appConfig from '../../../config/app.config';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 import { calculateCommission, calculateVendorPayout } from '../utils/payment-calculations.util';
+import { EscrowExceptionsService } from './escrow-exceptions.service';
 
 @Injectable()
 export class EscrowService {
@@ -10,7 +12,263 @@ export class EscrowService {
 
     constructor(
         private readonly prisma: PrismaService,
+        private readonly escrowExceptionsService: EscrowExceptionsService,
     ) { }
+
+    /**
+     * Get retained funds for vendor dashboard
+     */
+    async getRetainedFundsForVendor(userId: string) {
+        const user = await UserRepository.getUserDetails(userId);
+        if (!user || user.type !== 'vendor') {
+            return {
+                success: false,
+                message: 'Only vendors can view retained funds',
+            };
+        }
+
+        const bookings = await this.prisma.booking.findMany({
+            where: {
+                vendor_id: userId,
+                escrow_status: 'held',
+                payment_status: 'succeeded',
+                deleted_at: null,
+            },
+            include: {
+                booking_items: {
+                    include: {
+                        package: {
+                            select: {
+                                name: true,
+                                duration: true,
+                                duration_type: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { created_at: 'desc' },
+        });
+
+        const totalHeld = bookings.reduce(
+            (sum, booking) => sum + Number(booking.paid_amount || 0),
+            0,
+        );
+
+        return {
+            success: true,
+            data: {
+                total_held: totalHeld,
+                bookings_count: bookings.length,
+                bookings: bookings.map((booking) => ({
+                    booking_id: booking.id,
+                    invoice_number: booking.invoice_number,
+                    amount: booking.paid_amount,
+                    currency: booking.paid_currency,
+                    escrow_status: booking.escrow_status,
+                    created_at: booking.created_at,
+                    package_name: booking.booking_items[0]?.package?.name,
+                })),
+            },
+        };
+    }
+
+    /**
+     * Generate Stripe onboarding link for vendor
+     */
+    async generateVendorOnboardingLink(userId: string) {
+        const user = await UserRepository.getUserDetails(userId);
+
+        if (!user || user.type !== 'vendor') {
+            return {
+                success: false,
+                message: 'Only vendors can access onboarding link',
+            };
+        }
+
+        if (!user.stripe_connect_account_id) {
+            return {
+                success: false,
+                message: 'Vendor does not have Stripe Connect account. Please contact admin.',
+            };
+        }
+
+        const connectAccount = await StripeConnect.getConnectAccount(
+            user.stripe_connect_account_id,
+        );
+
+        const transfersCapability = connectAccount.capabilities?.transfers;
+        const cardPaymentsCapability = connectAccount.capabilities?.card_payments;
+
+        if (transfersCapability === 'active' && cardPaymentsCapability === 'active') {
+            return {
+                success: true,
+                message: 'Stripe Connect account is already fully onboarded',
+                data: {
+                    account_id: user.stripe_connect_account_id,
+                    transfers_enabled: true,
+                    card_payments_enabled: true,
+                    onboarding_required: false,
+                },
+            };
+        }
+
+        const baseUrl = appConfig().app.url || 'http://localhost:3000';
+        const accountLink = await StripeConnect.createAccountLink(
+            user.stripe_connect_account_id,
+            `${baseUrl}/vendor/onboarding/return`,
+            `${baseUrl}/vendor/onboarding/refresh`,
+        );
+
+        return {
+            success: true,
+            message: 'Onboarding link generated successfully',
+            data: {
+                account_id: user.stripe_connect_account_id,
+                onboarding_url: accountLink.url,
+                expires_at: accountLink.expires_at,
+                transfers_enabled: transfersCapability === 'active',
+                card_payments_enabled: cardPaymentsCapability === 'active',
+                onboarding_required: true,
+            },
+        };
+    }
+
+    /**
+     * Release funds partially (admin only)
+     */
+    async releasePartialFundsAsAdmin(
+        userId: string,
+        bookingId: string,
+        percentage: number,
+    ) {
+        const user = await UserRepository.getUserDetails(userId);
+        if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
+            return {
+                success: false,
+                message: 'Only admins can manually release funds',
+            };
+        }
+
+        return this.releaseFunds(bookingId, percentage);
+    }
+
+    /**
+     * Release funds fully (admin only)
+     */
+    async releaseFinalFundsAsAdmin(userId: string, bookingId: string) {
+        const user = await UserRepository.getUserDetails(userId);
+        if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
+            return {
+                success: false,
+                message: 'Only admins can trigger final release',
+            };
+        }
+
+        return this.processFinalRelease(bookingId);
+    }
+
+    /**
+     * Handle client cancellation request
+     */
+    async handleClientCancellationRequest(
+        userId: string,
+        bookingId: string,
+        reason?: string,
+    ) {
+        const booking = await this.prisma.booking.findUnique({
+            where: { id: bookingId, user_id: userId },
+        });
+
+        if (!booking) {
+            return {
+                success: false,
+                message: 'Booking not found or access denied',
+            };
+        }
+
+        return this.escrowExceptionsService.handleClientCancellation(
+            bookingId,
+            reason,
+        );
+    }
+
+    /**
+     * Handle provider cancellation request
+     */
+    async handleProviderCancellationRequest(
+        userId: string,
+        bookingId: string,
+        reason?: string,
+    ) {
+        const booking = await this.prisma.booking.findUnique({
+            where: { id: bookingId, vendor_id: userId },
+        });
+
+        if (!booking) {
+            return {
+                success: false,
+                message: 'Booking not found or access denied',
+            };
+        }
+
+        return this.escrowExceptionsService.handleProviderCancellation(
+            bookingId,
+            reason,
+        );
+    }
+
+    /**
+     * Handle dispute submission by client or vendor
+     */
+    async handleDisputeRequest(
+        userId: string,
+        bookingId: string,
+        reason: string,
+    ) {
+        const booking = await this.prisma.booking.findFirst({
+            where: {
+                id: bookingId,
+                OR: [{ user_id: userId }, { vendor_id: userId }],
+            },
+        });
+
+        if (!booking) {
+            return {
+                success: false,
+                message: 'Booking not found or access denied',
+            };
+        }
+
+        return this.escrowExceptionsService.handleDispute(bookingId, reason);
+    }
+
+    /**
+     * Resolve dispute (admin only)
+     */
+    async resolveDisputeRequest(
+        userId: string,
+        bookingId: string,
+        resolution: 'release' | 'refund',
+        notes?: string,
+    ) {
+        const user = await UserRepository.getUserDetails(userId);
+        if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
+            return {
+                success: false,
+                message: 'Only admins can resolve disputes',
+            };
+        }
+
+        if (resolution === 'release') {
+            return this.releaseFunds(bookingId, 100);
+        }
+
+        return this.escrowExceptionsService.resolveDisputeWithRefund(
+            bookingId,
+            notes,
+        );
+    }
 
     /**
      * Hold funds in escrow after client payment

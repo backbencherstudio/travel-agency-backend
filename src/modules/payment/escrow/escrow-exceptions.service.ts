@@ -357,83 +357,67 @@ export class EscrowExceptionsService {
     }
 
     /**
-     * Resolve dispute
-     * Release or refund based on resolution
+     * Resolve dispute via refund
      */
-    async resolveDispute(
+    async resolveDisputeWithRefund(
         bookingId: string,
-        resolution: 'release' | 'refund',
         resolutionNotes?: string,
     ): Promise<{
         success: boolean;
         message: string;
     }> {
         try {
-            this.logger.log(
-                `Resolving dispute for booking: ${bookingId}, resolution: ${resolution}`,
-            );
-
-            if (resolution === 'release') {
-                // Release funds to vendor
-                const escrowService = new (await import('./escrow.service')).EscrowService(
-                    this.prisma,
-                );
-                const result = await escrowService.releaseFunds(bookingId, 100);
-                return result;
-            } else {
-                // Refund to client
-                const booking = await this.prisma.booking.findUnique({
-                    where: { id: bookingId },
-                    include: {
-                        payment_transactions: {
-                            where: { status: 'succeeded' },
-                            orderBy: { created_at: 'desc' },
-                            take: 1,
-                        },
+            const booking = await this.prisma.booking.findUnique({
+                where: { id: bookingId },
+                include: {
+                    payment_transactions: {
+                        where: { status: 'succeeded' },
+                        orderBy: { created_at: 'desc' },
+                        take: 1,
                     },
-                });
+                },
+            });
 
-                if (!booking) {
-                    return { success: false, message: 'Booking not found' };
-                }
+            if (!booking) {
+                return { success: false, message: 'Booking not found' };
+            }
 
-                const transaction = booking.payment_transactions[0];
-                if (!transaction || !transaction.reference_number) {
-                    return {
-                        success: false,
-                        message: 'Payment transaction not found',
-                    };
-                }
-
-                const totalAmount = Number(booking.paid_amount || 0);
-                const refundAmountCents = Math.round(totalAmount * 100);
-
-                await StripeConnect.createRefund({
-                    payment_intent_id: transaction.reference_number,
-                    amount: refundAmountCents,
-                    reason: 'requested_by_customer',
-                    metadata: {
-                        booking_id: bookingId,
-                        dispute_resolution: 'refund',
-                        resolution_notes: resolutionNotes || '',
-                    },
-                });
-
-                await this.prisma.booking.update({
-                    where: { id: bookingId },
-                    data: {
-                        escrow_status: 'refunded',
-                        comments: resolutionNotes
-                            ? `${booking.comments || ''}\n[Dispute Resolved - Refund]: ${resolutionNotes}`
-                            : booking.comments,
-                    },
-                });
-
+            const transaction = booking.payment_transactions[0];
+            if (!transaction || !transaction.reference_number) {
                 return {
-                    success: true,
-                    message: 'Dispute resolved, refund issued',
+                    success: false,
+                    message: 'Payment transaction not found',
                 };
             }
+
+            const totalAmount = Number(booking.paid_amount || 0);
+            const refundAmountCents = Math.round(totalAmount * 100);
+
+            await StripeConnect.createRefund({
+                payment_intent_id: transaction.reference_number,
+                amount: refundAmountCents,
+                reason: 'requested_by_customer',
+                metadata: {
+                    booking_id: bookingId,
+                    dispute_resolution: 'refund',
+                    resolution_notes: resolutionNotes || '',
+                },
+            });
+
+            await this.prisma.booking.update({
+                where: { id: bookingId },
+                data: {
+                    escrow_status: 'refunded',
+                    comments: resolutionNotes
+                        ? `${booking.comments || ''}\n[Dispute Resolved - Refund]: ${resolutionNotes}`
+                        : booking.comments,
+                },
+            });
+
+            return {
+                success: true,
+                message: 'Dispute resolved, refund issued',
+            };
         } catch (error) {
             this.logger.error(
                 `Error resolving dispute for booking ${bookingId}:`,
@@ -442,73 +426,6 @@ export class EscrowExceptionsService {
             return {
                 success: false,
                 message: error.message || 'Failed to resolve dispute',
-            };
-        }
-    }
-
-    /**
-     * Auto-release if client doesn't confirm within 48h
-     */
-    async handleAutoRelease(bookingId: string): Promise<{
-        success: boolean;
-        message: string;
-    }> {
-        try {
-            this.logger.log(`Handling auto-release for booking: ${bookingId}`);
-
-            const booking = await this.prisma.booking.findUnique({
-                where: { id: bookingId },
-            });
-
-            if (!booking) {
-                return { success: false, message: 'Booking not found' };
-            }
-
-            if (booking.client_confirmed_at) {
-                return {
-                    success: false,
-                    message: 'Booking already confirmed by client',
-                };
-            }
-
-            // Check if 48 hours have passed since booking confirmation
-            const confirmedAt = booking.approved_at || booking.created_at;
-            const hoursSinceConfirmation =
-                (Date.now() - new Date(confirmedAt).getTime()) / (1000 * 60 * 60);
-
-            if (hoursSinceConfirmation < 48) {
-                return {
-                    success: false,
-                    message: 'Auto-release not yet due (48h limit)',
-                };
-            }
-
-            // Auto-release funds
-            const escrowService = new (await import('./escrow.service')).EscrowService(
-                this.prisma,
-            );
-            const result = await escrowService.releaseFunds(bookingId, 100);
-
-            if (result.success) {
-                await this.prisma.booking.update({
-                    where: { id: bookingId },
-                    data: {
-                        client_confirmed_at: new Date(),
-                        status: 'complete',
-                        completed_at: new Date(),
-                    },
-                });
-            }
-
-            return result;
-        } catch (error) {
-            this.logger.error(
-                `Error handling auto-release for booking ${bookingId}:`,
-                error,
-            );
-            return {
-                success: false,
-                message: error.message || 'Failed to handle auto-release',
             };
         }
     }

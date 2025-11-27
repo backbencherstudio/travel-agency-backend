@@ -134,13 +134,61 @@ export class UnifiedPaymentDashboardService {
      * Get payment summary
      */
     private async getPaymentSummary(userId: string, userType: string) {
+        if (userType === 'vendor') {
+            const baseWhere = {
+                vendor_id: userId,
+                payment_status: 'succeeded',
+                deleted_at: null,
+            };
+
+            const [allBookings, heldBookings, releasedBookings] = await Promise.all([
+                this.prisma.booking.findMany({
+                    where: baseWhere,
+                    select: { paid_amount: true },
+                }),
+                this.prisma.booking.findMany({
+                    where: {
+                        ...baseWhere,
+                        escrow_status: 'held',
+                    },
+                    select: { paid_amount: true },
+                }),
+                this.prisma.booking.findMany({
+                    where: {
+                        ...baseWhere,
+                        escrow_status: { in: ['released_full', 'released_partial'] },
+                    },
+                    select: { paid_amount: true },
+                }),
+            ]);
+
+            const totalGross = allBookings.reduce(
+                (sum, booking) => sum + Number(booking.paid_amount || 0),
+                0,
+            );
+            const totalReleasedAmount = releasedBookings.reduce(
+                (sum, booking) => sum + calculateVendorPayout(Number(booking.paid_amount || 0)),
+                0,
+            );
+            const pendingAmount = heldBookings.reduce(
+                (sum, booking) => sum + calculateVendorPayout(Number(booking.paid_amount || 0)),
+                0,
+            );
+
+            return {
+                total_received: totalReleasedAmount,
+                pending: pendingAmount,
+                succeeded: totalGross,
+                failed: 0,
+                succeeded_count: allBookings.length,
+                pending_count: heldBookings.length,
+                failed_count: 0,
+            };
+        }
+
         const whereClause: any = {
             deleted_at: null,
         };
-
-        if (userType === 'vendor') {
-            whereClause.user_id = userId;
-        }
 
         const [succeeded, pending, failed] = await Promise.all([
             this.prisma.paymentTransaction.aggregate({

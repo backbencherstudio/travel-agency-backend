@@ -11,82 +11,25 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiBody } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guard/role/roles.guard';
+import { Roles } from '../../../common/guard/role/roles.decorator';
+import { Role } from '../../../common/guard/role/role.enum';
 import { EscrowService } from './escrow.service';
-import { EscrowExceptionsService } from './escrow-exceptions.service';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { UserRepository } from '../../../common/repository/user/user.repository';
-import { StripeConnect } from '../../../common/lib/Payment/stripe/StripeConnect';
-import appConfig from '../../../config/app.config';
 
 @ApiBearerAuth()
 @ApiTags('Escrow')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('escrow')
 export class EscrowController {
-    constructor(
-        private readonly escrowService: EscrowService,
-        private readonly escrowExceptionsService: EscrowExceptionsService,
-        private readonly prisma: PrismaService,
-    ) { }
+    constructor(private readonly escrowService: EscrowService) { }
 
     @Get('funds')
+    @Roles(Role.VENDOR)
     async getRetainedFunds(@Req() req: Request) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            if (!user || user.type !== 'vendor') {
-                return {
-                    success: false,
-                    message: 'Only vendors can view retained funds',
-                };
-            }
-
-            // Get all bookings with held funds for this vendor
-            const bookings = await this.prisma.booking.findMany({
-                where: {
-                    vendor_id: user_id,
-                    escrow_status: 'held',
-                    payment_status: 'succeeded',
-                    deleted_at: null,
-                },
-                include: {
-                    booking_items: {
-                        include: {
-                            package: {
-                                select: {
-                                    name: true,
-                                    duration: true,
-                                    duration_type: true,
-                                },
-                            },
-                        },
-                    },
-                },
-                orderBy: { created_at: 'desc' },
-            });
-
-            const totalHeld = bookings.reduce(
-                (sum, booking) => sum + Number(booking.paid_amount || 0),
-                0,
+            return await this.escrowService.getRetainedFundsForVendor(
+                req.user.userId,
             );
-
-            return {
-                success: true,
-                data: {
-                    total_held: totalHeld,
-                    bookings_count: bookings.length,
-                    bookings: bookings.map((booking) => ({
-                        booking_id: booking.id,
-                        invoice_number: booking.invoice_number,
-                        amount: booking.paid_amount,
-                        currency: booking.paid_currency,
-                        escrow_status: booking.escrow_status,
-                        created_at: booking.created_at,
-                        package_name: booking.booking_items[0]?.package?.name,
-                    })),
-                },
-            };
         } catch (error) {
             return {
                 success: false,
@@ -96,67 +39,12 @@ export class EscrowController {
     }
 
     @Get('onboarding-link')
+    @Roles(Role.VENDOR)
     async getOnboardingLink(@Req() req: Request) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            if (!user || user.type !== 'vendor') {
-                return {
-                    success: false,
-                    message: 'Only vendors can access onboarding link',
-                };
-            }
-
-            if (!user.stripe_connect_account_id) {
-                return {
-                    success: false,
-                    message: 'Vendor does not have Stripe Connect account. Please contact admin.',
-                };
-            }
-
-            // Check account status
-            const connectAccount = await StripeConnect.getConnectAccount(
-                user.stripe_connect_account_id,
+            return await this.escrowService.generateVendorOnboardingLink(
+                req.user.userId,
             );
-
-            const transfersCapability = connectAccount.capabilities?.transfers;
-            const cardPaymentsCapability = connectAccount.capabilities?.card_payments;
-
-            // If already active, no need for onboarding
-            if (transfersCapability === 'active' && cardPaymentsCapability === 'active') {
-                return {
-                    success: true,
-                    message: 'Stripe Connect account is already fully onboarded',
-                    data: {
-                        account_id: user.stripe_connect_account_id,
-                        transfers_enabled: true,
-                        card_payments_enabled: true,
-                        onboarding_required: false,
-                    },
-                };
-            }
-
-            // Create onboarding link
-            const baseUrl = appConfig().app.url || 'http://localhost:3000';
-            const accountLink = await StripeConnect.createAccountLink(
-                user.stripe_connect_account_id,
-                `${baseUrl}/vendor/onboarding/return`,
-                `${baseUrl}/vendor/onboarding/refresh`,
-            );
-
-            return {
-                success: true,
-                message: 'Onboarding link generated successfully',
-                data: {
-                    account_id: user.stripe_connect_account_id,
-                    onboarding_url: accountLink.url,
-                    expires_at: accountLink.expires_at,
-                    transfers_enabled: transfersCapability === 'active',
-                    card_payments_enabled: cardPaymentsCapability === 'active',
-                    onboarding_required: true,
-                },
-            };
         } catch (error) {
             return {
                 success: false,
@@ -176,27 +64,17 @@ export class EscrowController {
             required: ['booking_id', 'percentage'],
         },
     })
+    @Roles(Role.ADMIN, Role.SUPERADMIN)
     async releasePartial(
         @Req() req: Request,
         @Body() body: { booking_id: string; percentage: number },
     ) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
-                return {
-                    success: false,
-                    message: 'Only admins can manually release funds',
-                };
-            }
-
-            const result = await this.escrowService.releaseFunds(
+            return await this.escrowService.releasePartialFundsAsAdmin(
+                req.user.userId,
                 body.booking_id,
                 body.percentage,
             );
-
-            return result;
         } catch (error) {
             return {
                 success: false,
@@ -205,23 +83,15 @@ export class EscrowController {
         }
     }
 
- 
+
     @Post('release-final/:bookingId')
+    @Roles(Role.ADMIN, Role.SUPERADMIN)
     async releaseFinal(@Req() req: Request, @Param('bookingId') bookingId: string) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
-                return {
-                    success: false,
-                    message: 'Only admins can trigger final release',
-                };
-            }
-
-            const result = await this.escrowService.processFinalRelease(bookingId);
-
-            return result;
+            return await this.escrowService.releaseFinalFundsAsAdmin(
+                req.user.userId,
+                bookingId,
+            );
         } catch (error) {
             return {
                 success: false,
@@ -239,32 +109,18 @@ export class EscrowController {
             },
         },
     })
+    @Roles(Role.USER)
     async handleClientCancellation(
         @Req() req: Request,
         @Param('bookingId') bookingId: string,
         @Body() body: { reason?: string },
     ) {
         try {
-            const user_id = req.user.userId;
-
-            // Verify user owns the booking
-            const booking = await this.prisma.booking.findUnique({
-                where: { id: bookingId, user_id },
-            });
-
-            if (!booking) {
-                return {
-                    success: false,
-                    message: 'Booking not found or access denied',
-                };
-            }
-
-            const result = await this.escrowExceptionsService.handleClientCancellation(
+            return await this.escrowService.handleClientCancellationRequest(
+                req.user.userId,
                 bookingId,
                 body.reason,
             );
-
-            return result;
         } catch (error) {
             return {
                 success: false,
@@ -275,34 +131,18 @@ export class EscrowController {
 
 
     @Post('cancel-provider/:bookingId')
+    @Roles(Role.VENDOR)
     async handleProviderCancellation(
         @Req() req: Request,
         @Param('bookingId') bookingId: string,
         @Body() body: { reason?: string },
     ) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            // Verify user is the vendor for this booking
-            const booking = await this.prisma.booking.findUnique({
-                where: { id: bookingId, vendor_id: user_id },
-            });
-
-            if (!booking) {
-                return {
-                    success: false,
-                    message: 'Booking not found or access denied',
-                };
-            }
-
-            const result =
-                await this.escrowExceptionsService.handleProviderCancellation(
-                    bookingId,
-                    body.reason,
-                );
-
-            return result;
+            return await this.escrowService.handleProviderCancellationRequest(
+                req.user.userId,
+                bookingId,
+                body.reason,
+            );
         } catch (error) {
             return {
                 success: false,
@@ -312,35 +152,18 @@ export class EscrowController {
     }
 
     @Post('dispute/:bookingId')
+    @Roles(Role.USER, Role.VENDOR)
     async handleDispute(
         @Req() req: Request,
         @Param('bookingId') bookingId: string,
         @Body() body: { reason: string },
     ) {
         try {
-            const user_id = req.user.userId;
-
-            // Verify user is client or vendor for this booking
-            const booking = await this.prisma.booking.findFirst({
-                where: {
-                    id: bookingId,
-                    OR: [{ user_id }, { vendor_id: user_id }],
-                },
-            });
-
-            if (!booking) {
-                return {
-                    success: false,
-                    message: 'Booking not found or access denied',
-                };
-            }
-
-            const result = await this.escrowExceptionsService.handleDispute(
+            return await this.escrowService.handleDisputeRequest(
+                req.user.userId,
                 bookingId,
                 body.reason,
             );
-
-            return result;
         } catch (error) {
             return {
                 success: false,
@@ -350,29 +173,19 @@ export class EscrowController {
     }
 
     @Post('resolve-dispute/:bookingId')
+    @Roles(Role.ADMIN, Role.SUPERADMIN)
     async resolveDispute(
         @Req() req: Request,
         @Param('bookingId') bookingId: string,
         @Body() body: { resolution: 'release' | 'refund'; notes?: string },
     ) {
         try {
-            const user_id = req.user.userId;
-            const user = await UserRepository.getUserDetails(user_id);
-
-            if (!user || (user.type !== 'admin' && user.type !== 'su_admin')) {
-                return {
-                    success: false,
-                    message: 'Only admins can resolve disputes',
-                };
-            }
-
-            const result = await this.escrowExceptionsService.resolveDispute(
+            return await this.escrowService.resolveDisputeRequest(
+                req.user.userId,
                 bookingId,
                 body.resolution,
                 body.notes,
             );
-
-            return result;
         } catch (error) {
             return {
                 success: false,
