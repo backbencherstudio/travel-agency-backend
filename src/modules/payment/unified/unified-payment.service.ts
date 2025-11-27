@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StripeService } from './stripe/stripe.service';
-import { UserRepository } from '../../common/repository/user/user.repository';
-import { PaymentMethodType, ProcessPaymentDto } from '../application/checkout/dto/payment-method.dto';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { StripeService } from '../stripe/stripe.service';
+import { UserRepository } from '../../../common/repository/user/user.repository';
+import { PaymentMethodType, ProcessPaymentDto } from '../../application/checkout/dto/payment-method.dto';
 
 export interface GiftCardPaymentDto {
     gift_card_id: string;
@@ -18,7 +18,7 @@ export interface GiftCardPaymentDto {
 export class UnifiedPaymentService {
     constructor(
         private prisma: PrismaService,
-        private stripeService: StripeService
+        private stripeService: StripeService,
     ) { }
 
     /**
@@ -79,11 +79,19 @@ export class UnifiedPaymentService {
      * Creates payment intent and transaction record
      * Payment status will be updated via webhook when payment completes
      */
-    private async processStripePayment(paymentType: PaymentMethodType, data: any, user: any, booking: any) {
+    private async processStripePayment(
+        paymentType: PaymentMethodType,
+        data: any,
+        user: any,
+        booking: any,
+    ) {
         try {
             // Validate user billing_id
             if (!user.billing_id) {
-                return { success: false, message: 'User billing information not found. Please update your billing details.' };
+                return {
+                    success: false,
+                    message: 'User billing information not found. Please update your billing details.',
+                };
             }
 
             // Validate amount
@@ -112,8 +120,12 @@ export class UnifiedPaymentService {
             // Check payment intent status - if succeeded immediately, log warning
             // Payment status should only be updated via webhook, not here
             if (paymentIntent.status === 'succeeded') {
-                console.warn(`⚠️ Payment Intent ${paymentIntent.id} created with 'succeeded' status immediately. This should not happen. Status will be updated via webhook.`);
-                console.warn('⚠️ If webhook is disabled, use /api/payment/stripe/sync-payment-status endpoint to manually sync status.');
+                console.warn(
+                    `⚠️ Payment Intent ${paymentIntent.id} created with 'succeeded' status immediately. This should not happen. Status will be updated via webhook.`,
+                );
+                console.warn(
+                    '⚠️ If webhook is disabled, use /api/payment/stripe/sync-payment-status endpoint to manually sync status.',
+                );
             }
 
             // Always create transaction with 'pending' status initially
@@ -199,7 +211,14 @@ export class UnifiedPaymentService {
             // Handle payment method (Stripe only)
             switch (type) {
                 case 'stripe':
-                    paymentResult = await this.processStripeGiftCardPayment(type, data, user, amount, currency, gift_card_id);
+                    paymentResult = await this.processStripeGiftCardPayment(
+                        type,
+                        data,
+                        user,
+                        amount,
+                        currency,
+                        gift_card_id,
+                    );
                     break;
                 default:
                     return { success: false, message: 'Unsupported payment method' };
@@ -232,7 +251,7 @@ export class UnifiedPaymentService {
         user: any,
         amount: number,
         currency: string,
-        gift_card_id: string
+        gift_card_id: string,
     ) {
         try {
             // Create or get Stripe customer
@@ -249,7 +268,7 @@ export class UnifiedPaymentService {
                 // Update user billing_id in database
                 await this.prisma.user.update({
                     where: { id: user.id },
-                    data: { billing_id: customerId }
+                    data: { billing_id: customerId },
                 });
             }
 
@@ -262,8 +281,8 @@ export class UnifiedPaymentService {
                 metadata: {
                     gift_card_id: gift_card_id,
                     user_id: user.id,
-                    type: 'gift_card_purchase'
-                }
+                    type: 'gift_card_purchase',
+                },
             });
 
             return {
@@ -277,5 +296,5 @@ export class UnifiedPaymentService {
             };
         }
     }
+}
 
-} 

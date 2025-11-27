@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { StripeController } from './stripe.controller';
 import { PrismaModule } from '../../../prisma/prisma.module';
-import { CommissionIntegrationService } from '../../admin/sales-commission/commission-integration.service';
-import { SalesCommissionService } from '../../admin/sales-commission/sales-commission.service';
-import { EscrowService } from '../escrow.service';
+import { CommissionModule } from '../commission/commission.module';
+import { EscrowService } from '../escrow/escrow.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, CommissionModule],
   controllers: [StripeController],
-  providers: [StripeService, CommissionIntegrationService, SalesCommissionService, EscrowService],
+  providers: [StripeService, EscrowService],
 })
 export class StripeModule { }

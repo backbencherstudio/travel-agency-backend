@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { UnifiedPaymentService } from '../../payment/unified-payment.service';
+import { UnifiedPaymentService } from '../../payment/unified/unified-payment.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { PurchaseGiftCardDto } from './dto/purchase-gift-card.dto';
 import { NotificationRepository } from '../../../common/repository/notification/notification.repository';

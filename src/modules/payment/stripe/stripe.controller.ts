@@ -2,17 +2,17 @@ import { Controller, Post, Req, Headers, Body } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
-import { CommissionIntegrationService } from '../../admin/sales-commission/commission-integration.service';
+import { CommissionService } from '../commission/commission.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
-import { EscrowService } from '../escrow.service';
+import { EscrowService } from '../escrow/escrow.service';
 
 @ApiTags('Stripe Payment')
 @Controller('payment/stripe')
 export class StripeController {
   constructor(
     private readonly stripeService: StripeService,
-    private readonly commissionIntegrationService: CommissionIntegrationService,
+    private readonly commissionService: CommissionService,
     private readonly prisma: PrismaService,
     private readonly escrowService: EscrowService,
   ) { }
@@ -175,8 +175,8 @@ export class StripeController {
           // Consume gift cards after successful payment
           await this.consumeGiftCardsAfterPayment(transaction.booking_id);
 
-          // Automatically calculate commissions for successful payment
-          await this.commissionIntegrationService.calculateCommissionsForBooking(transaction.booking_id);
+          // Calculate commission when payment succeeds
+          await this.commissionService.calculateCommissionForBooking(transaction.booking_id);
 
           // Hold funds in escrow after successful payment
           try {

@@ -4,6 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { calculateCommission, calculateVendorPayout } from '../../payment/utils/payment-calculations.util';
 
 @Injectable()
 export class PaymentTransactionService extends PrismaClient {
@@ -264,6 +265,101 @@ export class PaymentTransactionService extends PrismaClient {
       return {
         success: true,
         data: paymentTransaction,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  async getVendorEarnings(vendor_id: string) {
+    try {
+      // Get all bookings for this vendor with succeeded payments
+      const bookings = await this.prisma.booking.findMany({
+        where: {
+          vendor_id: vendor_id,
+          payment_status: 'succeeded',
+          deleted_at: null,
+        },
+        include: {
+          booking_items: {
+            include: {
+              package: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      // Calculate summary
+      let total_paid_amount = 0;
+      let total_held = 0;
+      let total_released = 0;
+      let total_commission = 0;
+      let total_vendor_payout = 0;
+      let held_bookings_count = 0;
+      let released_bookings_count = 0;
+
+      const bookingsList = bookings.map((booking) => {
+        const paidAmount = Number(booking.paid_amount || 0);
+        const commissionAmount = calculateCommission(paidAmount);
+        const vendorPayoutAmount = calculateVendorPayout(paidAmount);
+
+        total_paid_amount += paidAmount;
+        total_commission += commissionAmount;
+        total_vendor_payout += vendorPayoutAmount;
+
+        // Calculate held and released amounts
+        if (booking.escrow_status === 'held') {
+          total_held += vendorPayoutAmount; // Vendor portion of held funds
+          held_bookings_count++;
+        } else if (
+          booking.escrow_status === 'released_full' ||
+          booking.escrow_status === 'released_partial'
+        ) {
+          total_released += vendorPayoutAmount; // Vendor portion of released funds
+          released_bookings_count++;
+        }
+
+        return {
+          booking_id: booking.id,
+          invoice_number: booking.invoice_number,
+          package_name:
+            booking.booking_items[0]?.package?.name || 'N/A',
+          paid_amount: paidAmount,
+          escrow_status: booking.escrow_status || 'pending',
+          commission_amount: commissionAmount,
+          vendor_payout_amount: vendorPayoutAmount,
+          booking_status: booking.status,
+          created_at: booking.created_at,
+          completed_at: booking.completed_at,
+        };
+      });
+
+      const summary = {
+        total_paid_amount: total_paid_amount,
+        total_held: total_held,
+        total_released: total_released,
+        total_commission: total_commission,
+        total_vendor_payout: total_vendor_payout,
+        held_bookings_count: held_bookings_count,
+        released_bookings_count: released_bookings_count,
+      };
+
+      return {
+        success: true,
+        data: {
+          summary,
+          bookings: bookingsList,
+        },
       };
     } catch (error) {
       return {

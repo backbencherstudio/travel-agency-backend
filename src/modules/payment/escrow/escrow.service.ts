@@ -1,18 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { StripeConnect } from '../../common/lib/Payment/stripe/StripeConnect';
-import { CommissionIntegrationService } from '../admin/sales-commission/commission-integration.service';
-import appConfig from '../../config/app.config';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { StripeConnect } from '../../../common/lib/Payment/stripe/StripeConnect';
+import appConfig from '../../../config/app.config';
+import { calculateCommission, calculateVendorPayout } from '../utils/payment-calculations.util';
 
 @Injectable()
 export class EscrowService {
     private readonly logger = new Logger(EscrowService.name);
-    private readonly COMMISSION_RATE = 0.2; // 20% platform commission
-    private readonly VENDOR_RATE = 0.8; // 80% vendor payout
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly commissionIntegrationService: CommissionIntegrationService,
     ) { }
 
     /**
@@ -219,8 +216,8 @@ export class EscrowService {
             // Calculate amounts
             const totalAmount = Number(booking.paid_amount);
             const releaseAmount = (totalAmount * percentage) / 100;
-            const commissionAmount = releaseAmount * this.COMMISSION_RATE;
-            const vendorAmount = releaseAmount * this.VENDOR_RATE;
+            const commissionAmount = calculateCommission(releaseAmount);
+            const vendorAmount = calculateVendorPayout(releaseAmount);
 
             // Convert to cents for Stripe
             const vendorAmountCents = Math.round(vendorAmount * 100);
@@ -258,14 +255,9 @@ export class EscrowService {
                 },
             });
 
-            // Record commission calculation (commission is calculated on release, not payment)
-            // The commission is already deducted in the transfer amount calculation above
-            // This call records it in the database
-            if (this.commissionIntegrationService) {
-                await this.commissionIntegrationService.calculateCommissionsForBooking(
-                    bookingId,
-                );
-            }
+            // Note: Commission is calculated when payment succeeds (in webhook),
+            // not when funds are released. This ensures commission is recorded
+            // immediately after successful payment.
 
             this.logger.log(
                 `Funds released successfully - Transfer ID: ${transfer.id}, Vendor received: ${vendorAmount}`,

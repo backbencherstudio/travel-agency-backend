@@ -23,7 +23,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { PlaceModule } from './place/place.module';
 import { LegalDocumentModule } from './legal-document/legal-document.module';
 import { JumioVerificationModule } from './jumio-verification/jumio-verification.module';
-import { SalesCommissionModule } from './sales-commission/sales-commission.module';
 import { GiftCardModule } from './gift-card/gift-card.module';
 
 @Module({
@@ -52,8 +51,7 @@ import { GiftCardModule } from './gift-card/gift-card.module';
     PlaceModule,
     LegalDocumentModule,
     JumioVerificationModule,
-    SalesCommissionModule,
     GiftCardModule,
   ],
 })
-export class AdminModule {}
+export class AdminModule { }

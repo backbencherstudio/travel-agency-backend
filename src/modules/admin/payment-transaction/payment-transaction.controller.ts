@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { Request } from 'express';
+import { UserRepository } from '../../../common/repository/user/user.repository';
 
 @ApiBearerAuth()
 @ApiTags('Payment transaction')
@@ -23,6 +24,31 @@ export class PaymentTransactionController {
     try {
       const user_id = req.user.userId;
       const data = await this.paymentTransactionService.getPaymentDashboard(user_id);
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @Get('vendor/earnings')
+  @ApiOperation({ summary: 'Get vendor earnings and payout details' })
+  @Roles(Role.VENDOR)
+  async getVendorEarnings(@Req() req: Request) {
+    try {
+      const user_id = req.user.userId;
+      const user = await UserRepository.getUserDetails(user_id);
+
+      if (!user || user.type !== 'vendor') {
+        return {
+          success: false,
+          message: 'Only vendors can access earnings data',
+        };
+      }
+
+      const data = await this.paymentTransactionService.getVendorEarnings(user_id);
       return data;
     } catch (error) {
       return {

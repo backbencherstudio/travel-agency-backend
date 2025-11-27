@@ -12,9 +12,9 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CheckCancellationDto } from './dto/check-cancellation.dto';
 import { CancellationStatusDto } from './dto/cancellation-status.dto';
 import { CancellationCalculatorService } from '../../../common/services/cancellation-calculator.service';
-import { UnifiedPaymentService } from '../../payment/unified-payment.service';
+import { UnifiedPaymentService } from '../../payment/unified/unified-payment.service';
 import { PaymentMethodType } from '../checkout/dto/payment-method.dto';
-import { EscrowService } from '../../payment/escrow.service';
+import { EscrowService } from '../../payment/escrow/escrow.service';
 
 @Injectable()
 export class BookingService {

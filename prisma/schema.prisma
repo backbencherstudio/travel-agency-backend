@@ -16,58 +16,6 @@ datasource db {
 
 // ==================== SALES COMMISSION SECTION ====================
 
-// this table stores commission rates
-model CommissionRate {
-  id         String    @id @default(cuid())
-  created_at DateTime  @default(now())
-  updated_at DateTime  @default(now())
-  deleted_at DateTime?
-  status     Int?      @default(1) @db.SmallInt
-
-  name        String?
-  description String? @db.Text
-
-  // Commission type: percentage, fixed, tiered
-  commission_type String? @default("percentage")
-
-  // Commission rate value (percentage or fixed amount)
-  rate Decimal?
-
-  // Minimum amount required for commission
-  min_amount Decimal?
-
-  // Maximum commission amount cap
-  max_commission_amount Decimal?
-
-  // Tiered rates as JSON for complex commission structures
-  tiered_rates String? @db.Text
-
-  // Applicable user type: vendor, affiliate, agent, etc.
-  applicable_user_type String? @default("vendor")
-
-  // Specific user, package, or category this rate applies to
-  user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
-
-  package_id String?
-  package    Package? @relation(fields: [package_id], references: [id])
-
-  category_id String?
-  category    Category? @relation(fields: [category_id], references: [id])
-
-  // Rate status
-  is_active Boolean? @default(true)
-
-  // Effective date range
-  effective_from  DateTime?
-  effective_until DateTime?
-
-  // Related commission calculations
-  commission_calculations CommissionCalculation[]
-
-  @@map("commission_rates")
-}
-
 // this table stores commission calculations
 model CommissionCalculation {
   id         String    @id @default(cuid())
@@ -81,9 +29,6 @@ model CommissionCalculation {
 
   recipient_user_id String?
   recipient_user    User?   @relation("commission_recipient", fields: [recipient_user_id], references: [id])
-
-  commission_rate_id String?
-  commission_rate    CommissionRate? @relation(fields: [commission_rate_id], references: [id])
 
   // Calculation details
   base_amount           Decimal? // Original booking amount
@@ -117,44 +62,7 @@ model CommissionCalculation {
   paid_amount    Decimal?
   payment_method String?
 
-  // Related commission payments
-  commission_payments CommissionPayment[]
-
   @@map("commission_calculations")
-}
-
-// this table stores commission payments
-model CommissionPayment {
-  id         String    @id @default(cuid())
-  created_at DateTime  @default(now())
-  updated_at DateTime  @default(now())
-  deleted_at DateTime?
-
-  commission_calculation_id String?
-  commission_calculation    CommissionCalculation? @relation(fields: [commission_calculation_id], references: [id])
-
-  // Payment details
-  payment_amount   Decimal?
-  payment_currency String?  @default("USD")
-  payment_method   String? // bank_transfer, paypal, stripe, etc.
-  payment_status   String?  @default("pending") // pending, processing, completed, failed
-
-  // Payment reference
-  payment_reference String?
-  transaction_id    String?
-
-  // Payment date
-  paid_at DateTime?
-
-  // Scheduled payment date
-  scheduled_at DateTime?
-
-  // Notes
-  notes  String? @db.Text
-  User   User?   @relation("commission_payments_made", fields: [userId], references: [id])
-  userId String?
-
-  @@map("commission_payments")
 }
 
 // ==================== END SALES COMMISSION SECTION ====================
@@ -250,9 +158,7 @@ model User {
   shares                        Share[]
   legal_documents               LegalDocument[]
   jumio_verifications           JumioVerification[]
-  commission_rates              CommissionRate[]
   commission_calculations       CommissionCalculation[]     @relation("commission_recipient")
-  commission_payments           CommissionPayment[]         @relation("commission_payments_made")
   gift_card_purchases           GiftCardPurchase[]
   booking_gift_cards            BookingGiftCard[]
   checkout_gift_cards           CheckoutGiftCard[]
@@ -511,7 +417,6 @@ model Package {
   wishList                WishList[]
   checkout_availabilities CheckoutAvailability[]
   booking_availabilities  BookingAvailability[]
-  commission_rates        CommissionRate[]
 
   @@map("packages")
 }
@@ -732,7 +637,6 @@ model Category {
   parent_id String?
 
   package_categories PackageCategory[]
-  commission_rates   CommissionRate[]
 
   @@map("categories")
 }
