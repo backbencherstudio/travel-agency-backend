@@ -67,6 +67,7 @@ export class PackageService extends PrismaClient {
           min_infants: createPackageDto.min_infants,
           max_infants: createPackageDto.max_infants,
           type: createPackageDto.type,
+          region_type: createPackageDto.region_type,
           cancellation_policy_id: createPackageDto.cancellation_policy_id,
         },
       });

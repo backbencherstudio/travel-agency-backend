@@ -389,6 +389,9 @@ model Package {
   min_infants  Int? @default(0)
   max_infants  Int? @default(2)
 
+  // National vs international (relevant mainly when type == \"package\")
+  region_type String? @default("national")
+
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
   // Partial payment schedule for travel packages (>24h)
