@@ -1,0 +1,387 @@
+{
+  "category": {
+    "description": "Category - Required field for package creation",
+    "examples": [
+      {
+        "name": "Adventure Tours",
+        "parent_id": null,
+        "status": 1,
+        "sort_order": 0
+      },
+      {
+        "name": "Beach Tours",
+        "parent_id": null,
+        "status": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Cultural Tours",
+        "parent_id": null,
+        "status": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Hiking Tours",
+        "parent_id": "parent_category_id_here",
+        "status": 1,
+        "sort_order": 0
+      }
+    ]
+  },
+
+  "cancellation_policy": {
+    "description": "Cancellation Policy - Optional but recommended",
+    "examples": [
+      {
+        "policy": "free_cancellation",
+        "description": "Free cancellation up to 24 hours before the trip",
+        "status": 1
+      },
+      {
+        "policy": "non_refundable",
+        "description": "No refund available after booking",
+        "status": 1
+      },
+      {
+        "policy": "free_cancellation",
+        "description": "Cancel up to 7 days before for full refund. 50% refund if cancelled 3-7 days before. No refund if cancelled less than 3 days before.",
+        "status": 1
+      }
+    ]
+  },
+
+  "destination": {
+    "description": "Destination - Optional but commonly used",
+    "examples": [
+      {
+        "name": "Cox's Bazar",
+        "description": "The longest sea beach in the world, located in Bangladesh",
+        "latitude": 21.4272,
+        "longitude": 92.0058,
+        "address": "Cox's Bazar, Chittagong Division, Bangladesh",
+        "city": "Cox's Bazar",
+        "state": "Chittagong",
+        "zip_code": "4700",
+        "country_id": "country_id_here",
+        "status": 1
+      },
+      {
+        "name": "Sundarbans",
+        "description": "Largest mangrove forest in the world",
+        "latitude": 21.9497,
+        "longitude": 89.1833,
+        "address": "Sundarbans, Khulna Division, Bangladesh",
+        "city": "Khulna",
+        "state": "Khulna",
+        "zip_code": "9000",
+        "country_id": "country_id_here",
+        "status": 1
+      },
+      {
+        "name": "Sajek Valley",
+        "description": "Beautiful hill station in Rangamati",
+        "latitude": 23.3822,
+        "longitude": 92.2864,
+        "address": "Sajek Valley, Rangamati, Chittagong Division",
+        "city": "Rangamati",
+        "state": "Chittagong",
+        "zip_code": "4500",
+        "country_id": "country_id_here",
+        "status": 1
+      }
+    ]
+  },
+
+  "tag": {
+    "description": "Tag - For Included/Excluded items in package",
+    "included_examples": [
+      {
+        "name": "Breakfast Included",
+        "status": 1,
+        "sort_order": 0
+      },
+      {
+        "name": "Hotel Accommodation",
+        "status": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Professional Guide",
+        "status": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Transportation",
+        "status": 1,
+        "sort_order": 3
+      },
+      {
+        "name": "Entry Tickets",
+        "status": 1,
+        "sort_order": 4
+      },
+      {
+        "name": "Lunch Included",
+        "status": 1,
+        "sort_order": 5
+      },
+      {
+        "name": "Dinner Included",
+        "status": 1,
+        "sort_order": 6
+      },
+      {
+        "name": "Snacks & Drinks",
+        "status": 1,
+        "sort_order": 7
+      }
+    ],
+    "excluded_examples": [
+      {
+        "name": "Flight Tickets",
+        "status": 1,
+        "sort_order": 0
+      },
+      {
+        "name": "Visa Fees",
+        "status": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Travel Insurance",
+        "status": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Personal Expenses",
+        "status": 1,
+        "sort_order": 3
+      },
+      {
+        "name": "Optional Activities",
+        "status": 1,
+        "sort_order": 4
+      },
+      {
+        "name": "Tips & Gratuities",
+        "status": 1,
+        "sort_order": 5
+      }
+    ]
+  },
+
+  "traveller_type": {
+    "description": "TravellerType - Types of travellers (adult, child, infant)",
+    "examples": [
+      {
+        "type": "adult",
+        "status": 1
+      },
+      {
+        "type": "child",
+        "status": 1
+      },
+      {
+        "type": "infant",
+        "status": 1
+      }
+    ]
+  },
+
+  "language": {
+    "description": "Language - Languages available for service",
+    "examples": [
+      {
+        "name": "English",
+        "code": "en",
+        "status": 1
+      },
+      {
+        "name": "Bengali",
+        "code": "bn",
+        "status": 1
+      },
+      {
+        "name": "Hindi",
+        "code": "hi",
+        "status": 1
+      },
+      {
+        "name": "Arabic",
+        "code": "ar",
+        "status": 1
+      },
+      {
+        "name": "Spanish",
+        "code": "es",
+        "status": 1
+      },
+      {
+        "name": "French",
+        "code": "fr",
+        "status": 1
+      }
+    ]
+  },
+
+  "extra_service": {
+    "description": "ExtraService - Additional services available for package",
+    "examples": [
+      {
+        "name": "Airport Pickup",
+        "description": "Pickup service from airport to hotel",
+        "price": 500.00
+      },
+      {
+        "name": "Airport Drop-off",
+        "description": "Drop-off service from hotel to airport",
+        "price": 500.00
+      },
+      {
+        "name": "Photography Service",
+        "description": "Professional photographer for the tour",
+        "price": 2000.00
+      },
+      {
+        "name": "Videography Service",
+        "description": "Professional videographer for the tour",
+        "price": 3000.00
+      },
+      {
+        "name": "Extra Meal",
+        "description": "Additional meal during the tour",
+        "price": 300.00
+      },
+      {
+        "name": "Room Upgrade",
+        "description": "Upgrade to premium room",
+        "price": 1000.00
+      },
+      {
+        "name": "Travel Insurance",
+        "description": "Travel insurance coverage",
+        "price": 500.00
+      },
+      {
+        "name": "SIM Card",
+        "description": "Local SIM card with data",
+        "price": 200.00
+      }
+    ]
+  },
+
+  "place": {
+    "description": "Place - Meeting points, pickup points, etc.",
+    "examples": [
+      {
+        "name": "Airport Terminal 1",
+        "address": "Hazrat Shahjalal International Airport, Terminal 1, Dhaka",
+        "description": "Main meeting point at airport terminal 1",
+        "latitude": 23.8433,
+        "longitude": 90.3978,
+        "type": "airport",
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "status": 1
+      },
+      {
+        "name": "Hotel Sonargaon",
+        "address": "107 Kazi Nazrul Islam Ave, Dhaka 1215",
+        "description": "Pickup point from hotel lobby",
+        "latitude": 23.7500,
+        "longitude": 90.4000,
+        "type": "hotel",
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "status": 1
+      },
+      {
+        "name": "Gulshan Circle 1",
+        "address": "Gulshan Circle 1, Dhaka",
+        "description": "Meeting point at Gulshan Circle 1",
+        "latitude": 23.7900,
+        "longitude": 90.4100,
+        "type": "landmark",
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "status": 1
+      },
+      {
+        "name": "Kamalapur Railway Station",
+        "address": "Kamalapur, Dhaka",
+        "description": "Pickup point from railway station",
+        "latitude": 23.7619,
+        "longitude": 90.4200,
+        "type": "station",
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "status": 1
+      },
+      {
+        "name": "Banani Bus Stop",
+        "address": "Banani, Dhaka",
+        "description": "Meeting point at Banani bus stop",
+        "latitude": 23.7950,
+        "longitude": 90.4050,
+        "type": "bus_stop",
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "status": 1
+      }
+    ]
+  },
+
+  "package_create_example": {
+    "description": "Complete Package Create Request with all prerequisites",
+    "request_body": {
+      "name": "Cox's Bazar Beach Adventure - 3 Days",
+      "description": "Experience the longest sea beach in the world with this amazing 3-day tour package. Includes hotel accommodation, meals, and guided tours.",
+      "price": 5000,
+      "price_type": "general",
+      "discount_percent": 10,
+      "duration": 3,
+      "duration_type": "days",
+      "type": "package",
+      "region_type": "national",
+      "min_adults": 1,
+      "max_adults": 10,
+      "min_children": 0,
+      "max_children": 5,
+      "min_infants": 0,
+      "max_infants": 2,
+      "cancellation_policy_id": "cancellation_policy_id_here",
+      "package_category": "category_id_here",
+      "destinations": "[{\"id\":\"destination_id_1\"},{\"id\":\"destination_id_2\"}]",
+      "included_packages": "[{\"id\":\"tag_id_breakfast\"},{\"id\":\"tag_id_hotel\"},{\"id\":\"tag_id_guide\"},{\"id\":\"tag_id_transport\"}]",
+      "excluded_packages": "[{\"id\":\"tag_id_flight\"},{\"id\":\"tag_id_visa\"},{\"id\":\"tag_id_insurance\"}]",
+      "traveller_types": "[{\"id\":\"traveller_type_adult\"},{\"id\":\"traveller_type_child\"},{\"id\":\"traveller_type_infant\"}]",
+      "languages": "[{\"id\":\"language_id_english\"},{\"id\":\"language_id_bengali\"}]",
+      "extra_services": "[{\"id\":\"extra_service_id_airport_pickup\"},{\"id\":\"extra_service_id_photography\"}]",
+      "package_places": "[{\"place_id\":\"place_id_airport\",\"type\":\"meeting_point\"},{\"place_id\":\"place_id_hotel\",\"type\":\"pickup_point\"}]",
+      "trip_plans": "[{\"title\":\"Day 1 - Arrival\",\"description\":\"Arrive at Cox's Bazar and check into hotel\",\"duration\":1,\"duration_type\":\"days\",\"destinations\":[{\"id\":\"destination_id_1\"}],\"details\":[{\"title\":\"Hotel Check-in\",\"description\":\"Check into beachfront hotel\",\"time\":\"14:00\",\"notes\":\"Early check-in available\"}]},{\"title\":\"Day 2 - Beach Tour\",\"description\":\"Full day beach activities and water sports\",\"duration\":1,\"duration_type\":\"days\",\"destinations\":[{\"id\":\"destination_id_2\"}]},{\"title\":\"Day 3 - Departure\",\"description\":\"Breakfast and departure\",\"duration\":1,\"duration_type\":\"days\"}]",
+      "package_additional_info": "[{\"type\":\"accessibility\",\"title\":\"Wheelchair Access\",\"description\":\"Not wheelchair accessible\",\"is_important\":true,\"sort_order\":0},{\"type\":\"restrictions\",\"title\":\"Age Restrictions\",\"description\":\"Children under 5 must be accompanied by adults\",\"is_important\":false,\"sort_order\":1},{\"type\":\"requirements\",\"title\":\"Physical Fitness\",\"description\":\"Moderate physical fitness level required\",\"is_important\":false,\"sort_order\":2}]",
+      "package_availability": "[{\"start_date\":\"2025-01-01\",\"end_date\":\"2025-12-31\",\"duration\":1,\"duration_type\":\"day\",\"is_available\":true,\"available_slots\":50}]"
+    },
+    "multipart_files": {
+      "package_files": "Array of image files for package",
+      "trip_plans_0_images": "Array of image files for trip plan 0",
+      "trip_plans_1_images": "Array of image files for trip plan 1"
+    }
+  },
+
+  "api_endpoints_reference": {
+    "description": "Suggested API endpoints for creating these entities",
+    "endpoints": {
+      "create_category": "POST /admin/category",
+      "create_cancellation_policy": "POST /admin/cancellation-policy",
+      "create_destination": "POST /admin/destination",
+      "create_tag": "POST /admin/tag",
+      "create_traveller_type": "POST /admin/traveller-type",
+      "create_language": "POST /admin/language",
+      "create_extra_service": "POST /admin/extra-service",
+      "create_place": "POST /admin/place",
+      "create_package": "POST /admin/package"
+    }
+  }
+}
+

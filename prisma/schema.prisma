@@ -474,6 +474,9 @@ model PackageAvailability {
   start_date DateTime? @db.Date
   end_date   DateTime? @db.Date
 
+  duration Int? 
+  duration_type String? @default("day") // day, night
+
   // Whether this date/range is available for booking
   is_available Boolean? @default(true)
 

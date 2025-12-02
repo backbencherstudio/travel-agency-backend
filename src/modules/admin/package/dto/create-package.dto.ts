@@ -340,12 +340,16 @@ export class CreatePackageDto {
       {
         start_date: '2025-01-01',
         end_date: '2025-12-31',
+        duration: 1,
+        duration_type: 'day',
         is_available: true,
         available_slots: 50,
       },
       {
         start_date: '2025-06-01',
         end_date: '2025-08-31',
+        duration: 1,
+        duration_type: 'day',
         is_available: true,
         available_slots: 100,
       },
