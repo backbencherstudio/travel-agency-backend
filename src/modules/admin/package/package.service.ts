@@ -9,6 +9,7 @@ import { DateHelper } from '../../../common/helper/date.helper';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { NotificationRepository } from '../../../common/repository/notification/notification.repository';
 import { MessageGateway } from '../../../modules/chat/message/message.gateway';
+import { PackageCreateUtils } from './utils/package-create.utils';
 
 @Injectable()
 export class PackageService extends PrismaClient {
@@ -67,284 +68,30 @@ export class PackageService extends PrismaClient {
           min_infants: createPackageDto.min_infants,
           max_infants: createPackageDto.max_infants,
           type: createPackageDto.type,
+          region_type: createPackageDto.region_type,
           cancellation_policy_id: createPackageDto.cancellation_policy_id,
         },
       });
 
-      // add package files to package
-      const packageFiles = (files || []).filter((f) => f.fieldname === 'package_files');
-      if (packageFiles && packageFiles.length > 0) {
-        const package_files_data = packageFiles.map((file) => ({
-          file: file.filename,
-          file_alt: file.originalname,
-          package_id: record.id,
-          type: file.mimetype,
-        }));
-        await this.prisma.packageFile.createMany({
-          data: package_files_data,
-        });
+      // Create related entities
+      await PackageCreateUtils.createPackageFiles(this.prisma, record.id, files);
+      await PackageCreateUtils.createTripPlans(this.prisma, record.id, createPackageDto, files);
+      await PackageCreateUtils.createExtraServices(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createDestinations(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createIncludedTags(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createExcludedTags(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createTravellerTypes(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createLanguages(this.prisma, record.id, createPackageDto);
+      const categoryResult = await PackageCreateUtils.createCategory(this.prisma, record.id, createPackageDto);
+      if (categoryResult && !categoryResult.success) {
+        return categoryResult;
       }
-
-      // add trip plan to package
-      if (createPackageDto.trip_plans) {
-        const trip_plans = JSON.parse(createPackageDto.trip_plans);
-        for (let index = 0; index < trip_plans.length; index++) {
-          const trip_plan = trip_plans[index];
-          const trip_plan_data = {
-            title: trip_plan.title,
-            description: trip_plan.description,
-            duration: trip_plan.duration ? Number(trip_plan.duration) : null,
-            duration_type: trip_plan.duration_type || null,
-            package_id: record.id,
-          };
-          const trip_plan_record = await this.prisma.packageTripPlan.create({
-            data: trip_plan_data,
-          });
-          if (trip_plan_record) {
-            // add trip plan destinations if provided
-            if (trip_plan.destinations && trip_plan.destinations.length > 0) {
-              for (const destination of trip_plan.destinations) {
-                await this.prisma.packageTripPlanDestination.create({
-                  data: {
-                    package_trip_plan_id: trip_plan_record.id,
-                    destination_id: destination.id,
-                  },
-                });
-              }
-            }
-            // trip plan details
-            if (trip_plan.details && trip_plan.details.length > 0) {
-              for (const detail of trip_plan.details) {
-                await this.prisma.packageTripPlanDetails.create({
-                  data: {
-                    package_trip_plan_id: trip_plan_record.id,
-                    title: detail.title,
-                    description: detail.description,
-                    time: detail.time,
-                    notes: detail.notes,
-                  },
-                });
-              }
-            }
-            // add trip plan images to this specific trip plan via field trip_plans_{index}_images
-            const fieldName = `trip_plans_${index}_images`;
-            const imagesForThisTrip = (files || []).filter((f) => f.fieldname === fieldName);
-            if (imagesForThisTrip.length > 0) {
-              const trip_plan_images_data = imagesForThisTrip.map((image) => ({
-                image: image.filename,
-                image_alt: image.originalname,
-                package_trip_plan_id: trip_plan_record.id,
-              }));
-              await this.prisma.packageTripPlanImage.createMany({
-                data: trip_plan_images_data,
-              });
-            }
-          }
-        }
-      }
-
-      // add extra services to package
-      if (createPackageDto.extra_services) {
-        const extra_services = JSON.parse(createPackageDto.extra_services);
-        for (const extra_service of extra_services) {
-          await this.prisma.packageExtraService.create({
-            data: {
-              package_id: record.id,
-              extra_service_id: extra_service.id,
-            },
-          });
-        }
-      }
-
-      // add destination to package
-      if (createPackageDto.destinations) {
-        const destinations = JSON.parse(createPackageDto.destinations);
-        for (const destination of destinations) {
-          const existing_destination =
-            await this.prisma.packageDestination.findFirst({
-              where: {
-                destination_id: destination.id,
-                package_id: record.id,
-              },
-            });
-          if (!existing_destination) {
-            await this.prisma.packageDestination.create({
-              data: {
-                destination_id: destination.id,
-                package_id: record.id,
-              },
-            });
-          }
-        }
-      }
-
-      // add tag to included_packages
-      if (createPackageDto.included_packages) {
-        const included_packages = JSON.parse(
-          createPackageDto.included_packages,
-        );
-        for (const tag of included_packages) {
-          const existing_tag = await this.prisma.packageTag.findFirst({
-            where: {
-              tag_id: tag.id,
-              package_id: record.id,
-              type: 'included',
-            },
-          });
-          if (!existing_tag) {
-            await this.prisma.packageTag.create({
-              data: {
-                tag_id: tag.id,
-                package_id: record.id,
-                type: 'included',
-              },
-            });
-          }
-        }
-      }
-
-      // add traveller_type to package
-      if (createPackageDto.traveller_types) {
-        const traveller_types = JSON.parse(createPackageDto.traveller_types);
-        for (const traveller_type of traveller_types) {
-          const existing_traveller_type =
-            await this.prisma.packageTravellerType.findFirst({
-              where: {
-                package_id: record.id,
-                traveller_type_id: traveller_type.id,
-              },
-            });
-          if (!existing_traveller_type) {
-            await this.prisma.packageTravellerType.create({
-              data: {
-                package_id: record.id,
-                traveller_type_id: traveller_type.id,
-              },
-            });
-          }
-        }
-      }
-
-      // add language to package
-      if (createPackageDto.languages) {
-        const languages = JSON.parse(createPackageDto.languages);
-        for (const language of languages) {
-          const existing_language = await this.prisma.packageLanguage.findFirst(
-            {
-              where: {
-                language_id: language.id,
-                package_id: record.id,
-              },
-            },
-          );
-          if (!existing_language) {
-            await this.prisma.packageLanguage.create({
-              data: {
-                language_id: language.id,
-                package_id: record.id,
-              },
-            });
-          }
-        }
-      }
-
-      // add tag to excluded_packages
-      if (createPackageDto.excluded_packages) {
-        const excluded_packages = JSON.parse(
-          createPackageDto.excluded_packages,
-        );
-        for (const tag of excluded_packages) {
-          const existing_tag = await this.prisma.packageTag.findFirst({
-            where: {
-              tag_id: tag.id,
-              package_id: record.id,
-              type: 'excluded',
-            },
-          });
-          if (!existing_tag) {
-            await this.prisma.packageTag.create({
-              data: {
-                tag_id: tag.id,
-                package_id: record.id,
-                type: 'excluded',
-              },
-            });
-          }
-        }
-      }
-      // add category to package
-      if (createPackageDto.package_category) {
-        // const package_category = JSON.parse(createPackageDto.package_category);
-        // for (const category of package_category) {
-        //   await this.prisma.packageCategory.create({
-        //     data: {
-        //       category_id: category.id,
-        //       package_id: record.id,
-        //     },
-        //   });
-        // }
-        // check if category exists
-        const category = await this.prisma.category.findUnique({
-          where: {
-            id: createPackageDto.package_category,
-          },
-        });
-
-        if (!category) {
-          return {
-            success: false,
-            message: 'Category not found',
-          };
-        }
-
-        await this.prisma.packageCategory.create({
-          data: {
-            category_id: category.id,
-            package_id: record.id,
-          },
-        });
-      }
-
-
-
-      // Create package places if provided
-      if (createPackageDto.package_places) {
-        const package_places = JSON.parse(createPackageDto.package_places);
-        for (const package_place of package_places) {
-          await this.prisma.packagePlace.create({
-            data: {
-              package: { connect: { id: record.id } },
-              place: package_place.place_id
-                ? { connect: { id: package_place.place_id } }
-                : undefined,
-              type: package_place.type || 'meeting_point',
-            },
-          });
-        }
-      }
-
-      // Create package additional information if provided
-      if (createPackageDto.package_additional_info) {
-        const package_additional_info = JSON.parse(createPackageDto.package_additional_info);
-        for (const additional_info of package_additional_info) {
-          const infoData = {
-            package_id: record.id,
-            type: additional_info.type || 'general',
-            title: additional_info.title,
-            description: additional_info.description,
-            is_important: additional_info.is_important !== undefined ? additional_info.is_important : false,
-            sort_order: additional_info.sort_order ? Number(additional_info.sort_order) : 0,
-          };
-
-          await this.prisma.packageAdditionalInfo.create({
-            data: infoData,
-          });
-        }
-      }
+      await PackageCreateUtils.createPackagePlaces(this.prisma, record.id, createPackageDto);
+      await PackageCreateUtils.createAdditionalInfo(this.prisma, record.id, createPackageDto);
 
       // Create PackageAvailability for package or cruise types
       if (createPackageDto.type === 'package' || createPackageDto.type === 'cruise') {
-        await this.createPackageAvailability(record.id, createPackageDto);
+        await PackageCreateUtils.createPackageAvailability(this.prisma, record.id, createPackageDto);
       }
 
       const userDetails = await UserRepository.getUserDetails(user_id);
@@ -1118,7 +865,7 @@ export class PackageService extends PrismaClient {
                     package_trip_plan_id: trip_plan.id,
                     title: detail.title,
                     description: detail.description,
-                    time: detail.time,
+                    time: PackageCreateUtils.parseDetailTime(detail.time),
                     notes: detail.notes,
                   },
                 });
@@ -1561,45 +1308,4 @@ export class PackageService extends PrismaClient {
     }
   }
 
-  private async createPackageAvailability(packageId: string, createPackageDto: CreatePackageDto) {
-    try {
-      // Check if package_availability data is provided
-      if (createPackageDto.package_availability) {
-        const availabilityData = JSON.parse(createPackageDto.package_availability);
-
-        for (const availability of availabilityData) {
-          const availabilityRecord = {
-            package_id: packageId,
-            start_date: availability.start_date ? new Date(availability.start_date) : null,
-            end_date: availability.end_date ? new Date(availability.end_date) : null,
-            is_available: availability.is_available !== undefined ? availability.is_available : true,
-            available_slots: availability.available_slots || 10,
-          };
-
-          await this.prisma.packageAvailability.create({
-            data: availabilityRecord,
-          });
-        }
-      } else {
-        // Create default availability if no specific data provided
-        // For packages/cruises, create availability for the next 365 days
-        const today = new Date();
-        const oneYearFromNow = new Date();
-        oneYearFromNow.setFullYear(today.getFullYear() + 1);
-
-        await this.prisma.packageAvailability.create({
-          data: {
-            package_id: packageId,
-            start_date: today,
-            end_date: oneYearFromNow,
-            is_available: true,
-            available_slots: 999,
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error creating package availability:', error);
-      // Don't throw error to avoid breaking package creation
-    }
-  }
 }

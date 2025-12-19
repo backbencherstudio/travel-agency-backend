@@ -389,6 +389,9 @@ model Package {
   min_infants  Int? @default(0)
   max_infants  Int? @default(2)
 
+  // National vs international (relevant mainly when type == \"package\")
+  region_type String? @default("national")
+
   type String? @default("tour") // e.g. "package", "tour", "cruise"
 
   // Partial payment schedule for travel packages (>24h)
@@ -470,6 +473,9 @@ model PackageAvailability {
   // For multi-day packages: start_date and end_date
   start_date DateTime? @db.Date
   end_date   DateTime? @db.Date
+
+  duration Int? 
+  duration_type String? @default("day") // day, night
 
   // Whether this date/range is available for booking
   is_available Boolean? @default(true)

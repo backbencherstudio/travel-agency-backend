@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  ValidateIf,
+} from 'class-validator';
 
 export interface TripPlan {
   title: string;
@@ -95,9 +102,23 @@ export class CreatePackageDto {
   @ApiProperty({
     description: 'Package type. e.g. tour, cruise',
     example: 'tour',
-    enum: ['tour', 'cruise'],
+    enum: ['tour', 'cruise', 'package'],
   })
   type?: string;
+
+  @ValidateIf((o) => o.type === 'package')
+  @IsNotEmpty()
+  @IsString()
+  @IsIn(['national', 'international'])
+  @IsOptional()
+  @ApiProperty({
+    description:
+      'Package region type. Required when type is \"package\". Not used for tours.',
+    example: 'national',
+    enum: ['national', 'international'],
+    required: false,
+  })
+  region_type?: string;
 
   @ApiProperty({
     description: 'Minimum number of adults allowed',
@@ -319,12 +340,16 @@ export class CreatePackageDto {
       {
         start_date: '2025-01-01',
         end_date: '2025-12-31',
+        duration: 1,
+        duration_type: 'day',
         is_available: true,
         available_slots: 50,
       },
       {
         start_date: '2025-06-01',
         end_date: '2025-08-31',
+        duration: 1,
+        duration_type: 'day',
         is_available: true,
         available_slots: 100,
       },
