@@ -124,13 +124,13 @@ export class WebsiteInfoService extends PrismaClient {
         },
       });
 
-      if (websiteInfo.logo) {
+      if (websiteInfo?.logo) {
         websiteInfo['logo_url'] = SojebStorage.url(
           appConfig().storageUrl.websiteInfo + websiteInfo.logo,
         );
       }
 
-      if (websiteInfo.favicon) {
+      if (websiteInfo?.favicon) {
         websiteInfo['favicon_url'] = SojebStorage.url(
           appConfig().storageUrl.websiteInfo + websiteInfo.favicon,
         );

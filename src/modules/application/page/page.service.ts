@@ -30,6 +30,7 @@ export class PageService extends PrismaClient {
             },
           },
         },
+        take: 3,
       });
 
       if (destinations.length > 0) {
