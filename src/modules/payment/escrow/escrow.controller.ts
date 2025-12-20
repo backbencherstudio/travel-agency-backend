@@ -7,9 +7,11 @@ import {
     Req,
     Body,
     Param,
+    Query,
+    Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiBody } from '@nestjs/swagger';
-import { Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { Roles } from '../../../common/guard/role/roles.decorator';
@@ -18,11 +20,76 @@ import { EscrowService } from './escrow.service';
 
 @ApiBearerAuth()
 @ApiTags('Escrow')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('escrow')
 export class EscrowController {
     constructor(private readonly escrowService: EscrowService) { }
 
+    // ==================== PUBLIC ENDPOINTS (No Auth Required) ====================
+    // These endpoints handle Stripe redirects after vendor onboarding
+
+    @Get('/vendor/onboarding/return')
+    @ApiQuery({ name: 'account_id', required: true, description: 'Stripe Connect Account ID' })
+    async publicHandleOnboardingReturn(
+        @Query('account_id') accountId: string,
+        @Res() res: Response,
+    ) {
+        try {
+            const result = await this.escrowService.handleVendorOnboardingReturnByAccountId(accountId);
+            
+            // Redirect to frontend with result
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const redirectUrl = `${frontendUrl}/vendor/onboarding/complete?success=${result.success}&message=${encodeURIComponent(result.message)}`;
+            
+            return res.redirect(redirectUrl);
+        } catch (error) {
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const redirectUrl = `${frontendUrl}/vendor/onboarding/complete?success=false&message=${encodeURIComponent(error.message)}`;
+            return res.redirect(redirectUrl);
+        }
+    }
+
+    @Get('/vendor/onboarding/refresh')
+    @ApiQuery({ name: 'account_id', required: true, description: 'Stripe Connect Account ID' })
+    async publicHandleOnboardingRefresh(
+        @Query('account_id') accountId: string,
+        @Res() res: Response,
+    ) {
+        try {
+            const result = await this.escrowService.handleVendorOnboardingRefreshByAccountId(accountId);
+            
+            if (result.success && result.data?.onboarding_url) {
+                // Redirect to new Stripe onboarding link
+                return res.redirect(result.data.onboarding_url);
+            } else {
+                // Redirect to frontend with error
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                const redirectUrl = `${frontendUrl}/vendor/onboarding/complete?success=false&message=${encodeURIComponent(result.message)}`;
+                return res.redirect(redirectUrl);
+            }
+        } catch (error) {
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const redirectUrl = `${frontendUrl}/vendor/onboarding/complete?success=false&message=${encodeURIComponent(error.message)}`;
+            return res.redirect(redirectUrl);
+        }
+    }
+
+    // JSON response endpoints for testing (no redirect)
+    @Get('/vendor/onboarding/return-json')
+    @ApiQuery({ name: 'account_id', required: true, description: 'Stripe Connect Account ID' })
+    async publicHandleOnboardingReturnJson(@Query('account_id') accountId: string) {
+        try {
+            return await this.escrowService.handleVendorOnboardingReturnByAccountId(accountId);
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message || 'Failed to check onboarding status',
+            };
+        }
+    }
+
+    // ==================== AUTHENTICATED ENDPOINTS ====================
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('funds')
     @Roles(Role.VENDOR)
     async getRetainedFunds(@Req() req: Request) {
@@ -38,6 +105,8 @@ export class EscrowController {
         }
     }
 
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('onboarding-link')
     @Roles(Role.VENDOR)
     async getOnboardingLink(@Req() req: Request) {
@@ -53,6 +122,7 @@ export class EscrowController {
         }
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('release-partial')
     @ApiBody({
         schema: {
@@ -84,6 +154,7 @@ export class EscrowController {
     }
 
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('release-final/:bookingId')
     @Roles(Role.ADMIN, Role.SUPERADMIN)
     async releaseFinal(@Req() req: Request, @Param('bookingId') bookingId: string) {
@@ -100,6 +171,7 @@ export class EscrowController {
         }
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('cancel-client/:bookingId')
     @ApiBody({
         schema: {
@@ -130,6 +202,7 @@ export class EscrowController {
     }
 
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('cancel-provider/:bookingId')
     @Roles(Role.VENDOR)
     async handleProviderCancellation(
@@ -151,6 +224,7 @@ export class EscrowController {
         }
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('dispute/:bookingId')
     @Roles(Role.USER, Role.VENDOR)
     async handleDispute(
@@ -172,6 +246,7 @@ export class EscrowController {
         }
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('resolve-dispute/:bookingId')
     @Roles(Role.ADMIN, Role.SUPERADMIN)
     async resolveDispute(

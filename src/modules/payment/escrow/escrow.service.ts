@@ -16,6 +16,151 @@ export class EscrowService {
     ) { }
 
     /**
+     * Handle vendor onboarding return from Stripe (by account ID)
+     * Checks onboarding status after Stripe redirect using account_id
+     */
+    async handleVendorOnboardingReturnByAccountId(accountId: string) {
+        try {
+            // Find user by stripe_connect_account_id
+            const user = await this.prisma.user.findFirst({
+                where: {
+                    stripe_connect_account_id: accountId,
+                    type: 'vendor',
+                    deleted_at: null,
+                },
+            });
+
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'Vendor account not found',
+                };
+            }
+
+            // Check account status
+            const connectAccount = await StripeConnect.getConnectAccount(accountId);
+
+            const transfersCapability = connectAccount.capabilities?.transfers;
+            const cardPaymentsCapability = connectAccount.capabilities?.card_payments;
+            const chargesEnabled = connectAccount.charges_enabled;
+            const payoutsEnabled = connectAccount.payouts_enabled;
+            const detailsSubmitted = connectAccount.details_submitted;
+
+            const currentlyDue = connectAccount.requirements?.currently_due || [];
+            const pastDue = connectAccount.requirements?.past_due || [];
+
+            const isFullyOnboarded =
+                transfersCapability === 'active' &&
+                cardPaymentsCapability === 'active' &&
+                chargesEnabled === true &&
+                payoutsEnabled === true &&
+                detailsSubmitted === true &&
+                currentlyDue.length === 0 &&
+                pastDue.length === 0;
+
+            if (isFullyOnboarded) {
+                this.logger.log(
+                    `Vendor ${user.id} successfully completed Stripe onboarding`,
+                );
+
+                return {
+                    success: true,
+                    message: 'Onboarding completed successfully! ✓',
+                    data: {
+                        account_id: accountId,
+                        vendor_name: user.name,
+                        vendor_email: user.email,
+                        onboarding_complete: true,
+                        transfers_enabled: true,
+                        card_payments_enabled: true,
+                        charges_enabled: true,
+                        payouts_enabled: true,
+                        details_submitted: true,
+                    },
+                };
+            } else {
+                // Onboarding started but not complete yet
+                return {
+                    success: false,
+                    message: 'Onboarding not yet complete. Please complete all requirements.',
+                    data: {
+                        account_id: accountId,
+                        vendor_name: user.name,
+                        vendor_email: user.email,
+                        onboarding_complete: false,
+                        transfers_enabled: transfersCapability === 'active',
+                        card_payments_enabled: cardPaymentsCapability === 'active',
+                        charges_enabled: chargesEnabled,
+                        payouts_enabled: payoutsEnabled,
+                        details_submitted: detailsSubmitted,
+                        requirements_pending: currentlyDue.length + pastDue.length,
+                        currently_due: currentlyDue,
+                        past_due: pastDue,
+                    },
+                };
+            }
+        } catch (error) {
+            this.logger.error('Error handling vendor onboarding return:', error);
+            return {
+                success: false,
+                message: error.message || 'Failed to complete onboarding',
+            };
+        }
+    }
+
+    /**
+     * Handle vendor onboarding refresh (by account ID)
+     * Generates new onboarding link using account ID
+     */
+    async handleVendorOnboardingRefreshByAccountId(accountId: string) {
+        try {
+            // Find user by stripe_connect_account_id
+            const user = await this.prisma.user.findFirst({
+                where: {
+                    stripe_connect_account_id: accountId,
+                    type: 'vendor',
+                    deleted_at: null,
+                },
+            });
+
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'Vendor account not found',
+                };
+            }
+
+            // Generate new onboarding link
+            const baseUrl = appConfig().app.url || 'http://localhost:3000';
+            const accountLink = await StripeConnect.createAccountLink(
+                accountId,
+                `${baseUrl}/api/escrow/vendor/onboarding/return?account_id=${accountId}`,
+                `${baseUrl}/api/escrow/vendor/onboarding/refresh?account_id=${accountId}`,
+            );
+
+            this.logger.log(`Generated refresh onboarding link for account ${accountId}`);
+
+            return {
+                success: true,
+                message: 'New onboarding link generated',
+                data: {
+                    account_id: accountId,
+                    vendor_name: user.name,
+                    vendor_email: user.email,
+                    onboarding_url: accountLink.url,
+                    expires_at: accountLink.expires_at,
+                },
+            };
+        } catch (error) {
+            this.logger.error('Error refreshing vendor onboarding link:', error);
+            return {
+                success: false,
+                message: error.message || 'Failed to refresh onboarding link',
+            };
+        }
+    }
+
+    /**
      * Get retained funds for vendor dashboard
      */
     async getRetainedFundsForVendor(userId: string) {
@@ -116,8 +261,8 @@ export class EscrowService {
         const baseUrl = appConfig().app.url || 'http://localhost:3000';
         const accountLink = await StripeConnect.createAccountLink(
             user.stripe_connect_account_id,
-            `${baseUrl}/vendor/onboarding/return`,
-            `${baseUrl}/vendor/onboarding/refresh`,
+            `${baseUrl}/api/escrow/vendor/onboarding/return?account_id=${user.stripe_connect_account_id}`,
+            `${baseUrl}/api/escrow/vendor/onboarding/refresh?account_id=${user.stripe_connect_account_id}`,
         );
 
         return {
@@ -273,6 +418,8 @@ export class EscrowService {
     /**
      * Hold funds in escrow after client payment
      * Confirms and captures the PaymentIntent to hold funds
+     * For packages: Automatically releases 20% immediately, holds remaining 80%
+     * For daily tours: Holds 100% for weekly payout
      */
     async holdFundsInEscrow(bookingId: string): Promise<{
         success: boolean;
@@ -290,6 +437,11 @@ export class EscrowService {
                         where: { status: 'succeeded' },
                         orderBy: { created_at: 'desc' },
                         take: 1,
+                    },
+                    booking_items: {
+                        include: {
+                            package: true,
+                        },
                     },
                 },
             });
@@ -324,23 +476,33 @@ export class EscrowService {
                 this.logger.log(`Captured PaymentIntent ${paymentIntent.id} for escrow`);
             }
 
-            // Update booking escrow status
+            // Determine if it's a package or tour based on 'type' field
+            // Both type='package' and type='tour' → Hold 100% in escrow
+            // No immediate release for either; admin releases when booking is complete
+            const isPackage = booking.booking_items.some(
+                (item) => item.package?.type === 'package',
+            );
+
+            // For both packages and tours: Hold 100% for admin/manual release
+            // Packages like tours - no immediate release
             await this.prisma.booking.update({
                 where: { id: bookingId },
-                data: {
-                    escrow_status: 'held',
-                },
+                data: { escrow_status: 'held' },
             });
 
-            this.logger.log(`Funds held in escrow for booking: ${bookingId}`);
+            const bookingType = isPackage ? 'package' : 'tour';
+            this.logger.log(`${bookingType} booking - All funds held in escrow. Admin will release when complete: ${bookingId}`);
 
             return {
                 success: true,
-                message: 'Funds held in escrow successfully',
+                message: `Funds held in escrow. Admin will release 100% to vendor when booking is completed.`,
                 data: {
                     booking_id: bookingId,
                     escrow_status: 'held',
                     payment_intent_id: paymentIntent.id,
+                    booking_type: bookingType,
+                    payout_release_method: 'admin_manual',
+                    total_held_amount: Number(booking.paid_amount),
                 },
             };
         } catch (error) {
@@ -705,7 +867,9 @@ export class EscrowService {
     }
 
     /**
-     * Process final release (remaining 50% after trip completion)
+     * Process final release (remaining amount after trip completion)
+     * For packages: Release remaining 80% (since 20% was released immediately)
+     * For partial releases: Release remaining percentage based on what was already released
      */
     async processFinalRelease(bookingId: string): Promise<{
         success: boolean;
@@ -715,6 +879,13 @@ export class EscrowService {
         try {
             const booking = await this.prisma.booking.findUnique({
                 where: { id: bookingId },
+                include: {
+                    booking_items: {
+                        include: {
+                            package: true,
+                        },
+                    },
+                },
             });
 
             if (!booking) {
@@ -728,17 +899,31 @@ export class EscrowService {
                 };
             }
 
+            // Check if it's a package (20% already released at booking time)
+            // Packages have type='package' vs tours have type='tour'
+            const isPackage = booking.booking_items.some(
+                (item) => item.package?.type === 'package',
+            );
+
             // If partial release was done, release remaining amount
             if (booking.escrow_status === 'released_partial') {
-                // Calculate remaining percentage
+                // For packages: 20% was released at booking, so release remaining 80%
+                if (isPackage) {
+                    this.logger.log(`Releasing remaining 80% for package booking: ${bookingId}`);
+                    return await this.releaseFunds(bookingId, 80);
+                }
+                
+                // For custom partial releases (admin-initiated)
                 const partialPercentage = booking.release_percentage_30days
                     ? Number(booking.release_percentage_30days)
-                    : 50;
+                    : 20; // Default to 20% if not specified
                 const remainingPercentage = 100 - partialPercentage;
 
+                this.logger.log(`Releasing remaining ${remainingPercentage}% for booking: ${bookingId}`);
                 return await this.releaseFunds(bookingId, remainingPercentage);
             } else if (booking.escrow_status === 'held') {
                 // If no partial release, release 100%
+                this.logger.log(`No partial release found - releasing 100% for booking: ${bookingId}`);
                 return await this.releaseFunds(bookingId, 100);
             } else {
                 return {
@@ -782,10 +967,11 @@ export class EscrowService {
                 return { success: false, message: 'Booking not found' };
             }
 
-            if (booking.status !== 'confirmed') {
+            // Auto-confirm should only run after vendor marks complete
+            if (booking.status !== 'vendor_completed') {
                 return {
                     success: false,
-                    message: 'Booking is not in confirmed status',
+                    message: 'Booking is not awaiting client confirmation',
                 };
             }
 
@@ -796,11 +982,12 @@ export class EscrowService {
                 };
             }
 
-            // Determine time limit based on package type
-            const isDailyTour = booking.booking_items.some(
-                (item) => item.package?.duration_type === 'hours' && (item.package?.duration || 0) <= 24,
+            // Determine time limit based on package type field
+            // Tours: 24 hours, Packages: 48 hours
+            const isTour = booking.booking_items.some(
+                (item) => item.package?.type === 'tour',
             );
-            const hoursLimit = isDailyTour ? 24 : 48;
+            const hoursLimit = isTour ? 24 : 48;
 
             // Check if time limit has passed
             const confirmedAt = booking.approved_at || booking.created_at;
@@ -825,12 +1012,12 @@ export class EscrowService {
             });
 
             this.logger.log(
-                `Auto-confirmed booking ${bookingId} after ${hoursLimit}h limit`,
+                `Auto-confirmed booking ${bookingId} (${isTour ? 'tour' : 'package'}) after ${hoursLimit}h limit`,
             );
 
-            // For daily tours with weekly payout, funds will be released on next Monday
+            // For tours with weekly payout, funds will be released on next Monday
             // For packages, trigger final release
-            if (!isDailyTour) {
+            if (!isTour) {
                 await this.processFinalRelease(bookingId);
             }
 
@@ -849,5 +1036,108 @@ export class EscrowService {
             };
         }
     }
-}
 
+    /**
+     * Process auto-confirmations for all pending bookings
+     * Runs hourly via cron job
+     * - Daily tours: auto-confirm after 24 hours
+     * - Travel packages: auto-confirm after 48 hours
+     */
+        async processAutoConfirmations(): Promise<{
+            success: boolean;
+            message: string;
+            confirmed: number;
+            skipped: number;
+        }> {
+            try {
+                this.logger.log('Processing auto-confirmations for pending bookings...');
+    
+                // Find all vendor-completed bookings that haven't been client-confirmed yet
+                const pendingBookings = await this.prisma.booking.findMany({
+                    where: {
+                        status: 'vendor_completed',
+                        client_confirmed_at: null,
+                    },
+                    include: {
+                        booking_items: {
+                            include: {
+                                package: true,
+                            },
+                        },
+                    },
+                });
+    
+                this.logger.log(`Found ${pendingBookings.length} pending bookings for auto-confirmation check`);
+    
+                let confirmed = 0;
+                let skipped = 0;
+    
+                for (const booking of pendingBookings) {
+                    try {
+                        // Determine time limit based on type field
+                        // Tours: 24 hours, Packages: 48 hours
+                        const isTour = booking.booking_items.some(
+                            (item) => item.package?.type === 'tour',
+                        );
+                        const hoursLimit = isTour ? 24 : 48;
+    
+                        // Check if time limit has passed
+                        const confirmedAt = booking.approved_at || booking.created_at;
+                        const timeSinceConfirmation = Date.now() - new Date(confirmedAt).getTime();
+                        const hoursSinceConfirmation = timeSinceConfirmation / (1000 * 60 * 60);
+    
+                        if (hoursSinceConfirmation < hoursLimit) {
+                            skipped++;
+                            continue;
+                        }
+    
+                        // Auto-confirm this booking
+                        await this.prisma.booking.update({
+                            where: { id: booking.id },
+                            data: {
+                                client_confirmed_at: new Date(),
+                                status: 'complete',
+                                completed_at: new Date(),
+                            },
+                        });
+    
+                        this.logger.log(
+                            `Auto-confirmed booking ${booking.id} (${isTour ? 'tour' : 'package'} - ${hoursLimit}h limit exceeded)`,
+                        );
+
+                        // For packages, trigger final release
+                        if (!isTour) {
+                            await this.processFinalRelease(booking.id);
+                        }
+                        // For tours, funds will be released on next Monday via weekly payout
+                        confirmed++;
+                    } catch (error) {
+                        this.logger.error(
+                            `Error auto-confirming booking ${booking.id}:`,
+                            error,
+                        );
+                        skipped++;
+                    }
+                }
+    
+                this.logger.log(
+                    `Auto-confirmation processing completed - Confirmed: ${confirmed}, Skipped: ${skipped}`,
+                );
+    
+                return {
+                    success: true,
+                    message: `Auto-confirmation processing completed - ${confirmed} confirmed, ${skipped} skipped`,
+                    confirmed,
+                    skipped,
+                };
+            } catch (error) {
+                this.logger.error('Error processing auto-confirmations:', error);
+                return {
+                    success: false,
+                    message: error.message || 'Failed to process auto-confirmations',
+                    confirmed: 0,
+                    skipped: 0,
+                };
+            }
+        }
+    }

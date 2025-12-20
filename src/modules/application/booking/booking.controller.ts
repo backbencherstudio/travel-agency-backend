@@ -187,22 +187,4 @@ export class BookingController {
       };
     }
   }
-
-  @ApiOperation({
-    summary: 'Mark booking as complete',
-    description: 'Admin or vendor marks booking as complete (triggers final payout for packages)'
-  })
-  @Post(':id/complete')
-  async markComplete(@Req() req: Request, @Param('id') id: string) {
-    try {
-      const user_id = req.user.userId;
-      const result = await this.bookingService.markBookingComplete(id, user_id);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
-  }
 }

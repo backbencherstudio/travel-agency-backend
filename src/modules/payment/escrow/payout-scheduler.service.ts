@@ -32,17 +32,25 @@ export class PayoutSchedulerService {
     }
 
     /**
-     * Daily cron job to check for auto-confirmations
+     * Hourly cron job to check for auto-confirmations
      * Runs every hour to check bookings that need auto-confirmation
+     * - Daily tours: 24 hours after vendor completion
+     * - Travel packages: 48 hours after vendor completion
      */
     @Cron(CronExpression.EVERY_HOUR)
     async handleAutoConfirmations() {
         this.logger.log('Checking for bookings needing auto-confirmation...');
 
         try {
-            // This would need to be implemented in escrow service
-            // For now, just log
-            this.logger.log('Auto-confirmation check completed');
+            const result = await this.escrowService.processAutoConfirmations();
+            
+            if (result.success) {
+                this.logger.log(
+                    `Auto-confirmation processing completed - Confirmed: ${result.confirmed}, Skipped: ${result.skipped}`,
+                );
+            } else {
+                this.logger.error(`Auto-confirmation processing failed: ${result.message}`);
+            }
         } catch (error) {
             this.logger.error('Error in auto-confirmation cron job:', error);
         }
