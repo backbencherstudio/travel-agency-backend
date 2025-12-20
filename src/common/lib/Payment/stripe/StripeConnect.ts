@@ -1,10 +1,23 @@
 import stripe from 'stripe';
 import appConfig from '../../../../config/app.config';
 
-const STRIPE_SECRET_KEY = appConfig().payment.stripe.secret_key;
-const Stripe = new stripe(STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia',
-});
+let stripeInstance: stripe = null;
+
+/**
+ * Get or create Stripe instance (lazy initialization)
+ */
+function getStripeInstance(): stripe {
+    if (!stripeInstance) {
+        const STRIPE_SECRET_KEY = appConfig().payment.stripe.secret_key;
+        if (!STRIPE_SECRET_KEY) {
+            throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+        }
+        stripeInstance = new stripe(STRIPE_SECRET_KEY, {
+            apiVersion: '2024-12-18.acacia',
+        });
+    }
+    return stripeInstance;
+}
 
 /**
  * Stripe Connect service for escrow system
@@ -22,7 +35,7 @@ export class StripeConnect {
         type?: 'express' | 'standard' | 'custom';
     }): Promise<stripe.Account> {
         try {
-            const account = await Stripe.accounts.create({
+            const account = await getStripeInstance().accounts.create({
                 type: params.type || 'express',
                 country: params.country,
                 email: params.email,
@@ -52,7 +65,7 @@ export class StripeConnect {
         refreshUrl: string,
     ): Promise<stripe.AccountLink> {
         try {
-            const accountLink = await Stripe.accountLinks.create({
+            const accountLink = await getStripeInstance().accountLinks.create({
                 account: accountId,
                 return_url: returnUrl,
                 refresh_url: refreshUrl,
@@ -85,7 +98,7 @@ export class StripeConnect {
         application_fee_amount?: number; // Platform commission in cents
     }): Promise<stripe.PaymentIntent> {
         try {
-            const paymentIntent = await Stripe.paymentIntents.create({
+            const paymentIntent = await getStripeInstance().paymentIntents.create({
                 amount: params.amount,
                 currency: params.currency,
                 customer: params.customer_id,
@@ -112,7 +125,7 @@ export class StripeConnect {
         paymentIntentId: string,
     ): Promise<stripe.PaymentIntent> {
         try {
-            const paymentIntent = await Stripe.paymentIntents.confirm(paymentIntentId);
+            const paymentIntent = await getStripeInstance().paymentIntents.confirm(paymentIntentId);
             return paymentIntent;
         } catch (error) {
             console.error('Error confirming payment intent:', error);
@@ -132,7 +145,7 @@ export class StripeConnect {
         amountToCapture?: number,
     ): Promise<stripe.PaymentIntent> {
         try {
-            const paymentIntent = await Stripe.paymentIntents.capture(
+            const paymentIntent = await getStripeInstance().paymentIntents.capture(
                 paymentIntentId,
                 amountToCapture ? { amount_to_capture: amountToCapture } : {},
             );
@@ -157,7 +170,7 @@ export class StripeConnect {
         metadata?: stripe.MetadataParam;
     }): Promise<stripe.Transfer> {
         try {
-            const transfer = await Stripe.transfers.create({
+            const transfer = await getStripeInstance().transfers.create({
                 amount: params.amount,
                 currency: params.currency,
                 destination: params.destination,
@@ -183,7 +196,7 @@ export class StripeConnect {
         try {
             // Application fees can only be retrieved, not created directly
             // They are created automatically when using application_fee_amount in PaymentIntent
-            const applicationFee = await Stripe.applicationFees.retrieve(feeId);
+            const applicationFee = await getStripeInstance().applicationFees.retrieve(feeId);
             return applicationFee;
         } catch (error) {
             console.error('Error retrieving application fee:', error);
@@ -203,7 +216,7 @@ export class StripeConnect {
         metadata?: stripe.MetadataParam;
     }): Promise<stripe.Refund> {
         try {
-            const refund = await Stripe.refunds.create({
+            const refund = await getStripeInstance().refunds.create({
                 payment_intent: params.payment_intent_id,
                 amount: params.amount, // If not specified, full refund
                 reason: params.reason,
@@ -226,7 +239,7 @@ export class StripeConnect {
         accountId: string,
     ): Promise<stripe.Account> {
         try {
-            const account = await Stripe.accounts.retrieve(accountId);
+            const account = await getStripeInstance().accounts.retrieve(accountId);
             return account;
         } catch (error) {
             console.error('Error retrieving Connect account:', error);
@@ -241,7 +254,7 @@ export class StripeConnect {
      */
     static async getTransfer(transferId: string): Promise<stripe.Transfer> {
         try {
-            const transfer = await Stripe.transfers.retrieve(transferId);
+            const transfer = await getStripeInstance().transfers.retrieve(transferId);
             return transfer;
         } catch (error) {
             console.error('Error retrieving transfer:', error);
@@ -258,7 +271,7 @@ export class StripeConnect {
         paymentIntentId: string,
     ): Promise<stripe.PaymentIntent> {
         try {
-            const paymentIntent = await Stripe.paymentIntents.retrieve(
+            const paymentIntent = await getStripeInstance().paymentIntents.retrieve(
                 paymentIntentId,
             );
             return paymentIntent;
