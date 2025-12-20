@@ -5,10 +5,14 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
 import appConfig from '../../../config/app.config';
+import { EscrowService } from 'src/modules/payment/escrow/escrow.service';
 
 @Injectable()
 export class BookingService extends PrismaClient {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+     private escrowService: EscrowService,
+  ) {
     super();
   }
 
@@ -335,6 +339,84 @@ export class BookingService extends PrismaClient {
       return {
         success: false,
         message: error.message,
+      };
+    }
+  }
+
+   /**
+   * Mark booking as complete (admin/vendor action)
+   * Triggers final payout for packages
+   */
+  async markBookingComplete(
+    bookingId: string,
+    userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userType?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      // Check if user is admin or vendor
+      const user = await UserRepository.getUserDetails(userId);
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      const isAdmin = user.type === 'admin' || user.type === 'su_admin';
+      const isVendor = user.type === 'vendor';
+
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          booking_items: {
+            include: {
+              package: true,
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        return { success: false, message: 'Booking not found' };
+      }
+
+      // Check permissions
+      if (!isAdmin && !(isVendor && booking.vendor_id === userId)) {
+        return {
+          success: false,
+          message: 'Unauthorized to mark booking as complete',
+        };
+      }
+
+      if (booking.status === 'complete') {
+        return {
+          success: false,
+          message: 'Booking already marked as complete',
+        };
+      }
+
+      // Update booking status to vendor-completed (awaiting client confirmation)
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'vendor_completed',
+        },
+      });
+
+      // Packages use event-based payout.
+      // Final release should be triggered by client confirmation
+      // (application booking confirm) or auto-confirmation cron.
+      // No payout execution on admin/vendor "complete" to avoid premature release.
+
+      return {
+        success: true,
+        message: 'Booking marked as completed by vendor; awaiting client confirmation',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to mark booking as complete',
       };
     }
   }

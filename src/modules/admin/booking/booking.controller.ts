@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
   Query,
+  Post,
 } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -116,6 +117,24 @@ async findAll(
     try {
       const booking = await this.bookingService.remove(id);
       return booking;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Vendor marks booking complete',
+    description: 'Marks booking as completed by vendor and awaits client confirmation (payout happens after client/auto confirm)'
+  })
+  @Post(':id/complete')
+  async markComplete(@Req() req: Request, @Param('id') id: string) {
+    try {
+      const user_id = req.user.userId;
+      const result = await this.bookingService.markBookingComplete(id, user_id);
+      return result;
     } catch (error) {
       return {
         success: false,
