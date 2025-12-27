@@ -52,9 +52,8 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('convert-to-vendor')
-  async convertToVendor(@Req() req: Request, @Body() { status }: { status: number }) {
+  async convertToVendor(@Req() req: Request, @Body() { user_id, status }: { user_id: string, status: number }) {
     try {
-      const user_id = req.user.userId;
       const response = await this.authService.convertToVendor(user_id, status);
       return response;
     } catch (error) {

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 // internal imports
-import { SoftdeleteMiddleware } from './middleware/softdelete.middleware';
+//import { SoftdeleteMiddleware } from './middleware/softdelete.middleware';
 
 @Injectable()
 // export class PrismaService extends PrismaClient implements OnModuleInit {
@@ -25,12 +25,14 @@ export class PrismaService
     // this.$on('query', (e) => this.logger.debug(`${e.query} ${e.params}`));
 
     // comment out this when seeding data using command line
-    if (process.env.PRISMA_ENV == '1') {
-      console.log('Prisma Middleware not called', process.env.PRISMA_ENV);
-    } else {
-      // use middleware here
-      this.$use(SoftdeleteMiddleware);
-    }
+    // Note: Prisma middleware ($use) is deprecated in Prisma v6
+    // Use Prisma Client Extensions instead if needed
+    // if (process.env.PRISMA_ENV == '1') {
+    //   console.log('Prisma Middleware not called', process.env.PRISMA_ENV);
+    // } else {
+    //   // use middleware here
+    //   this.$use(SoftdeleteMiddleware);
+    // }
   }
 
   async onModuleInit() {

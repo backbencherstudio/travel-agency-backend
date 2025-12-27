@@ -113,8 +113,6 @@ export class UserService extends PrismaClient {
       };
     }
   }
-  
-
   async findOne(id: string) {
     try {
       const user = await this.prisma.user.findUnique({
