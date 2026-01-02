@@ -5,7 +5,7 @@ import fs from 'fs';
 
 const STRIPE_SECRET_KEY = appConfig().payment.stripe.secret_key;
 const Stripe = new stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-02-24.acacia',
 });
 
 const STRIPE_WEBHOOK_SECRET = appConfig().payment.stripe.webhook_secret;
