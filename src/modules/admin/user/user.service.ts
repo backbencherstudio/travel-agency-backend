@@ -134,6 +134,7 @@ export class UserService extends PrismaClient {
           date_of_birth: true,
           avatar: true,
           billing_id: true,
+          address: true,
           packages: {
             select: {
               id: true,

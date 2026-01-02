@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -52,9 +53,9 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('convert-to-vendor')
-  async convertToVendor(@Req() req: Request, @Body() { status }: { status: number }) {
+  async convertToVendor(@Req() req: Request, @Body() { status, user_id }: { status: number, user_id: string }) {
     try {
-      const user_id = req.user.userId;
+      
       const response = await this.authService.convertToVendor(user_id, status);
       return response;
     } catch (error) {
@@ -88,15 +89,29 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('vendor-request-list')
-  async vendorRequestList(@Req() req: Request) {
-    const response = await this.authService.vendorRequestList();
-    return response;
-  }
-  catch (error) {
-    return {
-      success: false,
-      message: error.message,
-    };
+  async vendorRequestList(
+    @Req() req: Request,
+    @Query() query: {
+      page?: string;
+      limit?: string;
+    },
+  ) {
+    try {
+      const pagination = {
+        page: query.page ? parseInt(query.page) : 1,
+        limit: query.limit ? parseInt(query.limit) : 10,
+      };
+      const response = await this.authService.vendorRequestList(
+        pagination.page,
+        pagination.limit,
+      );
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
   }
 
 

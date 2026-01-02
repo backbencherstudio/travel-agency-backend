@@ -59,10 +59,25 @@ export class AuthService extends PrismaClient {
         );
       }
 
+      // Check if profile is complete
+      const isProfileComplete = !!(
+        user.name &&
+        user.username &&
+        user.email &&
+        user.avatar &&
+        user.address &&
+        user.phone_number &&
+        user.gender &&
+        user.date_of_birth
+      );
+
       if (user) {
         return {
           success: true,
-          data: user,
+          data: {
+            ...user,
+            profile_complete: isProfileComplete,
+          },
         };
       } else {
         return {
@@ -132,6 +147,12 @@ export class AuthService extends PrismaClient {
               stripe_connect_account_id: stripeConnectAccountId,
             }),
           },
+        });
+
+        // Send vendor approval email
+        await this.mailService.sendVendorApprovalEmail({
+          email: user.email,
+          name: user.name,
         });
       } else {
         await this.prisma.user.update({
@@ -215,29 +236,43 @@ export class AuthService extends PrismaClient {
     }
   }
 
-  async vendorRequestList() {
+  async vendorRequestList(page: number = 1, limit: number = 10) {
     try {
-      const vendors = await this.prisma.user.findMany({
-        where: {
-          approved_at: null,
-          vendor_request_at: {
-            not: null,
+      const skip = (page - 1) * limit;
+
+      const [vendors, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where: {
+            vendor_request_at: {
+              not: null,
+            },
+            type: 'user',
           },
-          type: 'user',
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone_number: true,
-          vendor_request_at: true,
-          avatar: true,
-          type: true,
-        },
-        orderBy: {
-          vendor_request_at: 'desc',
-        },
-      });
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone_number: true,
+            vendor_request_at: true,
+            avatar: true,
+            type: true,
+          },
+          orderBy: {
+            vendor_request_at: 'desc',
+          },
+          skip,
+          take: limit,
+        }),
+        this.prisma.user.count({
+          where: {
+            vendor_request_at: {
+              not: null,
+            },
+            type: 'user',
+          },
+        }),
+      ]);
+
       // add avatar url
       for (const record of vendors) {
         // Add file URLs
@@ -247,9 +282,22 @@ export class AuthService extends PrismaClient {
           );
         }
       }
+
+      const totalPages = Math.ceil(total / limit);
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
+
       return {
         success: true,
         data: vendors,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage,
+          hasPreviousPage,
+        },
       };
     } catch (error) {
       return {

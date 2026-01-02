@@ -1213,7 +1213,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: new Date(), rejected_at: null },
+        data: { approved_at: new Date(), rejected_at: null, status: 1 },
       });
       return {
         success: true,
@@ -1240,7 +1240,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: null, rejected_at: new Date() },
+        data: { approved_at: null, rejected_at: new Date(), status: 0 },
       });
       return {
         success: true,

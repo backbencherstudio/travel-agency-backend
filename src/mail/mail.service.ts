@@ -50,4 +50,25 @@ export class MailService {
       console.log(error);
     }
   }
+
+  // send vendor approval notification
+  async sendVendorApprovalEmail({ name, email }) {
+    try {
+      const from = `${process.env.APP_NAME} <${appConfig().mail.from}>`;
+      const subject = 'Vendor Account Approved';
+
+      // add to queue
+      await this.queue.add('sendVendorApprovalEmail', {
+        to: email,
+        from: from,
+        subject: subject,
+        template: 'vendor-approval',
+        context: {
+          name: name,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
 }
