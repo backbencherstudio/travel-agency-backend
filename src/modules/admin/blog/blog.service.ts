@@ -168,9 +168,11 @@ export class BlogService extends PrismaClient {
 
       // add user avatar
       for (const blog of blogs) {
-        blog.user['avatar_url'] = SojebStorage.url(
-          appConfig().storageUrl.avatar + blog.user.avatar,
-        );
+        if (blog.user && blog.user.avatar) {
+          blog.user['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + blog.user.avatar,
+          );
+        }
       }
 
       const totalPages = Math.ceil(total / limit);
@@ -243,9 +245,11 @@ export class BlogService extends PrismaClient {
       }
 
       // add user avatar
-      blog.user['avatar_url'] = SojebStorage.url(
-        appConfig().storageUrl.avatar + blog.user.avatar,
-      );
+      if (blog.user && blog.user.avatar) {
+        blog.user['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + blog.user.avatar,
+        );
+      }
 
       return {
         success: true,
