@@ -18,6 +18,7 @@ export class MailProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('completed')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onCompleted(job: Job, result: any) {
     this.logger.log(`Job ${job.id} with name ${job.name} completed`);
   }
@@ -38,6 +39,16 @@ export class MailProcessor extends WorkerHost {
           break;
         case 'sendOtpCodeToEmail':
           this.logger.log('Sending OTP code to email');
+          await this.mailerService.sendMail({
+            to: job.data.to,
+            from: job.data.from,
+            subject: job.data.subject,
+            template: job.data.template,
+            context: job.data.context,
+          });
+          break;
+        case 'sendVendorApprovalEmail':
+          this.logger.log('Sending vendor approval email');
           await this.mailerService.sendMail({
             to: job.data.to,
             from: job.data.from,

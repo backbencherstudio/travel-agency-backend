@@ -113,8 +113,6 @@ export class UserService extends PrismaClient {
       };
     }
   }
-  
-
   async findOne(id: string) {
     try {
       const user = await this.prisma.user.findUnique({
@@ -134,6 +132,7 @@ export class UserService extends PrismaClient {
           date_of_birth: true,
           avatar: true,
           billing_id: true,
+          address: true,
           packages: {
             select: {
               id: true,

@@ -213,6 +213,7 @@ export class PackageService extends PrismaClient {
               id: true,
               name: true,
               type: true,
+              avatar: true,
             },
           },
           package_languages: {
@@ -315,6 +316,13 @@ export class PackageService extends PrismaClient {
                 appConfig().storageUrl.package + file.file,
               );
             }
+          }
+
+           // add avatar url to user
+          if (record.user && record.user.avatar) {
+            record.user['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + record.user.avatar,
+            );
           }
 
           // Calculate average rating
@@ -1213,7 +1221,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: new Date(), rejected_at: null },
+        data: { approved_at: new Date(), rejected_at: null, status: 1 },
       });
       return {
         success: true,
@@ -1240,7 +1248,7 @@ export class PackageService extends PrismaClient {
       }
       await this.prisma.package.update({
         where: { id },
-        data: { approved_at: null, rejected_at: new Date() },
+        data: { approved_at: null, rejected_at: new Date(), status: 0 },
       });
       return {
         success: true,

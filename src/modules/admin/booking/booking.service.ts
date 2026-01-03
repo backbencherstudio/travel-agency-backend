@@ -105,6 +105,15 @@ export class BookingService extends PrismaClient {
                 avatar: true,
               },
             },
+            vendor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone_number: true,
+                avatar: true,
+              },
+            },
             created_at: true,
             updated_at: true,
           },
@@ -120,6 +129,17 @@ export class BookingService extends PrismaClient {
           booking.user['avatar_url'] = SojebStorage.url(
             appConfig().storageUrl.avatar + booking.user.avatar,
           );
+        }
+        if (booking.vendor && booking.vendor.avatar) {
+          booking.vendor['avatar_url'] = SojebStorage.url(
+            appConfig().storageUrl.avatar + booking.vendor.avatar,
+          );
+        }
+
+        // expose vendor data under creator key for clients expecting creator
+        if (booking.vendor) {
+          booking['creator'] = booking.vendor;
+          delete booking.vendor; // avoid duplicate vendor/creator data
         }
       });
 
@@ -176,6 +196,15 @@ export class BookingService extends PrismaClient {
             select: {
               name: true,
               email: true,
+              avatar: true,
+            },
+          },
+          vendor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone_number: true,
               avatar: true,
             },
           },
@@ -243,6 +272,17 @@ export class BookingService extends PrismaClient {
         booking.user['avatar_url'] = SojebStorage.url(
           appConfig().storageUrl.avatar + booking.user.avatar,
         );
+      }
+      if (booking.vendor && booking.vendor.avatar) {
+        booking.vendor['avatar_url'] = SojebStorage.url(
+          appConfig().storageUrl.avatar + booking.vendor.avatar,
+        );
+      }
+
+      // expose vendor data under creator key for clients expecting creator
+      if (booking.vendor) {
+        booking['creator'] = booking.vendor;
+        delete booking.vendor; // avoid duplicate vendor/creator data
       }
 
       return {

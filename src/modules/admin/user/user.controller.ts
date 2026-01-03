@@ -71,7 +71,6 @@ export class UserController {
     }
   }
 
-
   // approve user
   @Roles(Role.ADMIN)
   @ApiResponse({ description: 'Approve a user' })
