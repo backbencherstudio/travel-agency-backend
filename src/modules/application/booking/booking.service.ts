@@ -503,7 +503,9 @@ export class BookingService {
           booking_type: true,
           booking_date_time: true,
           payment_transactions: { select: { status: true, amount: true, currency: true } },
-          booking_items: { select: { package: { select: { name: true } } } },
+          booking_items: { select: { package: { select: {id: true 
+            
+            , name: true } } } },
           booking_coupons: {
             select: {
               id: true,

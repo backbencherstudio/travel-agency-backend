@@ -213,6 +213,7 @@ export class PackageService extends PrismaClient {
               id: true,
               name: true,
               type: true,
+              avatar: true,
             },
           },
           package_languages: {
@@ -315,6 +316,13 @@ export class PackageService extends PrismaClient {
                 appConfig().storageUrl.package + file.file,
               );
             }
+          }
+
+           // add avatar url to user
+          if (record.user && record.user.avatar) {
+            record.user['avatar_url'] = SojebStorage.url(
+              appConfig().storageUrl.avatar + record.user.avatar,
+            );
           }
 
           // Calculate average rating
