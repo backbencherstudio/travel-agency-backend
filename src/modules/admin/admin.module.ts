@@ -54,4 +54,6 @@ import { GiftCardModule } from './gift-card/gift-card.module';
     GiftCardModule,
   ],
 })
+
+// Admin module
 export class AdminModule { }
